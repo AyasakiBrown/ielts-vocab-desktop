@@ -76,3 +76,20 @@ test('Windows 首次启动从旧版 localStorage 迁移，更新后以稳定文�
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'desktop.js'),'utf8'),context);
   assert.equal(JSON.parse(map.get('ielts_nb')).length,0);assert.equal(Object.keys(store.read().decks.p1.prog).length,0);
 });
+
+test('练习断点随备份恢复，旧备份清除过时的生词本断点',()=>{
+ const root=fixture();root.decks.notebook.sessions={'dict:rw':{words:['apple'],idx:0,draft:'app',ts:200}};
+ root.decks.p1.settings.sess={version:2,ids:[1,0],idx:1,mode:'flash',deck:'all',ts:200};
+ const restored=Data.parse(Data.pack(root));assert.deepEqual(restored.decks.notebook.sessions,root.decks.notebook.sessions);
+ const values=new Map();const storage={setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
+ Data.hydrate(restored,storage);assert.deepEqual(JSON.parse(values.get('ielts_nb_sessions')),root.decks.notebook.sessions);
+ Data.hydrate(fixture(),storage);assert.deepEqual(JSON.parse(values.get('ielts_nb_sessions')),{});
+});
+
+test('逐次错词记录随完整备份及恢复保留，旧备份不会残留新错次',()=>{
+ const root=fixture();root.decks.wrong.events={e1:{word:'apple',date:'2026-09-21',time:'12:00:00',ts:100,source:'p1',mode:'dict',answer:'aple'}};
+ const restored=Data.parse(Data.pack(root));assert.deepEqual(restored.decks.wrong.events,root.decks.wrong.events);
+ const values=new Map(),storage={setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
+ Data.hydrate(restored,storage);assert.deepEqual(JSON.parse(values.get('ielts_wrong_events')),root.decks.wrong.events);
+ Data.hydrate(fixture(),storage);assert.deepEqual(JSON.parse(values.get('ielts_wrong_events')),{});
+});

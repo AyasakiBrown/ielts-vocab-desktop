@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script src="mistakes.js"></script>
+<script src="srs.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>雅思词汇真经 · 听写记忆</title>
@@ -202,7 +204,7 @@ button{-webkit-tap-highlight-color:transparent}
     <div class="hstats">
       <div class="center"><b id="hsDone">0</b><br>今日</div>
       <div class="center"><b id="hsAcc">—</b><br>正确率</div>
-      <div class="center"><b id="hsMaster">0</b><br>已掌握</div>
+      <div class="center"><b id="hsMaster">0</b><br>较稳定</div>
     </div>
     <button class="gear" id="gearBtn" title="设置">⚙️</button>
   </div>
@@ -210,6 +212,9 @@ button{-webkit-tap-highlight-color:transparent}
 
 <div class="wrap">
   <div class="decks" id="decks"></div>
+  <div class="practice-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+    <button class="btn alt" id="restartPractice" title="从第一题重做当前练习，保留历史记录">↺ 从头重做</button>
+  </div>
   <div class="tabs" id="tabs">
     <button class="tab on" data-mode="dict">✍️ 听写</button>
     <button class="tab" data-mode="flash">🃏 记忆卡</button>
@@ -407,6 +412,7 @@ const CHN={1:"自然地理",2:"植物研究",3:"动物保护",4:"太空探索",5
 const CATS = (()=>{
   const c={ all:{label:'全部', test:()=>true} };
   for(let n=1;n<=22;n++){ const k='ch'+n; c[k]={label:n+'·'+CHN[n], test:(v=>v.cat===k)}; }
+  c.due={label:'📅到期复习', test:v=>RV.isDue(v.en)};
   c.wrong={label:'❌错题本', test:v=>{const p=prog[v.en]; return p&&p.bad>0&&!isMastered(v);}};
   c.star={label:'🔖收藏', test:v=>{const p=prog[v.en]; return p&&p.star;}};
   return c;
@@ -416,7 +422,7 @@ const CATS = (()=>{
 const LS=(k,d)=>{try{const x=localStorage.getItem(k);return x?JSON.parse(x):d;}catch(e){return d;}};
 const DECK='vj';
 const BOOT=(window.__INITIAL_STATE__&&window.__INITIAL_STATE__.decks&&window.__INITIAL_STATE__.decks[DECK])||null;
-if(BOOT){ try{ var _MG=function(key,bp){ var cur={}; try{cur=JSON.parse(localStorage.getItem(key))||{};}catch(e){} if(bp){for(var k in bp){ if(!cur[k]||((bp[k]&&bp[k].box)||0)>((cur[k]&&cur[k].box)||0)) cur[k]=bp[k]; }} localStorage.setItem(key,JSON.stringify(cur)); }; if(BOOT.prog)_MG('ielts_vj_prog',BOOT.prog); if(BOOT.settings&&!localStorage.getItem('ielts_vj_settings'))localStorage.setItem('ielts_vj_settings',JSON.stringify(BOOT.settings)); if(BOOT.daily&&!localStorage.getItem('ielts_vj_daily'))localStorage.setItem('ielts_vj_daily',JSON.stringify(BOOT.daily)); }catch(e){} }
+if(BOOT){ try{ var _MG=function(key,bp){ var cur={}; try{cur=JSON.parse(localStorage.getItem(key))||{};}catch(e){} var nw=function(a,b){ var at=(a&&a.t)||0, bt=(b&&b.t)||0; if(at||bt) return at>bt; return ((a&&a.box)||0)>((b&&b.box)||0); }; if(bp){for(var k in bp){ if(!Object.prototype.hasOwnProperty.call(cur,k)||!cur[k]||nw(bp[k],cur[k])) cur[k]=bp[k]; }} localStorage.setItem(key,JSON.stringify(cur)); }; if(BOOT.prog)_MG('ielts_vj_prog',BOOT.prog); if(BOOT.settings&&!localStorage.getItem('ielts_vj_settings'))localStorage.setItem('ielts_vj_settings',JSON.stringify(BOOT.settings)); if(BOOT.daily&&!localStorage.getItem('ielts_vj_daily'))localStorage.setItem('ielts_vj_daily',JSON.stringify(BOOT.daily)); }catch(e){} }
 function mirror(){ try{ if(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.persist){ webkit.messageHandlers.persist.postMessage(JSON.stringify({deck:DECK,payload:{prog:prog,daily:daily,settings:settings}})); } }catch(e){} }
 // 听写拼错时把词收进共享「错词本」(wrong.html 读取 deck:'wrong')。
 function recordWrong(it){ try{
@@ -432,13 +438,20 @@ function recordWrong(it){ try{
 const SS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} mirror();};
 const DEFAULTS={accent:'en-GB',voiceURI:'',rate:0.95,auto:true,dictRead:'word',front:'en',quizDir:'zh2en',order:'smart',dark:false};
 let settings=Object.assign({},DEFAULTS,LS('ielts_vj_settings',{}));
-let prog=LS('ielts_vj_prog',{});            // {en:{seen,ok,bad,streak,box,star,last}}
+let prog=LS('ielts_vj_prog',{});            // {en:{seen,ok,bad,streak,box,star,last,t}} — t: ms of the last change, newer wins on merge
 let daily=LS('ielts_vj_daily',{date:'',done:0,ok:0});
 
 function saveSettings(){SS('ielts_vj_settings',settings);}
 function saveProg(){SS('ielts_vj_prog',prog);}
 function P(en){ if(!prog[en]) prog[en]={seen:0,ok:0,bad:0,streak:0,box:0,star:false,last:null}; return prog[en]; }
-function isMastered(v){const p=prog[v.en]; return !!p&&(p.box>=3);}
+// Review ledger (srs.js), shared with the other decks, 生词本 and 错词本. The stub only
+// keeps practice usable if that script failed to load; it schedules nothing.
+const RV=window.IELTSReview||{live:false,
+  grade:(typed,alts)=>{const f=s=>String(s||'').toLowerCase().trim().replace(/\s+/g,' '), t=f(typed); if(!t)return {ok:false,kind:'empty',empty:true}; const a=alts.find(x=>f(x)===t); return a?{ok:true,kind:'exact',exact:true,clean:true,want:a}:{ok:false,kind:'bad',want:alts[0]};},
+  answer:()=>null, flag:()=>null, reset:()=>{}, seedLegacy:()=>0, isDue:()=>false, stable:()=>false, badge:()=>'', info:()=>({stage:'new',label:''})};
+// 较稳定 = answered unaided on a later day after a gap of a week or more
+function isMastered(v){ if(RV.live) return RV.stable(v.en); const p=prog[v.en]; return !!p&&(p.box>=3); }
+function stageOf(v){ const s=RV.info(v.en).stage; if(s!=='new') return s; const p=prog[v.en]; return p&&p.seen?'learning':'new'; }
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
 function bumpDaily(ok){const t=todayStr(); if(daily.date!==t){daily={date:t,done:0,ok:0};} daily.done++; if(ok)daily.ok++; SS('ielts_vj_daily',daily); updateHStats();}
 
@@ -493,7 +506,7 @@ function speak(text,rate){
 /* ---------- list building ---------- */
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function deckBase(deck){return VOCAB.filter(CATS[deck||state.deck].test);}
-function scoreItem(v){const p=prog[v.en]; if(!p||!p.seen)return 0; if(p.bad>p.ok)return 1; return 2+(p.box||0);}
+function scoreItem(v){ if(RV.isDue(v.en))return -1; const p=prog[v.en]; if(!p||!p.seen)return 0; if(p.bad>p.ok)return 1; return 2+(p.box||0);}
 function ordered(arr){
   let a=arr.slice();
   if(settings.order==='shuffle') shuffle(a);
@@ -508,32 +521,28 @@ function buildList(){
 
 /* ---------- answer checking ---------- */
 function norm(s){return (s||'').toLowerCase().trim().replace(/\s+/g,' ');}
-function loose(s){return norm(s).replace(/[-\s]/g,'');}
-function variants(w){
-  const o=new Set([w]);
-  const add=v=>o.add(v);
-  if(/ise\b/.test(w))add(w.replace(/ise\b/,'ize'));
-  if(/ize\b/.test(w))add(w.replace(/ize\b/,'ise'));
-  if(/isation\b/.test(w))add(w.replace(/isation\b/,'ization'));
-  if(/our\b/.test(w))add(w.replace(/our\b/,'or'));            // colour->color
-  if(/our([a-z])/.test(w))add(w.replace(/our([a-z])/,'or$1')); // neighbourhood->neighborhood
-  if(/re\b/.test(w))add(w.replace(/re\b/,'er'));               // centre->center
-  if(/ogue\b/.test(w))add(w.replace(/ogue\b/,'og'));
-  return [...o];
+// British and American spellings both pass (verified list in srs.js); letters right but
+// spacing/apostrophe wrong is accepted once as a format slip and never counts as remembered.
+function check(typed,item){ return RV.grade(typed,item.alts); }
+function okTitle(res,hinted){
+  if(!res.clean) return '⚠️ 字母都对，但标准写法是「'+esc(res.want)+'」（空格或撇号有误，本次不计入掌握）';
+  if(hinted) return '✅ 正确（用了首字母提示，本次不计入掌握）';
+  if(res.kind==='variant') return '✅ 正确！（英式 / 美式拼写均可）';
+  return '✅ 正确！';
 }
-function check(typed,item){
-  const t=norm(typed); if(!t) return {ok:false,empty:true};
-  if(item.alts.some(a=>norm(a)===t)) return {ok:true,exact:true};
-  const tl=loose(typed);
-  if(item.alts.some(a=>loose(a)===tl)) return {ok:true,exact:false};
-  if(item.alts.some(a=>variants(norm(a)).some(v=>v===t||loose(v)===tl))) return {ok:true,exact:false};
-  return {ok:false};
-}
-function recordResult(item,ok){
+// track: 'd' 听写拼写 / 'm' 词义选择; soft: right only with a hint or a format slip
+function recordResult(item,ok,track,soft){
   const p=P(item.en); p.seen++;
-  if(ok){p.ok++;p.streak++;p.box=Math.min(5,p.box+1);p.last=true;}
+  if(ok){p.ok++; if(!soft){p.streak++;p.box=Math.min(5,p.box+1);} p.last=true;}
   else{p.bad++;p.streak=0;p.box=0;p.last=false;}
+  p.t=Date.now();
   saveProg(); bumpDaily(ok);
+  return RV.answer(Object.assign({},item,{src:DECK}),track||'d',ok?(soft?'soft':'ok'):'bad');
+}
+// 错词隔几题再测: bring a missed word back four questions later in the same round
+function requeue(it){
+  if(state.list.slice(state.idx+1).some(v=>v.id===it.id)) return;
+  state.list.splice(Math.min(state.list.length,state.idx+4),0,it);
 }
 function diffHTML(typed,correct){
   const t=norm(typed), c=correct;
@@ -564,12 +573,12 @@ function renderDict(){
   $('dTags').style.display='inline-block';
   $('dProg').textContent=`${state.idx+1} / ${list.length}　·　本轮 ✓${state.session.ok} ✗${state.session.bad}`;
   paintProgress('d',state.idx,list.length);
-  saveSess();
-  state.answered=false;
+  state.answered=false; state.hinted=false;
   $('dHint').innerHTML='';
   const inp=$('dictInput'); inp.value=''; inp.className=''; inp.readOnly=false; inp.focus();
   $('dFb').className='fb'; $('dFb').innerHTML='';
   $('dSubmit').textContent='提交 ⏎';
+  saveSess();
   if(settings.auto) setTimeout(()=>dictSpeak(),120);
 }
 function catName(c){return CHN[+String(c).replace('ch','')]||c;}
@@ -579,37 +588,45 @@ function submitDict(){
   const inp=$('dictInput'); const typed=inp.value;
   const res=check(typed,it);
   if(res.empty){ inp.focus(); inp.style.animation='none'; void inp.offsetWidth; inp.style.animation='pop .2s'; return; }
+  const answerRound=state.session;
   state.answered=true; inp.readOnly=true;  // readOnly, NOT disabled — disabling blurs the input and iOS drops the keyboard between words
-  recordResult(it,res.ok);
+  const hinted=!!state.hinted, soft=res.ok&&(hinted||!res.clean);
+  const sr=recordResult(it,res.ok,'d',soft);
   state.session.done++; res.ok?state.session.ok++:state.session.bad++;
-  if(!res.ok){ state.session.wrong.push(it); recordWrong(it); }
+  if(!res.ok){ state.session.wrong.push(it); recordWrong(it); requeue(it); }
+  const dgHTML=(!res.ok&&RV.diagnose)?`<div class="muted" style="font-size:13.5px;margin-top:8px;line-height:1.6">${RV.explain(RV.diagnose(typed,it.alts))}</div>`:'';
+  const srHTML=sr&&sr.text?`<div class="muted" style="font-size:12.5px;margin-top:8px">📅 ${esc(sr.text)}</div>`:'';
   const fb=$('dFb');
   const noteHTML=it.note?`<div class="exzh">${esc(it.note)}</div>`:'';
   const colHTML=it.col?`<div class="colloc">🗣️ <b>${esc(it.col)}</b></div>`:'';
   if(res.ok){
     inp.className='good';
     fb.className='fb good show';
-    fb.innerHTML=`<h3 style="color:var(--ok)">✅ 正确！${res.exact?'':'（已接受英美/标点变体）'}</h3>
+    fb.innerHTML=`<h3 style="color:${soft?'var(--star)':'var(--ok)'}">${okTitle(res,hinted)}</h3>
       <div class="ans"><span class="c">${esc(it.en)}</span></div>
-      <div class="meaning">${posZh(it)}</div>${colHTML}${noteHTML}`;
-    setTimeout(()=>{ if(state.answered&&curItem()===it) nextDict(); },1050);
+      <div class="meaning">${posZh(it)}</div>${colHTML}${noteHTML}${srHTML}`;
+    if(soft) $('dSubmit').textContent='下一个 ⏎';   // stay on the correction until the learner moves on
+    else setTimeout(()=>{ if(state.mode==='dict'&&state.session===answerRound&&state.answered&&curItem()===it) nextDict(); },1050);
   }else{
     inp.className='wrong';
     fb.className='fb bad show';
     fb.innerHTML=`<h3 style="color:var(--bad)">❌ 再看一眼拼写</h3>
       <div class="ans">${diffHTML(typed,it.alts[0])}${it.alts.length>1?` <span class="muted" style="font-size:16px">/ ${esc(it.alts.slice(1).join(' / '))}</span>`:''}</div>
-      <div class="yourans">你写的：<del>${esc(typed||'（空）')}</del></div>
-      <div class="meaning" style="margin-top:6px">${posZh(it)}</div>${colHTML}${noteHTML}`;
+      <div class="yourans">你写的：<del>${esc(typed||'（空）')}</del></div>${dgHTML}
+      <div class="meaning" style="margin-top:6px">${posZh(it)}</div>${colHTML}${noteHTML}${srHTML}`;
     $('dSubmit').textContent='下一个 ⏎';
   }
+  if(!res.ok) IELTSMistakes.record(it,DECK,'dict',typed);
   paintProgress('d',state.idx+1,state.list.length);
+  saveSess();
 }
 function nextDict(){ state.idx++; renderDict(); }
 function skipDict(){ if(state.idx<state.list.length){ state.idx++; renderDict(); } }
 function dictSummary(){
+  state.answered=false; saveSess();
   const s=state.session;
   const acc=s.done?Math.round(s.ok/s.done*100):0;
-  const wrongList=s.wrong.map(w=>`<span class="pill" style="margin:3px">${esc(w.en)}</span>`).join('');
+  const wrongList=[...new Map(s.wrong.map(v=>[v.id,v])).values()].map(w=>`<span class="pill" style="margin:3px">${esc(w.en)}</span>`).join('');
   $('dFb').className='fb'; $('dFb').innerHTML='';
   const card=document.querySelector('#m-dict .card');
   card.innerHTML=`<div class="center">
@@ -622,12 +639,13 @@ function dictSummary(){
       <div class="stat"><div class="v">${acc}%</div><div class="l">正确率</div></div>
     </div>
     ${s.wrong.length?`<div style="text-align:left"><b>错词回顾：</b><div style="margin:8px 0">${wrongList}</div></div>`:'<p class="muted">全部答对，太强了！</p>'}
+    <p class="muted" style="font-size:12.5px">当天答对只算当次纠正；隔天无提示答对才会延长复习间隔。到期的词会出现在首页「📅 今日复习」。</p>
     <div class="row" style="gap:10px;margin-top:20px">
       ${s.wrong.length?`<button class="btn lg" id="dRetryWrong" style="flex:1">🔁 只练错词</button>`:''}
       <button class="btn primary lg" id="dAgain" style="flex:1">🔄 再来一轮</button>
     </div>
   </div>`;
-  if(s.wrong.length) $('dRetryWrong').onclick=()=>{ const w=s.wrong.slice(); restoreDictCard(); state.list=w; state.idx=0; state.answered=false; state.session={done:0,ok:0,bad:0,wrong:[]}; renderDict(); };
+  if(s.wrong.length) $('dRetryWrong').onclick=()=>{ const w=[...new Map(s.wrong.map(v=>[v.id,v])).values()]; restoreDictCard(); state.list=w; state.idx=0; state.answered=false; state.session={done:0,ok:0,bad:0,wrong:[]}; renderDict(); };
   $('dAgain').onclick=()=>{ restoreDictCard(); buildList(); renderDict(); };
 }
 let dictCardHTML=null;
@@ -679,7 +697,9 @@ document.addEventListener('visibilitychange',()=>{ if(document.visibilityState!=
 function flashEmpty(){ $('fFront').innerHTML='<div class="empty"><div class="big">📭</div>该词库暂无单词</div>'; $('fBack').innerHTML=''; $('fProg').textContent=''; }
 function flipFlash(){ if(state.list.length){ $('flash').classList.toggle('flip'); if($('flash').classList.contains('flip')&&settings.front==='zh'){const it=state.list[state.idx]; speak(it.say);} } }
 function flashNext(d){ if(!state.list.length)return; state.idx=(state.idx+d+state.list.length)%state.list.length; renderFlash(); }
-function flashMark(easy){ const it=state.list[state.idx]; if(!it)return; const p=P(it.en); p.seen++; if(easy){p.box=Math.min(5,p.box+1);p.streak++;p.last=true;} else {p.box=0;p.streak=0;} saveProg(); updateHStats(); flashNext(1); }
+// Self-report proves nothing either way: 记住了 leaves the review level alone, 不熟 only
+// brings the word into today's review.
+function flashMark(easy){ const it=state.list[state.idx]; if(!it)return; const p=P(it.en); p.seen++; if(easy){p.box=Math.min(5,p.box+1);p.streak++;p.last=true;} else {p.box=0;p.streak=0; RV.flag(Object.assign({},it,{src:DECK}),'m');} p.t=Date.now(); saveProg(); updateHStats(); flashNext(1); }
 
 /* ============ QUIZ ============ */
 let quizAnswered=false;
@@ -688,7 +708,7 @@ function posBadge(it){ const p=posStr(it); return p?' <span class="pos">'+esc(p)
 function renderQuiz(){
   $('qDeck').textContent=CATS[state.deck].label;
   const list=state.list;
-  if(list.length<2){ $('qPrompt').textContent='词太少，换个词库'; $('qOpts').innerHTML=''; $('qDir').textContent=''; return; }
+  if(!list.length){ $('qPrompt').textContent='当前词库没有可练习的词'; $('qOpts').innerHTML=''; $('qDir').textContent=''; return; }
   if(state.idx>=list.length){ return quizSummary(); }
   const it=list[state.idx]; quizAnswered=false;
   $('qProg').textContent=`${state.idx+1} / ${list.length}　·　✓${state.session.ok}`;
@@ -700,7 +720,8 @@ function renderQuiz(){
   if(z2e) $('qPrompt').innerHTML=esc(it.zh)+posBadge(it); else $('qPrompt').textContent=it.en;
   if(!z2e){} else if(settings.auto){/* don't reveal audio in zh2en to avoid giving answer*/}
   // distractors
-  const pool=deckBase().filter(v=>v.id!==it.id);
+  const scopedPool=deckBase().filter(v=>v.id!==it.id);
+  const pool=scopedPool.length>=3?scopedPool:VOCAB.filter(v=>v.id!==it.id);
   const sameCat=pool.filter(v=>v.cat===it.cat);
   const picks=shuffle((sameCat.length>=3?sameCat:pool).slice()).slice(0,3);
   const opts=shuffle([it,...picks]);
@@ -716,8 +737,9 @@ function renderQuiz(){
 function answerQuiz(btn,chosen,correct){
   if(quizAnswered)return; quizAnswered=true;
   const ok=chosen.id===correct.id;
-  recordResult(correct,ok);
-  state.session.done++; ok?state.session.ok++:state.session.bad++; if(!ok)state.session.wrong.push(correct);
+  recordResult(correct,ok,'m',false);
+  state.session.done++; ok?state.session.ok++:state.session.bad++; if(!ok){state.session.wrong.push(correct);recordWrong(correct);requeue(correct);}
+  if(!ok) IELTSMistakes.record(correct,DECK,'quiz',settings.quizDir==='zh2en'?chosen.alts[0]:chosen.zh,{alt:{w:chosen.alts[0],zh:chosen.zh}});
   const _z2e=settings.quizDir==='zh2en';
   [...$('qOpts').children].forEach(b=>{
     b.disabled=true;
@@ -728,17 +750,25 @@ function answerQuiz(btn,chosen,correct){
   if(!ok) btn.classList.add('wrong');
   if(settings.quizDir==='zh2en') speak(correct.say);
   $('qNext').classList.remove('hide'); $('qNext').focus();
+  saveSess();
 }
 function quizNext(){ state.idx++; renderQuiz(); }
 function quizSummary(){
+  quizAnswered=false; saveSess();
   const s=state.session, acc=s.done?Math.round(s.ok/s.done*100):0;
   $('qPrompt').textContent=''; $('qDir').textContent=''; paintProgress('q',1,1);
   $('qOpts').innerHTML=`<div style="grid-column:1/-1" class="center">
     <div style="font-size:50px">${acc>=80?'🎉':'💪'}</div>
     <h2>得分 ${s.ok}/${s.done}（${acc}%）</h2>
     ${s.wrong.length?`<p class="muted">错词：${s.wrong.map(w=>esc(w.en)).join('、')}</p>`:'<p class="muted">全对！</p>'}
-    <button class="btn primary lg" id="qAgain" style="margin-top:10px">🔄 再来一轮</button></div>`;
+    ${s.wrong.length?`<button class="btn primary lg" id="qRetryWrong" style="margin-top:10px">重练本轮错题（${s.wrong.length}）</button>`:''}
+    <button class="btn ${s.wrong.length?'':'primary'} lg" id="qAgain" style="margin-top:10px">🔄 再来一轮</button></div>`;
   $('qNext').classList.add('hide');
+  if(s.wrong.length) $('qRetryWrong').onclick=()=>{
+    state.list=[...new Map(s.wrong.map(v=>[v.id,v])).values()];
+    state.idx=0; state.answered=false; quizAnswered=false;
+    state.session={done:0,ok:0,bad:0,wrong:[]}; renderQuiz();
+  };
   $('qAgain').onclick=()=>{ buildList(); renderQuiz(); };
 }
 
@@ -753,7 +783,7 @@ function renderBrowse(){
     const tr=document.createElement('tr');
     const starred=P(it.en).star;
     tr.innerHTML=`<td><button class="starbtn ${starred?'on':''}" data-en="${escA(it.en)}">${starred?'★':'☆'}</button></td>
-      <td class="en">${esc(it.en)}</td>
+      <td class="en">${esc(it.en)}${RV.badge(it.en)?`<div class="tnote">📅 ${esc(RV.badge(it.en))}</div>`:''}</td>
       <td class="zh">${posZh(it)}</td>
       <td>${esc(it.col)}${it.note?`<div class="tnote">${esc(it.note)}</div>`:''}</td>
       <td><button class="rowspk" data-say="${escA(it.say)}">🔊</button></td>`;
@@ -764,15 +794,21 @@ function renderBrowse(){
 /* ============ STATS ============ */
 function renderStats(){
   const total=VOCAB.length;
-  let seen=0,mastered=0,learning=0,wrongbook=0,starred=0;
-  VOCAB.forEach(v=>{const p=prog[v.en]; if(p&&p.seen)seen++; if(isMastered(v))mastered++; else if(p&&p.seen)learning++; if(p&&p.bad>0&&!isMastered(v))wrongbook++; if(p&&p.star)starred++;});
+  let wrongbook=0,starred=0,due=0;
+  const n={new:0,learning:0,relearn:0,fresh:0,firming:0,stable:0,recheck:0};
+  VOCAB.forEach(v=>{const p=prog[v.en]; n[stageOf(v)]++; if(RV.isDue(v.en))due++; if(p&&p.bad>0&&!isMastered(v))wrongbook++; if(p&&p.star)starred++;});
   $('statGrid').innerHTML=`
     <div class="stat"><div class="v">${total}</div><div class="l">总词数</div></div>
-    <div class="stat"><div class="v" style="color:var(--ok)">${mastered}</div><div class="l">已掌握</div></div>
-    <div class="stat"><div class="v" style="color:var(--brand)">${learning}</div><div class="l">学习中</div></div>
-    <div class="stat"><div class="v">${total-seen}</div><div class="l">未学习</div></div>
+    <div class="stat"><div class="v" style="color:var(--ok)">${n.stable}</div><div class="l">较稳定</div></div>
+    <div class="stat"><div class="v" style="color:var(--brand)">${n.firming}</div><div class="l">待巩固</div></div>
+    <div class="stat"><div class="v" style="color:var(--brand)">${n.fresh}</div><div class="l">刚学会</div></div>
+    <div class="stat"><div class="v">${n.learning+n.relearn}</div><div class="l">学习中 / 遗忘重学</div></div>
+    <div class="stat"><div class="v">${n.recheck}</div><div class="l">待复核</div></div>
+    <div class="stat"><div class="v">${n.new}</div><div class="l">未学习</div></div>
+    <div class="stat"><div class="v" style="color:var(--bad)">${due}</div><div class="l">今日到期</div></div>
     <div class="stat"><div class="v" style="color:var(--bad)">${wrongbook}</div><div class="l">错题本</div></div>
-    <div class="stat"><div class="v" style="color:var(--star)">${starred}</div><div class="l">收藏</div></div>`;
+    <div class="stat"><div class="v" style="color:var(--star)">${starred}</div><div class="l">收藏</div></div>
+    <p class="muted" style="grid-column:1/-1;font-size:12.5px;margin:4px 0 0;text-align:left">刚学会：当天无提示答对　·　待巩固：隔天复测通过　·　较稳定：间隔一周以上仍答对　·　待复核：旧版「已掌握」，需无提示再测一次。听写与选择题分开记录。</p>`;
   const cats=Object.keys(CHN).map(n=>'ch'+n);
   $('statBars').innerHTML=cats.map(c=>{
     const arr=VOCAB.filter(v=>v.cat===c); const m=arr.filter(isMastered).length;
@@ -811,7 +847,20 @@ function paintProgress(pre,pos,len){
   const cv=$(pre+'Cov');
   if(cv) cv.textContent=st.total?(st.seen>=st.total?`本词库 ${st.total} 词已全部学过 ✓`:`本词库已学 ${st.seen} / ${st.total}（${Math.round(st.seen/st.total*100)}%）`):'';
 }
-function saveSess(){ settings.sess={deck:state.deck,mode:state.mode,idx:state.idx,ts:Date.now()}; saveSettings(); }
+function saveSess(){
+  if(!['dict','flash','quiz'].includes(state.mode)||!state.list.length) return;
+  // Store the actual shuffled/smart queue. Submitted answers resume at the next
+  // word so reopening cannot count the same answer twice.
+  const answered=(state.mode==='dict'&&state.answered)||(state.mode==='quiz'&&quizAnswered);
+  settings.sess={version:2,deck:state.deck,mode:state.mode,
+    ids:state.list.map(v=>v.id),idx:Math.min(state.list.length,state.idx+(answered?1:0)),
+    session:{...state.session,wrong:state.session.wrong.map(v=>v.id)},
+    draft:state.mode==='dict'&&!answered&&$('dictInput')?$('dictInput').value:'',ts:Date.now()};
+  saveSettings();
+}
+window.addEventListener('pagehide',saveSess);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveSess();});
+document.addEventListener('input',e=>{if(e.target.id==='dictInput')saveSess();});
 let _toastT=null;
 function toast(msg){
   let t=document.getElementById('__toast');
@@ -826,14 +875,22 @@ function restoreSession(){
   try{ const bs=BOOT&&BOOT.settings&&BOOT.settings.sess; if(bs&&(!s||(bs.ts||0)>(s.ts||0))) s=bs; }catch(e){}
   const deck=(s&&s.deck&&CATS[s.deck])?s.deck:state.deck;
   const mode=(s&&['dict','flash','quiz','browse'].includes(s.mode))?s.mode:'dict';
-  state.deck=deck; renderDecks();
-  enterMode(mode,true);
-  if(s&&settings.order==='seq'&&['dict','flash','quiz'].includes(mode)&&typeof s.idx==='number'&&s.idx>0&&s.idx<state.list.length){
-    state.idx=s.idx;
-    if(mode==='dict')renderDict(); else if(mode==='flash')renderFlash(); else renderQuiz();
-    toast(`已回到上次：${CATS[deck].label} · 第 ${s.idx+1} 词`);
-  }else if(s&&s.deck&&deck!=='all'){
-    toast(`继续上次词库：${CATS[deck].label}`);
+  state.deck=deck; state.mode=mode; renderDecks();
+  let restored=false;
+  if(s&&s.version===2&&Array.isArray(s.ids)&&Number.isInteger(s.idx)&&s.idx>=0&&s.idx<=s.ids.length){
+    const byID=new Map(VOCAB.map(v=>[v.id,v]));
+    state.list=s.ids.map(id=>byID.get(id)).filter(Boolean);
+    state.idx=s.ids.slice(0,s.idx).filter(id=>byID.has(id)).length;
+    const t=s.session||{};
+    state.session={done:t.done||0,ok:t.ok||0,bad:t.bad||0,wrong:(t.wrong||[]).map(id=>byID.get(id)).filter(Boolean)};
+    restored=state.list.length>0;
+  }else if(s&&settings.order==='seq'&&Number.isInteger(s.idx)){
+    buildList(); state.idx=Math.max(0,Math.min(s.idx,state.list.length)); restored=state.list.length>0;
+  }
+  enterMode(mode,!restored);
+  if(restored){
+    if(mode==='dict'&&state.idx<state.list.length&&s.draft){$('dictInput').value=s.draft;saveSess();}
+    toast(state.idx>=state.list.length?'上次练习已完成':`已接着上次：${CATS[deck].label} · 第 ${state.idx+1} 词`);
   }
 }
 function renderDecks(){
@@ -841,7 +898,7 @@ function renderDecks(){
   Object.keys(CATS).forEach(k=>{
     const base=deckBase(k); const n=base.length;
     let cnt=`<span class="n">${n}</span>`;
-    if(k!=='wrong'&&k!=='star'&&n){
+    if(k!=='wrong'&&k!=='star'&&k!=='due'&&n){
       let sn=0; base.forEach(v=>{const p=prog[v.en]; if(p&&p.seen>0)sn++;});
       cnt=(sn>=n)?`<span class="n done">${n} ✓</span>`:`<span class="n">${sn}/${n}</span>`;
     }
@@ -857,8 +914,18 @@ let _wake=null, _wantWake=false;
 async function _acqWake(){ try{ if(_wantWake && !_wake && navigator.wakeLock){ const w=await navigator.wakeLock.request('screen'); if(_wantWake){ _wake=w; w.addEventListener('release',function(){_wake=null;}); } else { w.release(); } } }catch(e){} }
 function keepAwake(on){ _wantWake=on; if(on){ _acqWake(); } else { try{ if(_wake){_wake.release();_wake=null;} }catch(e){} } }
 document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _acqWake(); });  // iOS drops the lock when hidden → re-grab on return
+function restartPractice(){
+  if(!['dict','flash','quiz'].includes(state.mode)||!state.list.length)return;
+  stopAuto(); try{speechSynthesis.cancel();}catch(e){}
+  state.list=[...new Map(state.list.map(v=>[v.id,v])).values()];   // drop the re-test copies of missed words
+  state.idx=0; state.answered=false; quizAnswered=false;
+  state.session={done:0,ok:0,bad:0,wrong:[]};
+  enterMode(state.mode,false); toast('已从第一题重做，历史记录保留');
+}
+$('restartPractice').onclick=restartPractice;
 function enterMode(m,rebuild){
   state.mode=m;
+  $('restartPractice').hidden=!['dict','flash','quiz'].includes(m);
   keepAwake(['dict','flash','quiz'].includes(m));
   if(m!=='flash') stopAuto();
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.mode===m));
@@ -906,7 +973,7 @@ function wireDict(){
   $('dSlow').onclick=()=>dictSpeak(0.6);
   $('dExample').onclick=()=>{const it=curItem(); if(it&&it.col) speak(firstClause(it.col)); };
   $('dZh').onclick=()=>{const it=curItem(); if(it) $('dHint').innerHTML=`💡 <b>${esc(it.zh)}</b>`; };
-  $('dLetter').onclick=()=>{const it=curItem(); if(!it)return; const w=it.alts[0]; $('dHint').innerHTML=`<span class="mask">${w[0].toUpperCase()}${' _ '.repeat(Math.max(0,w.replace(/\s/g,'').length-1))}</span> <span class="muted">(${w.replace(/\s/g,'').length}字母)</span>`; };
+  $('dLetter').onclick=()=>{const it=curItem(); if(!it)return; if(!state.answered) state.hinted=true; const w=it.alts[0]; $('dHint').innerHTML=`<span class="mask">${w[0].toUpperCase()}${' _ '.repeat(Math.max(0,w.replace(/\s/g,'').length-1))}</span> <span class="muted">(${w.replace(/\s/g,'').length}字母)</span>`; };
   $('dSubmit').onclick=submitDict;
   $('dSkip').onclick=skipDict;
   const inp=$('dictInput');
@@ -924,7 +991,7 @@ function wire(){
   $('fNext').onclick=()=>{stopAuto();flashNext(1);};
   $('fAuto').onclick=()=>{ autoOn?stopAuto():startAuto(); };
   $('fSpeak').onclick=()=>{const it=state.list[state.idx]; if(it)speak(it.say);};
-  $('fStar').onclick=()=>{const it=state.list[state.idx]; if(!it)return; const p=P(it.en); p.star=!p.star; saveProg(); $('fStar').textContent=p.star?'🔖 已收藏':'🔖 收藏'; renderDecks();};
+  $('fStar').onclick=()=>{const it=state.list[state.idx]; if(!it)return; const p=P(it.en); p.star=!p.star; p.t=Date.now(); saveProg(); $('fStar').textContent=p.star?'🔖 已收藏':'🔖 收藏'; renderDecks();};
   $('fEasy').onclick=()=>{stopAuto();flashMark(true);};
   $('fHard').onclick=()=>{stopAuto();flashMark(false);};
 
@@ -934,12 +1001,12 @@ function wire(){
   // browse
   $('search').oninput=renderBrowse;
   $('browseBody').onclick=e=>{
-    const sb=e.target.closest('.starbtn'); if(sb){const en=sb.dataset.en; const p=P(en); p.star=!p.star; saveProg(); renderBrowse(); renderDecks(); updateHStats(); return;}
+    const sb=e.target.closest('.starbtn'); if(sb){const en=sb.dataset.en; const p=P(en); p.star=!p.star; p.t=Date.now(); saveProg(); renderBrowse(); renderDecks(); updateHStats(); return;}
     const rs=e.target.closest('.rowspk'); if(rs){ speak(rs.dataset.say); }
   };
 
   // stats
-  $('btnReset').onclick=()=>{ if(confirm('确定清空所有学习进度？此操作不可恢复。')){ prog={}; saveProg(); daily={date:todayStr(),done:0,ok:0}; SS('ielts_vj_daily',daily); updateHStats(); renderStats(); renderDecks(); } };
+  $('btnReset').onclick=()=>{ if(confirm('确定清空所有学习进度？此操作不可恢复。')){ const now=Date.now(); VOCAB.forEach(v=>{ if(prog[v.en]) prog[v.en]={seen:0,ok:0,bad:0,streak:0,box:0,star:false,last:null,t:now}; }); RV.reset(VOCAB.map(v=>v.en)); saveProg(); daily={date:todayStr(),done:0,ok:0}; SS('ielts_vj_daily',daily); updateHStats(); renderStats(); renderDecks(); } };
   $('btnExport').onclick=()=>{ const blob=new Blob([JSON.stringify({prog,daily,settings},null,1)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ielts_vj_progress.json'; a.click(); };
   $('btnImport').onclick=()=>$('importFile').click();
   $('importFile').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{const d=JSON.parse(r.result); if(d.prog){prog=d.prog;saveProg();} if(d.daily){daily=d.daily;SS('ielts_vj_daily',daily);} if(d.settings){settings=Object.assign(settings,d.settings);saveSettings();applyDark();syncSettingsUI();} updateHStats(); renderStats(); renderDecks(); alert('导入成功！'); }catch(err){alert('文件格式有误');} }; r.readAsText(f); };
@@ -980,6 +1047,7 @@ function applyDark(){ document.body.classList.toggle('dark',settings.dark); }
 
 /* ---------- init ---------- */
 applyDark();
+try{ RV.seedLegacy(DECK,VOCAB,prog); }catch(e){}
 renderDecks();
 updateHStats();
 wire();

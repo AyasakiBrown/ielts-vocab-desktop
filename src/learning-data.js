@@ -1,7 +1,7 @@
 /* Shared, versioned desktop backup format. No network or personal defaults. */
 (function (scope) {
   'use strict';
-  const names = ['p1', 'vj', 'scene', 'notebook', 'wrong', 'config'];
+  const names = ['p1', 'vj', 'scene', 'notebook', 'wrong', 'srs', 'config'];
   const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
   const check = (yes, message) => { if (!yes) throw Error(message); };
   function safeTree(x, depth = 0) {
@@ -26,6 +26,11 @@
       const d = decks[name] ??= {};
       check(object(d), '词库格式错误：' + name);
       if (name === 'config') continue;
+      if (name === 'srs') {
+        d.items ??= {}; d.meta ??= {};
+        check(object(d.items) && object(d.meta) && Object.values(d.items).every(object), '复习记录格式错误');
+        continue;
+      }
       if (name === 'notebook' || name === 'wrong') {
         d.list ??= []; d.del ??= {};
         check(Array.isArray(d.list) && object(d.del), '词表格式错误');
@@ -54,6 +59,30 @@
     const old = deck.history[date];
     deck.history[date] = {date, done: Math.max(old?.done || 0, daily.done || 0), ok: Math.max(old?.ok || 0, daily.ok || 0)};
   }
+  // Review ledger (srs.js): per word and per track the newer answer wins.
+  function mergeReview(deck, payload) {
+    const out = {items: Object.assign({}, deck?.items), meta: Object.assign({}, deck?.meta)};
+    const time = x => (object(x) && Number(x.t)) || 0;
+    for (const [k, inc] of Object.entries(payload?.items || {})) {
+      if (k === '__proto__' || !object(inc)) continue;
+      const cur = Object.hasOwn(out.items, k) ? out.items[k] : null;
+      if (!object(cur)) { out.items[k] = inc; continue; }
+      const hi = time(inc) > time(cur) ? inc : cur, lo = hi === cur ? inc : cur, rec = Object.assign({}, lo, hi);
+      rec.src = [...new Set([...(Array.isArray(cur.src) ? cur.src : []), ...(Array.isArray(inc.src) ? inc.src : [])])];
+      for (const name of ['d', 'm']) {
+        const a = cur[name], b = inc[name];
+        if (object(a) && object(b)) rec[name] = time(b) > time(a) ? b : a; else if (object(a) || object(b)) rec[name] = object(a) ? a : b;
+      }
+      rec.t = Math.max(time(cur), time(inc));
+      out.items[k] = rec;
+    }
+    for (const [k, v] of Object.entries(payload?.meta || {})) {
+      if (k === 'cap' || k === 'capT' || k === '__proto__') continue;
+      if (typeof v === 'number') out.meta[k] = Math.max(Number(out.meta[k]) || 0, v); else if (out.meta[k] === undefined) out.meta[k] = v;
+    }
+    if ((Number(payload?.meta?.capT) || 0) > (Number(out.meta.capT) || 0)) { out.meta.cap = payload.meta.cap; out.meta.capT = payload.meta.capT; }
+    return out;
+  }
   function parse(text) {
     check(typeof text === 'string' && text.length <= 32 * 1024 * 1024, '备份过大（上限 32 MB）');
     return normalize(JSON.parse(text));
@@ -72,12 +101,16 @@
     for (const [n,k] of [['notebook','ielts_nb'],['wrong','ielts_wrong']]) {
       storage.setItem(k,JSON.stringify(d[n].list)); storage.setItem(k+'_del',JSON.stringify(d[n].del));
     }
+    storage.setItem('ielts_wrong_events',JSON.stringify(d.wrong.events||{}));
+    storage.setItem('ielts_nb_sessions',JSON.stringify(d.notebook.sessions||{}));
+    storage.setItem('ielts_srs',JSON.stringify(d.srs.items));
+    storage.setItem('ielts_srs_meta',JSON.stringify(d.srs.meta));
     storage.setItem('ielts_desktop_config',JSON.stringify(d.config));
     for (const f of ['shortcutsMac','shortcutsWindows']) {
       if (d.config[f]) storage.setItem('ielts_'+f,JSON.stringify(d.config[f])); else storage.removeItem('ielts_'+f);
     }
   }
-  const api = {normalize, parse, pack, summary, hydrate, remember};
+  const api = {normalize, parse, pack, summary, hydrate, remember, mergeReview};
   if (typeof module !== 'undefined') module.exports = api;
   else {
     scope.IELTSData = api;

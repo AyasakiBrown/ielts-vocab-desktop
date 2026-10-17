@@ -11,11 +11,11 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / 'GitHub-Release' / 'v1.0.3'
-VERSION = '1.0.3'
+OUT = ROOT / 'GitHub-Release' / 'v1.1.0'
+VERSION = '1.1.0'
 ELECTRON = '44.3.0'
 ASSETS = ['index.html', 'p1.html', 'vj.html', 'scene.html', 'notebook.html',
-          'wrong.html', 'learning-data.js', 'shortcuts.js', 'dict.js', 'emoji.js', 'images.js', 'icon-512.png', 'icon-180.png', 'AppIcon.icns']
+          'wrong.html', 'review.html', 'mistakes.js', 'srs.js', 'learning-data.js', 'shortcuts.js', 'dict.js', 'emoji.js', 'images.js', 'icon-512.png', 'icon-180.png', 'AppIcon.icns']
 
 def run(*args):
     subprocess.run(args, check=True)
@@ -28,7 +28,7 @@ def archive(folder, dest):
     with zipfile.ZipFile(dest, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as z:
         for p in sorted(folder.rglob('*')):
             if p.is_file():
-                zi = zipfile.ZipInfo(str(p.relative_to(folder.parent)), (2026, 9, 14, 0, 0, 0))
+                zi = zipfile.ZipInfo(str(p.relative_to(folder.parent)), (2026, 9, 29, 0, 0, 0))
                 zi.external_attr = (0o100755 if os.access(p, os.X_OK) else 0o100644) << 16
                 zi.compress_type = zipfile.ZIP_DEFLATED
                 z.writestr(zi, p.read_bytes())
@@ -60,7 +60,7 @@ def main():
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / 'src' / name, target)
         # Include only the public build files, never personal sync scripts/certificates.
-        for name in ['main.cjs', 'desktop.js', 'preload.cjs', 'data-store.cjs', 'test-learning-data.cjs', 'test_native_data.py', 'build_release.py', 'README.md']:
+        for name in ['main.cjs', 'desktop.js', 'preload.cjs', 'data-store.cjs', 'test-learning-data.cjs', 'test-srs.cjs', 'test_native_data.py', 'build_release.py', 'README.md']:
             write(source / 'release-tools' / name, (ROOT / 'release-tools' / name).read_text())
         write(source / 'README.md', (ROOT / 'release-tools' / 'README.md').read_text())
         write(source / '.gitignore', '*.pem\n*.crt\ndata.json\nbackups/\n.DS_Store\n.claude/\n.codex/\n.env*\nnode_modules/\nGitHub-Release/\n*.log\n')
@@ -77,6 +77,8 @@ def main():
         for name in ['emoji', 'images']:
             nb = nb.replace(f'<script src="{name}.js"></script>', '')
         write(res / 'notebook.html', nb)
+        page = (res / 'review.html').read_text()
+        write(res / 'review.html', page.replace('<script src="dict.js"></script>', '<script>\n' + (res / 'dict.js').read_text() + '\n</script>'))
         bins = []
         for arch in ['arm64', 'x86_64']:
             binary = stage / ('IELTSVocab-' + arch)

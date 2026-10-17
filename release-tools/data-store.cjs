@@ -33,6 +33,7 @@ class DataStore {
     if(!Object.hasOwn(root.decks,deck)) throw Error('未知词库');
     this.backup(root);
     if(deck==='config') Object.assign(root.decks.config,payload);
+    else if(deck==='srs') root.decks.srs=Data.mergeReview(root.decks.srs,payload);
     else if(['p1','vj','scene'].includes(deck)) {
       Data.remember(root.decks[deck],root.decks[deck].daily);
       Object.assign(root.decks[deck],payload);

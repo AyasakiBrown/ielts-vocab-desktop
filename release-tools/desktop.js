@@ -12,6 +12,7 @@
   }
   decks.notebook = {list: read('ielts_nb', []), del: read('ielts_nb_del', {})};
   decks.wrong = {list: read('ielts_wrong', []), del: read('ielts_wrong_del', {})};
+  decks.srs = {items: read('ielts_srs', {}), meta: read('ielts_srs_meta', {})};
   decks.config = read('ielts_desktop_config', {});
   for(const key of ['shortcutsMac','shortcutsWindows']) {
     const old=read('ielts_'+key,null); if(old)decks.config[key]=old;

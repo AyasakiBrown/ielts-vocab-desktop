@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
+<script src="mistakes.js"></script>
+<script src="srs.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>生词本</title>
@@ -102,6 +104,7 @@ button{-webkit-tap-highlight-color:transparent}
     <label class="lwtoggle swtoggle"><input type="checkbox" id="psw"> 🗣️ 标记为「口语生词」——雅思口语需要积累 / 运用的词</label>
   </div>
 
+  <p class="sub">练习进度自动保存；中途退出后，再点原来的练习入口即可接着上次继续。每个词会记录下次复习日：听写、选择题会先出到期的词，答错的词隔几题重测。</p>
   <div class="tools">
     <span class="count" id="count"></span>
     <input class="search" id="search" placeholder="🔎 搜索生词 / 释义">
@@ -137,6 +140,7 @@ button{-webkit-tap-highlight-color:transparent}
       <button class="btn alt" id="rnext">下一个 ›</button>
     </div>
     <div class="prog" id="rprog"></div>
+    <button class="btn alt sm" id="rrestart" title="保留历史记录">↺ 从头重做</button>
     <button class="ghosti" id="rclose" style="margin-top:8px">关闭</button>
   </div>
 </div>
@@ -151,6 +155,7 @@ button{-webkit-tap-highlight-color:transparent}
     <div id="mfb" style="min-height:24px;margin-top:12px;font-size:14px;line-height:1.5"></div>
     <button class="btn" id="mnext" style="display:none;margin-top:10px">下一题 ›</button>
     <div class="prog" id="mscore"></div>
+    <button class="btn alt sm" id="mrestart" title="保留历史记录">↺ 从头重做</button>
     <button class="ghosti" id="mclose" style="margin-top:8px">结束</button>
   </div>
 </div>
@@ -164,6 +169,7 @@ button{-webkit-tap-highlight-color:transparent}
     <div id="dfb" style="min-height:24px;margin-top:10px;font-size:15px"></div>
     <div class="nav"><button class="btn" id="dsubmit">提交 (Enter)</button><button class="btn alt" id="dskip">跳过 ›</button></div>
     <div class="prog" id="dscore"></div>
+    <button class="btn alt sm" id="drestart" title="保留历史记录">↺ 从头重做</button>
     <button class="ghosti" id="dclose" style="margin-top:8px">结束</button>
   </div>
 </div>
@@ -174,13 +180,41 @@ button{-webkit-tap-highlight-color:transparent}
 <script>
   var $=function(id){return document.getElementById(id);};
   var DICT=window.DICT||{};
+  // Review ledger (srs.js), shared with the decks. The stub only keeps practice usable
+  // if that script failed to load; it schedules nothing.
+  var RV=window.IELTSReview||{live:false,
+    grade:function(typed,alts){ var f=function(s){return String(s||'').toLowerCase().trim().replace(/\s+/g,' ');}, t=f(typed); if(!t)return {ok:false,kind:'empty',empty:true}; for(var i=0;i<alts.length;i++){ if(f(alts[i])===t) return {ok:true,kind:'exact',exact:true,clean:true,want:alts[i]}; } return {ok:false,kind:'bad',want:alts[0]}; },
+    answer:function(){return null;}, confirm:function(){return null;}, isDue:function(){return false;}, stable:function(){return false;}, badge:function(){return '';}, info:function(){return {stage:'new',label:'',lv:0};}};
+  function okText(res){ return !res.clean?'⚠ 字母都对，但标准写法是 <b>'+esc(res.want)+'</b>（空格或撇号有误，本次不计入掌握）':(res.kind==='variant'?'✓ 正确（英式 / 美式拼写均可）':'✓ 正确'); }
+  function planText(r){ return r&&r.text?'<div style="font-size:12.5px;color:var(--soft);margin-top:6px">📅 '+esc(r.text)+'</div>':''; }
+  function nbItem(e){ return {w:e.w, tr:e.tr, ph:e.ph, ex:e.ex, alts:e.w.split(/\s*\/\s*/).filter(Boolean), src:'notebook'}; }
+  // for the error diagnosis: is the typed text a word, one of my own words, or a homophone?
+  var DX={
+    isWord:function(w){ return !!look(w); },
+    isKnown:function(w){ for(var i=0;i<NB.length;i++){ if((NB[i].w||'').toLowerCase()===w) return true; } return false; },
+    sameSound:function(a,b){ var x=get(a), y=get(b); return !!(a!==b&&x&&y&&x.ph&&x.ph===y.ph); }
+  };
+  var homShown=false;
+  // due words first, then never-tested ones, then the rest — each group shuffled
+  function reviewOrder(order,track){
+    var rank=function(i){ var w=NB[i].w; return RV.isDue(w,track)?0:(RV.info(w,track).stage==='new'?1:2); };
+    var groups=[[],[],[]]; order.forEach(function(i){ groups[rank(i)].push(i); });
+    groups.forEach(function(g){ for(var i=g.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=g[i];g[i]=g[j];g[j]=t; } });
+    return groups[0].concat(groups[1],groups[2]);
+  }
+  // 错词隔几题再测
+  function requeue(order,at){ var i=order[at]; if(order.indexOf(i,at+1)<0) order.splice(Math.min(order.length,at+4),0,i); }
   var CATS={
     lw:{emoji:'🎧',label:'听力错词'}, rw:{emoji:'📖',label:'阅读错词'},
     ww:{emoji:'📝',label:'写作生词'}, sw:{emoji:'🗣️',label:'口语生词'}
   };
   function catText(cat){ var c=CATS[cat]; return c?(c.emoji+' '+c.label):''; }
   /* ---------- storage ---------- */
-  var NB=[], DEL={};
+  var NB=[], DEL={}, sessions={};
+  try{ sessions=JSON.parse(localStorage.getItem('ielts_nb_sessions'))||{}; }catch(e){}
+  function mergeSessions(incoming){
+    Object.keys(incoming||{}).forEach(function(k){ if(!sessions[k]||(incoming[k].ts||0)>(sessions[k].ts||0)) sessions[k]=incoming[k]; });
+  }
   try{ var ls=localStorage.getItem('ielts_nb'); if(ls) NB=JSON.parse(ls)||[]; }catch(e){}
   try{ DEL=JSON.parse(localStorage.getItem('ielts_nb_del'))||{}; }catch(e){}
   // deletion tombstones: {wLower: deletedAtTs}. A record older than its tombstone stays
@@ -188,7 +222,7 @@ button{-webkit-tap-highlight-color:transparent}
   (function(){ var cut=Date.now()-180*864e5; for(var k in DEL){ if(DEL[k]<cut) delete DEL[k]; } })();
   function tombed(e){ var k=(e&&e.w||'').toLowerCase(); return !!(DEL[k]&&((e.ts||0)<=DEL[k])); }
   try{ var b=window.__INITIAL_STATE__&&window.__INITIAL_STATE__.decks&&window.__INITIAL_STATE__.decks.notebook;
-    if(b){ var changed=false;
+    if(b){ mergeSessions(b.sessions); var changed=false;
       var bdel=b.del||{}; for(var dk in bdel){ if((bdel[dk]||0)>(DEL[dk]||0)){ DEL[dk]=bdel[dk]; changed=true; } }
       var kept=NB.filter(function(e){return !tombed(e);}); if(kept.length!==NB.length){ NB=kept; changed=true; }
       if(b.list&&b.list.length){ var have={}; NB.forEach(function(e){ if(e&&e.w) have[e.w.toLowerCase()]=e; });
@@ -202,9 +236,10 @@ button{-webkit-tap-highlight-color:transparent}
       if(changed) save();
     } }catch(e){}
   function save(){
+    try{ localStorage.setItem('ielts_nb_sessions', JSON.stringify(sessions)); }catch(e){}
     try{ localStorage.setItem('ielts_nb', JSON.stringify(NB)); }catch(e){}
     try{ localStorage.setItem('ielts_nb_del', JSON.stringify(DEL)); }catch(e){}
-    try{ if(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.persist){ webkit.messageHandlers.persist.postMessage(JSON.stringify({deck:"notebook",payload:{list:NB,del:DEL}})); } }catch(e){}
+    try{ if(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.persist){ webkit.messageHandlers.persist.postMessage(JSON.stringify({deck:"notebook",payload:{list:NB,del:DEL,sessions:sessions}})); } }catch(e){}
   }
   function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
   /* ---------- dictionary lookup (+ simple lemmatization) ---------- */
@@ -306,7 +341,7 @@ button{-webkit-tap-highlight-color:transparent}
         '<span class="meta"><button class="ghosti say" title="朗读">🔊</button><button class="ghosti lw'+(e.lw?' on':'')+'" title="标记/取消「听力错词」">🎧</button><button class="ghosti rw'+(e.rw?' on':'')+'" title="标记/取消「阅读错词」">📖</button><button class="ghosti ww'+(e.ww?' on':'')+'" title="标记/取消「写作生词」">📝</button><button class="ghosti sw'+(e.sw?' on':'')+'" title="标记/取消「口语生词」">🗣️</button><button class="ghosti del" title="删除">🗑️</button></span></div>'+
         '<div class="tr" contenteditable="true" data-f="tr">'+(esc(e.tr)|| '<span class="need">点此补释义</span>')+'</div>'+
         '<div class="exrow"><input class="ex" data-f="ex" placeholder="＋ 例句/语境" value="'+esc(e.ex||'')+'"></div>'+
-        '<div style="margin-top:6px">'+(e.lw?'<span class="lwtag">🎧 听力错词</span> ':'')+(e.rw?'<span class="rwtag">📖 阅读错词</span> ':'')+(e.ww?'<span class="wwtag">📝 写作生词</span> ':'')+(e.sw?'<span class="swtag">🗣️ 口语生词</span> ':'')+(e.tag?'<span class="tag">'+esc(e.tag)+'</span> ':'')+'<span class="ex" style="float:right">'+fmtd(e.ts)+'</span></div>'+
+        '<div style="margin-top:6px">'+(e.lw?'<span class="lwtag">🎧 听力错词</span> ':'')+(e.rw?'<span class="rwtag">📖 阅读错词</span> ':'')+(e.ww?'<span class="wwtag">📝 写作生词</span> ':'')+(e.sw?'<span class="swtag">🗣️ 口语生词</span> ':'')+(e.tag?'<span class="tag">'+esc(e.tag)+'</span> ':'')+(RV.badge(e.w)?'<span class="tag" title="听写与词义分开记录，显示最先到期的一项">📅 '+esc(RV.badge(e.w))+'</span> ':'')+'<span class="ex" style="float:right">'+fmtd(e.ts)+'</span></div>'+
       '</div>';
     }).join('');
   }
@@ -337,6 +372,30 @@ button{-webkit-tap-highlight-color:transparent}
     var blob=new Blob([JSON.stringify({notebook:NB},null,1)],{type:'application/json'});
     var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ielts_生词本.json'; a.click();
   };
+  // Each activity/category keeps its own queue, keyed by word rather than NB
+  // array offsets: a sync, deletion or sort must not move the saved bookmark.
+  function checkpoint(kind,cat,order,index,extra){
+    sessions[kind+':'+cat]=Object.assign({words:order.map(function(i){return NB[i].w.toLowerCase();}),idx:index,ts:Date.now()},extra||{});
+    save();
+  }
+  function resumePractice(kind,cat){
+    try{ mergeSessions(JSON.parse(localStorage.getItem('ielts_nb_sessions'))); }catch(e){}
+    var s=sessions[kind+':'+cat];
+    if(!s||!Array.isArray(s.words)||!Number.isInteger(s.idx)||s.idx<0||s.idx>s.words.length||(s.idx===s.words.length&&kind!=='quiz')) return null;
+    var byWord=new Map(NB.map(function(e,i){return [e.w.toLowerCase(),i];}));
+    var valid=function(w){var i=byWord.get(w);return i!==undefined&&(!cat||NB[i][cat])&&(kind!=='quiz'||(NB[i].tr||'').trim());};
+    var words=s.words.filter(valid), idx=s.words.slice(0,s.idx).filter(valid).length;
+    if(!words.length||(idx>=words.length&&kind!=='quiz')) return null;
+    return Object.assign({},s,{order:words.map(function(w){return byWord.get(w);}),idx:idx});
+  }
+  function savePractice(){
+    if($('ov').classList.contains('show')) checkpoint('review',rCat,rorder,ri);
+    if($('mov').classList.contains('show')) checkpoint('quiz',mCat,morder,Math.min(morder.length,mi+(manswered?1:0)),{right:mright,wrong:mwrong});
+    if($('dov').classList.contains('show')) checkpoint('dict',dCat,dorder,Math.min(dorder.length,di+($('dans').readOnly?1:0)),{right:dright,wrong:dwrong,draft:$('dans').readOnly?'':$('dans').value});
+  }
+  window.addEventListener('pagehide',savePractice);
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')savePractice();});
+  $('dans').addEventListener('input',savePractice);
   /* ---------- review (flashcards) ---------- */
   var rorder=[], ri=0, rCat='';
   function shuffleReview(){
@@ -347,20 +406,25 @@ button{-webkit-tap-highlight-color:transparent}
     for(var i=0;i<NB.length;i++){ if(!rCat || NB[i][rCat]) rorder.push(i); }
     if(!rorder.length){ alert(rCat?('还没有标记「'+catText(rCat)+'」的词。\n先标记后，再来抽查意思。'):'生词本还是空的'); return; }
     if(rCat) shuffleReview();
-    ri=0; $('ov').classList.add('show'); keepAwake(true); showCard();
+    var saved=resumePractice('review',rCat); ri=0; if(saved){rorder=saved.order;ri=saved.idx;}
+    $('ov').classList.add('show'); keepAwake(true); showCard();
   }
   function showCard(){
     var e=NB[rorder[ri]]; if(!e) return;
     $('rw').textContent=e.w; $('rph').textContent=e.ph?('['+e.ph+']'):''; var rim=pic(e.w); $('remo').innerHTML = rim?('<img src="'+rim+'" style="width:130px;height:130px;border-radius:12px;object-fit:cover">'):(emo(e.w)||'');
     $('rtr').innerHTML=posBadge(e)+esc(e.tr||'（无释义）'); $('rtr').classList.add('hidden'); $('rflip').textContent='显示释义';
     $('rprog').textContent=(rCat?(catText(rCat)+'　'):'')+(ri+1)+' / '+rorder.length;
-    speak(e.w);
+    checkpoint('review',rCat,rorder,ri); speak(e.w);
   }
+  $('rrestart').onclick=function(){ri=0;showCard();};
+  function uniq(order){ return order.filter(function(x,i){ return order.indexOf(x)===i; }); }   // drop re-test copies
+  $('mrestart').onclick=function(){morder=uniq(morder);mi=0;mright=0;mwrong=[];mShow();};
+  $('drestart').onclick=function(){dorder=uniq(dorder);di=0;dright=0;dwrong=[];dToggle(true);dShow();};
   $('review').onclick=function(){ openReview(''); };
   $('reviewRW').onclick=function(){ openReview('rw'); };
   $('reviewWW').onclick=function(){ openReview('ww'); };
   $('reviewSW').onclick=function(){ openReview('sw'); };
-  $('rclose').onclick=function(){ $('ov').classList.remove('show'); keepAwake(false); speechSynthesis&&speechSynthesis.cancel(); drainPull(); };
+  $('rclose').onclick=function(){ savePractice(); $('ov').classList.remove('show'); keepAwake(false); speechSynthesis&&speechSynthesis.cancel(); drainPull(); };
   $('rflip').onclick=function(){ var t=$('rtr'); if(t.classList.contains('hidden')){ t.classList.remove('hidden'); this.textContent='隐藏'; } else { t.classList.add('hidden'); this.textContent='显示释义'; } };
   $('rsay').onclick=function(){ speak(NB[rorder[ri]].w); };
   $('rnext').onclick=function(){ ri=(ri+1)%rorder.length; showCard(); };
@@ -369,12 +433,12 @@ button{-webkit-tap-highlight-color:transparent}
   $('ov').addEventListener('click', function(ev){ if(ev.target===$('ov')) $('rclose').click(); });
 
   /* ---------- category meaning multiple choice ---------- */
-  var morder=[], mi=0, mright=0, manswered=false, moptions=[], mCat='rw';
+  var morder=[], mi=0, mright=0, mwrong=[], manswered=false, moptions=[], mCat='rw';
   function shuffleArray(a){
     for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; }
     return a;
   }
-  function openQuiz(cat){
+  function openQuiz(cat,fresh){
     mCat=cat||'rw';
     morder=[];
     var meanings={}, distinct=0;
@@ -385,7 +449,7 @@ button{-webkit-tap-highlight-color:transparent}
     }
     if(!morder.length){ alert('还没有带释义的「'+catText(mCat)+'」。\n先标记并补上释义，再来做选择题。'); return; }
     if(distinct<2){ alert('至少需要 2 个不同释义的生词，才能生成选择题选项。'); return; }
-    shuffleArray(morder); mi=0; mright=0; $('mov').classList.add('show'); keepAwake(true); mShow();
+    morder=reviewOrder(morder,'m'); mi=0; mright=0; mwrong=[]; var saved=fresh?null:resumePractice('quiz',mCat); if(saved){morder=saved.order;mi=saved.idx;mright=saved.right||0;mwrong=saved.wrong||[];} $('mov').classList.add('show'); keepAwake(true); mShow();
   }
   function mShow(){
     var e=NB[morder[mi]]; if(!e){ mEnd(); return; }
@@ -396,23 +460,39 @@ button{-webkit-tap-highlight-color:transparent}
     shuffleArray(distractors); moptions=[correct].concat(distractors.slice(0,3)); shuffleArray(moptions);
     $('mchoices').innerHTML=moptions.map(function(tr,i){ return '<button class="mcopt" data-i="'+i+'">'+esc(tr)+'</button>'; }).join('');
     $('mfb').textContent=''; $('mnext').style.display='none'; $('mnext').textContent=(mi+1===morder.length)?'查看结果':'下一题 ›';
+    checkpoint('quiz',mCat,morder,mi,{right:mright,wrong:mwrong});
     $('msay').style.display=''; $('mscore').textContent='✓ '+mright+'　已答 '+mi+' / '+morder.length; speak(e.w);
   }
   function mCheck(index){
     if(manswered) return; var e=NB[morder[mi]], correct=(e.tr||'').trim(); manswered=true;
     var buttons=$('mchoices').querySelectorAll('.mcopt'), ok=moptions[index]===correct;
     for(var i=0;i<buttons.length;i++){ buttons[i].disabled=true; if(moptions[i]===correct) buttons[i].classList.add('correct'); }
-    if(ok){ mright++; $('mfb').innerHTML='<span style="color:var(--good)">✓ 回答正确</span>'; }
-    else { if(buttons[index]) buttons[index].classList.add('wrong'); $('mfb').innerHTML='<span style="color:var(--bad)">✗ 正确答案：</span>'+esc(correct); }
-    $('mscore').textContent='✓ '+mright+'　已答 '+(mi+1)+' / '+morder.length; $('mnext').style.display='';
+    if(!ok){
+      var mixed=null; for(var j=0;j<NB.length;j++){ if((NB[j].tr||'').trim()===moptions[index]){ mixed={w:NB[j].w,zh:moptions[index]}; break; } }
+      mwrong.push(e.w.toLowerCase());IELTSMistakes.record(e,'notebook','quiz',moptions[index],mixed?{alt:mixed}:null);requeue(morder,mi);
+    }
+    var plan=planText(RV.answer(nbItem(e),'m',ok?'ok':'bad'));
+    if(ok){ mright++; $('mfb').innerHTML='<span style="color:var(--good)">✓ 回答正确</span>'+plan; }
+    else { if(buttons[index]) buttons[index].classList.add('wrong'); $('mfb').innerHTML='<span style="color:var(--bad)">✗ 正确答案：</span>'+esc(correct)+plan; }
+    $('mscore').textContent='✓ '+mright+'　已答 '+(mi+1)+' / '+morder.length; $('mnext').style.display=''; savePractice();
   }
   function mEnd(){
+    manswered=false;
+    checkpoint('quiz',mCat,morder,morder.length,{right:mright,wrong:mwrong});
     var total=morder.length, pct=total?Math.round(mright/total*100):0;
     $('mprog').textContent=''; $('mph').textContent=''; $('mword').textContent='选择题完成 🎉'; $('msay').style.display='none'; $('mchoices').innerHTML='';
-    $('mfb').innerHTML='得分 <b>'+mright+' / '+total+'</b>（'+pct+'%） <button class="btn sm" id="mredo">再做一次</button>';
+    $('mfb').innerHTML='得分 <b>'+mright+' / '+total+'</b>（'+pct+'%）'+
+      (mwrong.length?' <button class="btn sm" id="mretryWrong">重练本轮错题（'+mwrong.length+'）</button>':'')+
+      ' <button class="btn alt sm" id="mredo">再做一次</button>';
     $('mnext').style.display='none'; $('mscore').textContent='';
     try{speechSynthesis.cancel();}catch(e){}
-    $('mredo').onclick=function(){ openQuiz(mCat); };
+    if($('mretryWrong')) $('mretryWrong').onclick=function(){
+      var words=new Set(mwrong), retry=[];
+      NB.forEach(function(e,i){if(words.has(e.w.toLowerCase())&&e[mCat]&&(e.tr||'').trim())retry.push(i);});
+      if(!retry.length){alert('本轮错词已被移除或不再属于当前分类。');return;}
+      morder=retry;mi=0;mright=0;mwrong=[];mShow();
+    };
+    $('mredo').onclick=function(){ openQuiz(mCat,true); };
   }
   $('quizRW').onclick=function(){ openQuiz('rw'); };
   $('quizWW').onclick=function(){ openQuiz('ww'); };
@@ -420,45 +500,59 @@ button{-webkit-tap-highlight-color:transparent}
   $('msay').onclick=function(){ var e=NB[morder[mi]]; if(e) speak(e.w); };
   $('mchoices').addEventListener('click',function(ev){ var b=ev.target.closest('.mcopt'); if(b) mCheck(parseInt(b.getAttribute('data-i'),10)); });
   $('mnext').onclick=function(){ mi++; if(mi>=morder.length) mEnd(); else mShow(); };
-  $('mclose').onclick=function(){ $('mov').classList.remove('show'); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} drainPull(); };
+  $('mclose').onclick=function(){ savePractice(); $('mov').classList.remove('show'); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} drainPull(); };
   $('mov').addEventListener('click',function(ev){ if(ev.target===$('mov')) $('mclose').click(); });
 
   /* ---------- dictation (听写) ---------- */
   var dorder=[], di=0, dright=0, dwrong=[], dCat='';
-  function normalize(s){ return (s||"").toLowerCase().replace(/[^a-z]/g,""); }
   function dToggle(show){ ['dans','dsay','dsubmit','dskip'].forEach(function(id){ $(id).style.display=show?'':'none'; }); }
   function openDictate(cat){
     dCat=cat||'';
     dorder=[]; for(var i=0;i<NB.length;i++){ if(!dCat || NB[i][dCat]) dorder.push(i); }
     if(!dorder.length){ alert(dCat?('还没有标记「'+catText(dCat)+'」的词。\n先标记后，再来专门听写。'):'生词本还是空的'); return; }
-    for(var i=dorder.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=dorder[i];dorder[i]=dorder[j];dorder[j]=t; }
-    di=0; dright=0; dwrong=[]; dToggle(true); $('dov').classList.add('show'); keepAwake(true); dShow();
+    dorder=reviewOrder(dorder,'d');
+    di=0; dright=0; dwrong=[]; var saved=resumePractice('dict',dCat); if(saved){dorder=saved.order;di=saved.idx;dright=saved.right||0;dwrong=saved.wrong||[];} dToggle(true); $('dov').classList.add('show'); keepAwake(true); dShow(); if(saved&&saved.draft){$('dans').value=saved.draft;savePractice();}
   }
   function dShow(){
     var e=NB[dorder[di]]; if(!e){ dEnd(); return; }
     $('dprog').textContent=(dCat?(catText(dCat)+'　'):'')+'第 '+(di+1)+' / '+dorder.length;
-    $('dtr').textContent='提交答案后显示中文意思';
+    var known=RV.info(e.w).rec;
+    homShown=!!(known&&known.hom);           // homophones cannot be told apart by ear: show the meaning first
+    if(homShown) $('dtr').innerHTML='同音词，按这个意思拼写：'+posBadge(e)+esc(e.tr||'（暂无中文释义）'); else $('dtr').textContent='提交答案后显示中文意思';
     $('dans').value=''; $('dans').readOnly=false; $('dfb').textContent=''; $('dsubmit').textContent='提交 (Enter)';
     $('dscore').textContent='✓ '+dright+'　✗ '+dwrong.length;
+    checkpoint('dict',dCat,dorder,di,{right:dright,wrong:dwrong,draft:''});
     setTimeout(function(){ try{$('dans').focus();}catch(e){} },60); speak(e.w);
   }
   function dCheck(){
     var e=NB[dorder[di]]; if(!e) return;
     if($('dans').readOnly){ dNext(); return; }
-    var got=normalize($('dans').value);
-    var alts=e.w.toLowerCase().split(/\s*\/\s*/).map(normalize).filter(Boolean);
-    var ok=got.length>0 && alts.indexOf(got)>=0;
-    if(ok){ dright++; $('dfb').innerHTML='<span style="color:var(--good)">✓ 正确</span> '+mediaInline(e.w,30); }
-    else { dwrong.push(e.id); $('dfb').innerHTML='<span style="color:var(--bad)">✗ 应为 <b>'+esc(e.w)+'</b></span> '+mediaInline(e.w,30); }
+    // British and American spellings both pass; a spacing/apostrophe slip is accepted
+    // once but never counts as remembered.
+    var res=RV.grade($('dans').value, nbItem(e).alts);
+    if(res.empty){ try{$('dans').focus();}catch(x){} return; }
+    var ok=res.ok, dg=(!ok&&RV.diagnose)?RV.diagnose($('dans').value,nbItem(e).alts,DX):null;
+    if(dg&&dg.cause==='homophone'&&!homShown){   // ambiguous test, not a mistake: show the meaning and ask again
+      homShown=true; RV.noteHomophone(nbItem(e));
+      $('dtr').innerHTML='同音词，按这个意思拼写：'+posBadge(e)+esc(e.tr||'（暂无中文释义）');
+      $('dfb').innerHTML='<span style="color:var(--soft)">「'+esc($('dans').value)+'」和这个词读音相同，只靠听分不出，这次不计错。请按上面的释义再写一次。</span>';
+      $('dans').value=''; try{$('dans').focus();}catch(x){} return;
+    }
+    if(!ok){ IELTSMistakes.record(e,'notebook','dict',$('dans').value); requeue(dorder,di); }
+    var plan=(dg?'<div style="font-size:13px;margin-top:6px;line-height:1.6">'+RV.explain(dg)+'</div>':'')+planText(RV.answer(nbItem(e),'d',ok?(res.clean?'ok':'soft'):'bad'));
+    if(ok){ dright++; $('dfb').innerHTML='<span style="color:var('+(res.clean?'--good':'--bad')+')">'+okText(res)+'</span> '+mediaInline(e.w,30)+plan; }
+    else { dwrong.push(e.id); $('dfb').innerHTML='<span style="color:var(--bad)">✗ 应为 <b>'+esc(e.w)+'</b></span> '+mediaInline(e.w,30)+plan; }
     $('dtr').innerHTML=posBadge(e)+esc(e.tr||'（暂无中文释义）');
     $('dans').readOnly=true; $('dsubmit').textContent='下一个 (Enter)';
-    $('dscore').textContent='✓ '+dright+'　✗ '+dwrong.length; speak(e.w);
+    $('dscore').textContent='✓ '+dright+'　✗ '+dwrong.length; savePractice(); speak(e.w);
   }
   function dNext(){ di++; if(di>=dorder.length) dEnd(); else dShow(); }
   function dEnd(){
+    checkpoint('dict',dCat,dorder,dorder.length,{right:dright,wrong:dwrong});
     var total=dorder.length, pct=total?Math.round(dright/total*100):0;
     $('dprog').textContent=''; $('dtr').textContent='听写完成 🎉'; dToggle(false);
-    $('dfb').innerHTML='得分 <b>'+dright+' / '+total+'</b>（'+pct+'%）'+(dwrong.length?' <button class="btn sm" id="dredo">重练错词 '+dwrong.length+'</button>':' 全对，漂亮！');
+    $('dfb').innerHTML='得分 <b>'+dright+' / '+total+'</b>（'+pct+'%）'+(dwrong.length?' <button class="btn sm" id="dredo">重练错词 '+dwrong.length+'</button>':' 全对，漂亮！')+
+      '<div style="font-size:12.5px;color:var(--soft);margin-top:8px">当天答对只算当次纠正；隔天答对才会延长复习间隔。到期的词会出现在首页「📅 今日复习」。</div>';
     var rb=$('dredo'); if(rb) rb.onclick=function(){ var ids=dwrong.slice(); dorder=[]; for(var i=0;i<NB.length;i++) if(ids.indexOf(NB[i].id)>=0) dorder.push(i); di=0;dright=0;dwrong=[]; dToggle(true); dShow(); };
   }
   $('dictate').onclick=function(){ openDictate(''); };
@@ -470,7 +564,7 @@ button{-webkit-tap-highlight-color:transparent}
   $('dsubmit').onclick=dCheck;
   $('dskip').onclick=function(){ if(!$('dans').readOnly){ dwrong.push(NB[dorder[di]].id); $('dscore').textContent='✓ '+dright+'　✗ '+dwrong.length; } dNext(); };
   $('dans').addEventListener('keydown', function(ev){ if(window.__CUSTOM_SHORTCUTS__)return; if(ev.key==='Enter' && !ev.isComposing && ev.keyCode!==229 && !ev.repeat){ ev.preventDefault(); dCheck(); } });
-  $('dclose').onclick=function(){ $('dov').classList.remove('show'); dToggle(true); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} drainPull(); };
+  $('dclose').onclick=function(){ savePractice(); $('dov').classList.remove('show'); dToggle(true); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} drainPull(); };
   $('dov').addEventListener('click', function(ev){ if(ev.target===$('dov')) $('dclose').click(); });
 
   /* live refresh after a sync pull — see the deck pages for why this is required.

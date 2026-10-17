@@ -15,7 +15,7 @@ else {
   app.on('second-instance', () => { if (win) { win.restore(); win.focus(); } });
   app.whenReady().then(() => {
     const store = new DataStore(app.getPath('userData'));
-    const pages = ['index', 'p1', 'vj', 'scene', 'notebook', 'wrong'];
+    const pages = ['index', 'review', 'p1', 'vj', 'scene', 'notebook', 'wrong'];
     const urls = pages.map(p => pathToFileURL(path.join(__dirname, 'src', p + '.html')).href);
     session.defaultSession.webRequest.onBeforeRequest({urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*']}, (_, callback) => callback({cancel: true}));
     session.defaultSession.setPermissionRequestHandler((_, __, callback) => callback(false));

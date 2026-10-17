@@ -62,8 +62,8 @@ func loadData() -> String {
 // MARK: merge-begin — Merge (NOT replace) one deck's payload into data.json.
 // Replacing wholesale caused a real data-loss race: progress the phone pushed via the
 // sync server while the Mac app sat open got clobbered by the Mac page's next persist.
-// Semantics mirror server.py merge(): prog per-key keep-higher-box, notebook/wrong
-// union by word with deletion tombstones, daily same-date max.
+// Semantics mirror server.py merge(): prog per-key newer-record-wins, notebook/wrong
+// union by word with deletion tombstones, daily same-date max, review ledger per track.
 func isEmptyVal(_ v: Any?) -> Bool {
     if v == nil || v is NSNull { return true }
     if let s = v as? String { return s.isEmpty }
@@ -72,6 +72,50 @@ func isEmptyVal(_ v: Any?) -> Bool {
 }
 func boxOf(_ e: Any?) -> Int {
     (((e as? [String: Any])?["box"]) as? NSNumber)?.intValue ?? 0
+}
+func stampOf(_ e: Any?) -> Double {
+    (((e as? [String: Any])?["t"]) as? NSNumber)?.doubleValue ?? 0
+}
+// Records written since the review update carry t (ms of the last change): the later
+// one wins, so a fresh mistake lowers the saved level instead of being swallowed by an
+// older, higher box. Two records without t keep the old rule; >= (not >) there so
+// same-box updates from this page (star/counters) still apply.
+func progressWins(_ new: Any?, over old: Any?) -> Bool {
+    let nt = stampOf(new), ot = stampOf(old)
+    if nt > 0 || ot > 0 { return nt >= ot }
+    return boxOf(new) >= boxOf(old)
+}
+func mergeReview(existing: [String: Any]?, payload: [String: Any]) -> [String: Any] {
+    var items = (existing?["items"] as? [String: Any]) ?? [:]
+    for (k, v) in (payload["items"] as? [String: Any]) ?? [:] {
+        guard let inc = v as? [String: Any] else { continue }
+        guard let old = items[k] as? [String: Any] else { items[k] = inc; continue }
+        let incNewer = stampOf(inc) > stampOf(old)
+        var rec = incNewer ? old : inc
+        for (f, x) in (incNewer ? inc : old) { rec[f] = x }
+        var src: [String] = []
+        for s in ((old["src"] as? [Any]) ?? []) + ((inc["src"] as? [Any]) ?? []) {
+            if let name = s as? String, !src.contains(name) { src.append(name) }
+        }
+        rec["src"] = src
+        for name in ["d", "m"] {
+            let a = old[name] as? [String: Any], b = inc[name] as? [String: Any]
+            if let a = a, let b = b { rec[name] = stampOf(b) > stampOf(a) ? b : a }
+            else if let one = a ?? b { rec[name] = one }
+        }
+        rec["t"] = max(stampOf(old), stampOf(inc))
+        items[k] = rec
+    }
+    var meta = (existing?["meta"] as? [String: Any]) ?? [:]
+    let incoming = (payload["meta"] as? [String: Any]) ?? [:]
+    for (k, v) in incoming where k != "cap" && k != "capT" {
+        if let n = v as? NSNumber { meta[k] = max((meta[k] as? NSNumber)?.doubleValue ?? 0, n.doubleValue) }
+        else if meta[k] == nil { meta[k] = v }
+    }
+    if ((incoming["capT"] as? NSNumber)?.doubleValue ?? 0) > ((meta["capT"] as? NSNumber)?.doubleValue ?? 0) {
+        meta["cap"] = incoming["cap"]; meta["capT"] = incoming["capT"]
+    }
+    return ["items": items, "meta": meta]
 }
 func tsOf(_ e: [String: Any]) -> Double {
     (e["ts"] as? NSNumber)?.doubleValue ?? 0
@@ -124,17 +168,32 @@ func mergeDeckPayload(existing: [String: Any]?, deck: String, payload: [String: 
                 lst.append(e); idx[k] = lst.count - 1
             }
         }
-        return ["list": lst, "del": dl]
+        var result: [String: Any] = ["list": lst, "del": dl]
+        if deck == "notebook" {
+            var sessions = (cur["sessions"] as? [String: Any]) ?? [:]
+            for (key, value) in (payload["sessions"] as? [String: Any]) ?? [:] {
+                guard let incoming = value as? [String: Any] else { continue }
+                let old = (sessions[key] as? [String: Any]) ?? [:]
+                if sessions[key] == nil || tsOf(incoming) >= tsOf(old) { sessions[key] = incoming }
+            }
+            result["sessions"] = sessions
+        }
+        if deck == "wrong" {
+            var events = (cur["events"] as? [String: Any]) ?? [:]
+            for (id, event) in (payload["events"] as? [String: Any]) ?? [:] where events[id] == nil { events[id] = event }
+            result["events"] = events
+        }
+        return result
     }
     if deck == "config" {                                        // shallow update, like the server
         for (k, v) in payload { cur[k] = v }
         return cur
     }
-    // deck pages (p1/vj/scene): keep whichever side has the higher box per word.
-    // >= (not >) so same-box updates from this page (star/counters) still apply.
+    if deck == "srs" { return mergeReview(existing: existing, payload: payload) }
+    // deck pages (p1/vj/scene): per word the newer record wins (see progressWins).
     var prog = (cur["prog"] as? [String: Any]) ?? [:]
     for (k, v) in (payload["prog"] as? [String: Any]) ?? [:] {
-        if prog[k] == nil || boxOf(v) >= boxOf(prog[k]) { prog[k] = v }
+        if prog[k] == nil || progressWins(v, over: prog[k]) { prog[k] = v }
     }
     rememberDaily(&cur, cur["daily"] as? [String: Any])
     cur["prog"] = prog
@@ -266,7 +325,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         let (root, safe) = loadRoot()
         let initial = safe ? ((try? JSONSerialization.data(withJSONObject: root)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}") : "{}"
         controller.addUserScript(WKUserScript(source: "window.__INITIAL_STATE__ = \(initial);", injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        for name in ["learning-data", "shortcuts", "emoji", "images"] {
+        for name in ["learning-data", "shortcuts", "mistakes", "srs", "emoji", "images"] {
             let cfg = (root["decks"] as? [String: Any])?["config"] as? [String: Any]
             if name == "images" && ["off", "emoji"].contains(cfg?["imgMode"] as? String ?? "") { continue }
             if name == "emoji" && cfg?["imgMode"] as? String == "off" { continue }
@@ -364,6 +423,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     }
 
     @objc func goHome()  { loadResource("index") }
+    @objc func goReview() { loadResource("review") }
     @objc func goP1()    { loadResource("p1") }
     @objc func goVj()    { loadResource("vj") }
     @objc func goScene() { loadResource("scene") }
@@ -467,6 +527,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         let deckItem = NSMenuItem(); main.addItem(deckItem)
         let deckMenu = NSMenu(title: "词库")
         let home = deckMenu.addItem(withTitle: "📚 词库主页", action: #selector(goHome), keyEquivalent: ""); home.target = self
+        let today = deckMenu.addItem(withTitle: "📅 今日复习", action: #selector(goReview), keyEquivalent: ""); today.target = self
         deckMenu.addItem(.separator())
         let m1 = deckMenu.addItem(withTitle: "① Part 1 高频词", action: #selector(goP1), keyEquivalent: ""); m1.target = self
         let m2 = deckMenu.addItem(withTitle: "② 词汇真经", action: #selector(goVj), keyEquivalent: ""); m2.target = self

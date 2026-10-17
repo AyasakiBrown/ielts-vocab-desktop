@@ -4,7 +4,7 @@
   const field = mac ? 'shortcutsMac' : 'shortcutsWindows';
   const storageKey = 'ielts_' + field;
   const actions = [
-    ['home','主页',mod+'+Digit0'], ['p1','Part 1 高频词',mod+'+Digit1'],
+    ['home','主页',mod+'+Digit0'], ['review','今日复习',mod+'+Digit6'], ['p1','Part 1 高频词',mod+'+Digit1'],
     ['vj','词汇真经',mod+'+Digit2'], ['scene','听力场景词汇',mod+'+Digit3'],
     ['notebook','生词本',mod+'+Digit4'], ['wrong','错词本',mod+'+Digit5'],
     ['zoomIn','放大字号',mod+'+Shift+Equal'], ['zoomOut','缩小字号',mod+'+Minus'],
@@ -104,7 +104,7 @@
     const overlay=[...document.querySelectorAll('.ov.show, .modal.show')].pop();
     const scope=overlay||document;
     const typing=document.activeElement?.matches('input,textarea,select,[contenteditable="true"]');
-    const pages={home:'index',p1:'p1',vj:'vj',scene:'scene',notebook:'notebook',wrong:'wrong'};
+    const pages={home:'index',review:'review',p1:'p1',vj:'vj',scene:'scene',notebook:'notebook',wrong:'wrong'};
     if(pages[id]) { location.href=pages[id]+'.html';return true; }
     if(id==='settings') {window.openShortcutSettings();return true;}
     if(id.startsWith('zoom')) {
@@ -128,7 +128,7 @@
   window.__CUSTOM_SHORTCUTS__=true;
   document.addEventListener('keydown',e=>{
     if(e.isComposing || e.keyCode===229)return;
-    if(document.getElementById('learning-data-panel')?.open)return;
+    if(document.querySelector('dialog[open]'))return;
     if(panel) {
       if(recording) {
         e.preventDefault();e.stopImmediatePropagation();if(e.repeat)return;

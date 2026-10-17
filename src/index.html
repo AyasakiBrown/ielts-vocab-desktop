@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
+<script src="mistakes.js"></script>
+<script src="srs.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>雅思词汇听写 · 合集</title>
@@ -103,12 +105,26 @@
       '<div class="stats" style="margin-top:12px">'+stats+'</div>';
     return a;
   }
+  // 今日复习: due words from every deck, 生词本 and 错词本 in one queue (srs.js)
+  function reviewCard(){
+    var RV=window.IELTSReview; if(!RV) return null;
+    try{ RV.reload(); }catch(e){}
+    var s=RV.summary(), n=s.due;
+    var line=n?('待复习 <b>'+n+'</b> 词'+(s.again?'（含今天答错待重测 '+s.again+'）':''))
+              :(s.tracked?'今天到期的词已复习完 🎉':'做一次听写或选择题后，答过的词会自动排进复习');
+    var a=bookCard('review.html','📅','linear-gradient(135deg,#2563eb,#7c3aed)','今日复习',
+      '先完成到期复习，再学新词 · 隔天答对才算记住',
+      '<span>'+line+'</span><span>今日已复习 <b>'+s.done+'</b>'+(s.waiting?' · 排队 '+s.waiting:'')+' · 明天 '+s.tomorrow+'</span>');
+    if(n) a.style.borderColor='var(--accent)';
+    return a;
+  }
   function renderCards(){
     g.innerHTML='';
+    var rc=reviewCard(); if(rc) g.appendChild(rc);
     DECKS.forEach(function(d){ g.appendChild(card(d)); });
-    g.appendChild(bookCard('notebook.html','📒','linear-gradient(135deg,#f59e0b,#ef4444)','生词本','练习里不会的词 · 自动配释义+发音',
+    g.appendChild(bookCard('notebook.html','📒','linear-gradient(135deg,#f59e0b,#ef4444)','生词本','练习里不会的词 · 自动配释义+发音 · 到期词优先',
       '<span>已收录 <b>'+listLen('notebook')+'</b> 词</span><span>离线词典 5.8 万</span>'));
-    g.appendChild(bookCard('wrong.html','📕','linear-gradient(135deg,#ef4444,#b91c1c)','错词本','听写拼错的词 · 自动收集 · 针对性重练',
+    g.appendChild(bookCard('wrong.html','📕','linear-gradient(135deg,#ef4444,#b91c1c)','错词本','答错的词自动收集 · 隔天复测通过再移出',
       '<span>待攻克 <b>'+listLen('wrong')+'</b> 词</span><span>✍️ 听写错词自动进</span>'));
   }
   renderCards();
