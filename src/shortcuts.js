@@ -53,6 +53,14 @@
     return map;
   }
   let bindings, panel, draft, recording, lastFocus;
+  // Pages label their buttons from the live bindings (e.g. "提交 (Enter)"); they
+  // repaint on 'ielts:shortcuts', fired at load and after every save.
+  window.IELTSShortcuts = {
+    key: id => (bindings ||= read())[id] || '',
+    label: id => { const k = (bindings ||= read())[id]; return k ? label(k) : ''; }
+  };
+  const announce = () => window.dispatchEvent(new Event('ielts:shortcuts'));
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', announce); else announce();
   const visible=el=>el && !el.disabled && el.getClientRects().length>0 && getComputedStyle(el).visibility!=='hidden';
   function closeSettings() { panel?.remove();panel=null;recording=null;lastFocus?.focus(); }
   function status(text) { panel.querySelector('#shortcut-status').textContent=text; }
@@ -95,7 +103,7 @@
         const persist=window.webkit?.messageHandlers?.persist;
         if (persist) persist.postMessage(JSON.stringify({deck:'config',payload:{[field]:value}}));
         if(window.__INITIAL_STATE__?.decks) { window.__INITIAL_STATE__.decks.config ||= {};window.__INITIAL_STATE__.decks.config[field]=value; }
-        bindings={...draft};closeSettings();
+        bindings={...draft};closeSettings();announce();
       } catch { status('保存失败：本地存储不可用。请检查磁盘空间后重试。'); }
     };
     document.body.append(panel);draw();panel.querySelector('button').focus();

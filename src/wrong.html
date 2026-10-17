@@ -75,7 +75,7 @@ button{-webkit-tap-highlight-color:transparent}
     <button class="btn alt sm" id="dsay">🔊 再听一次</button>
     <div style="margin-top:14px"><input id="dans" placeholder="听写：输入英文拼写" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go"></div>
     <div id="dfb" style="min-height:24px;margin-top:10px;font-size:15px"></div>
-    <div class="nav"><button class="btn" id="dsubmit">提交 (Enter)</button><button class="btn alt" id="dskip">跳过 ›</button></div>
+    <div class="nav"><button class="btn" id="dsubmit" data-base="提交">提交 (Enter)</button><button class="btn alt" id="dskip">跳过 ›</button></div>
     <div class="prog" id="dscore"></div>
     <button class="btn alt sm" id="drestart" title="保留历史记录">↺ 从头重做</button>
     <button class="ghosti" id="dclose" style="margin-top:8px">结束</button>
@@ -84,6 +84,12 @@ button{-webkit-tap-highlight-color:transparent}
 
 <script>
   var $=function(id){return document.getElementById(id);};
+  // Submit-button hint follows the user's shortcut settings (shortcuts.js); without
+  // it (phone/PWA) the page's own Enter handler applies. A cleared binding shows no key.
+  function submitHint(){ var S=window.IELTSShortcuts; if(!S) return ' (Enter)'; var k=S.label('submit'); return k?' ('+k+')':''; }
+  function setSubmit(text){ var b=$('dsubmit'); if(!b) return; b.dataset.base=text; b.textContent=text+submitHint(); }
+  window.addEventListener('ielts:shortcuts',function(){ var b=$('dsubmit'); if(b) b.textContent=(b.dataset.base||'提交')+submitHint(); });
+  setSubmit('提交');
   // Review ledger (srs.js), shared with the decks. The stub only keeps practice usable
   // if that script failed to load; it schedules nothing.
   var RV=window.IELTSReview||{live:false,
@@ -206,7 +212,7 @@ button{-webkit-tap-highlight-color:transparent}
     var e=dorder[di]; if(!e){ dEnd(); return; }
     $('dprog').textContent='第 '+(di+1)+' / '+dorder.length+' 个';
     $('dtr').innerHTML=posBadge(e)+esc(e.zh||'（无释义提示，靠听拼写）');
-    $('dans').value=''; $('dans').readOnly=false; $('dfb').textContent=''; $('dsubmit').textContent='提交 (Enter)';
+    $('dans').value=''; $('dans').readOnly=false; $('dfb').textContent=''; setSubmit('提交');
     $('dscore').textContent='✓ '+dright+'　✗ '+dwrong;
     setTimeout(function(){ try{$('dans').focus();}catch(e){} },60); speak(e.en);
   }
@@ -226,7 +232,7 @@ button{-webkit-tap-highlight-color:transparent}
     if(RV.live ? (ok&&r&&r.event==='up'&&r.lv>=2) : ok) dpass.push(k);
     if(ok){ dright++; $('dfb').innerHTML='<span style="color:var('+(res.clean?'--good':'--bad')+')">'+okText(res)+'</span> '+mediaInline(e.en,28)+plan; }
     else { dwrong++; $('dfb').innerHTML='<span style="color:var(--bad)">✗ 应为 <b>'+esc(e.en)+'</b></span> '+mediaInline(e.en,28)+plan; }
-    $('dans').readOnly=true; $('dsubmit').textContent='下一个 (Enter)';
+    $('dans').readOnly=true; setSubmit('下一个');
     $('dscore').textContent='✓ '+dright+'　✗ '+dwrong; speak(e.en);
   }
   function dNext(){ di++; if(di>=dorder.length) dEnd(); else dShow(); }

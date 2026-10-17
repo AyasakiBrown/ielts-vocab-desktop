@@ -142,7 +142,7 @@
     </div>
     <div class="fb" id="rfb"></div>
     <div class="nav" id="rnav">
-      <button class="btn" id="dsubmit">提交 (Enter)</button>
+      <button class="btn" id="dsubmit" data-base="提交">提交 (Enter)</button>
       <button class="btn" id="mnext">下一题 ›</button>
       <button class="btn alt" id="dskip">跳过 ›</button>
     </div>
@@ -154,6 +154,12 @@
 <script src="dict.js"></script>
 <script>
   var $=function(id){return document.getElementById(id);};
+  // Submit-button hint follows the user's shortcut settings (shortcuts.js); without
+  // it (phone/PWA) the page's own Enter handler applies. A cleared binding shows no key.
+  function submitHint(){ var S=window.IELTSShortcuts; if(!S) return ' (Enter)'; var k=S.label('submit'); return k?' ('+k+')':''; }
+  function setSubmit(text){ var b=$('dsubmit'); if(!b) return; b.dataset.base=text; b.textContent=text+submitHint(); }
+  window.addEventListener('ielts:shortcuts',function(){ var b=$('dsubmit'); if(b) b.textContent=(b.dataset.base||'提交')+submitHint(); });
+  setSubmit('提交');
   var RV=window.IELTSReview;
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   var SRCN={p1:'Part 1',vj:'词汇真经',scene:'听力场景',notebook:'生词本',wrong:'错词本',other:'其他'};
@@ -235,7 +241,7 @@
     $('dictBox').style.display=isD?'':'none'; $('choiceBox').style.display=isD?'none':''; $('cardBox').style.display='none';
     toggle(['dzh','dletter','msay','dsay','dslow'],true); $('mnext').textContent='下一题 ›';
     toggle(['dsubmit'],isD); toggle(['mnext'],false); toggle(['dskip'],true);
-    $('rfb').innerHTML=''; $('dsubmit').textContent='提交 (Enter)';
+    $('rfb').innerHTML=''; setSubmit('提交');
     var st=RV.info(cur.key,cur.track);
     $('rprog').innerHTML='<span class="tag">'+TRN[cur.track]+'</span> <span class="tag">'+esc(SRCN[sourceOf(cur)]||sourceOf(cur))+'</span> <span class="tag">'+esc(st.label)+'</span>　第 '+(qi+1)+' / '+Q.length;
     $('rscore').textContent='✓ '+right+'　✗ '+missed.length;
@@ -282,7 +288,7 @@
     $('rfb').innerHTML=headline+(r&&r.text?'<div class="plan">📅 '+esc(r.text)+'</div>':'');
     $('rscore').textContent='✓ '+right+'　✗ '+missed.length;
     toggle(['dsubmit'],cur.track==='d'); toggle(['mnext'],cur.track!=='d'); toggle(['dskip'],false);
-    $('dsubmit').textContent='下一个 (Enter)';
+    setSubmit('下一个');
     if(cur.track!=='d') $('mnext').focus();
   }
   function submitDict(){
@@ -491,7 +497,7 @@
     $('cardBox').style.display=kind==='card'?'':'none'; $('dictBox').style.display=kind==='input'?'':'none'; $('choiceBox').style.display=kind==='choice'?'':'none';
     toggle(['dzh','dletter'],false); toggle(['dsubmit'],kind==='input'); toggle(['mnext'],kind==='card'); toggle(['dskip'],kind!=='card');
     toggle(['dsay','dslow','msay'],!!dstep.say);
-    $('mnext').textContent='继续 ›'; $('dsubmit').textContent='提交 (Enter)'; $('rfb').innerHTML='';
+    $('mnext').textContent='继续 ›'; setSubmit('提交'); $('rfb').innerHTML='';
     $('rprog').innerHTML='<span class="tag">针对训练</span> <span class="tag">'+esc(RV.CAUSE[p.t.main]||'')+'</span>　第 '+(D.plans.indexOf(p)+1)+' / '+D.plans.length+' 词　·　步骤 '+(D.i+1)+' / '+D.steps.length+(dstep.retry?'　·　再练一次':'');
     $('rscore').textContent='';
     if(kind==='card'){ $('cardBox').innerHTML=dstep.html; setTimeout(function(){ try{$('mnext').focus();}catch(e){} },60); }
@@ -511,7 +517,7 @@
     if(!dstep.retry){ var p=planOf(dstep.key); if(p) p.left--; }
     $('rfb').innerHTML=html+(ok?'':'<div class="plan">这一步稍后会再练一次</div>');
     toggle(['dskip'],false);
-    if(dstep.kind==='input'){ $('dans').readOnly=true; $('dsubmit').textContent='下一步 (Enter)'; }
+    if(dstep.kind==='input'){ $('dans').readOnly=true; setSubmit('下一步'); }
     else { toggle(['mnext'],true); $('mnext').textContent='下一步 ›'; try{$('mnext').focus();}catch(e){} }
   }
   function drillSubmit(){

@@ -186,7 +186,7 @@ button{-webkit-tap-highlight-color:transparent}
     <button class="btn alt sm" id="dsay">🔊 再听一次</button>
     <div class="row" style="margin-top:14px"><input id="dans" placeholder="听写：输入英文拼写" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go"></div>
     <div id="dfb" style="min-height:24px;margin-top:10px;font-size:15px"></div>
-    <div class="nav"><button class="btn" id="dsubmit">提交 (Enter)</button><button class="btn alt" id="dskip">跳过 ›</button></div>
+    <div class="nav"><button class="btn" id="dsubmit" data-base="提交">提交 (Enter)</button><button class="btn alt" id="dskip">跳过 ›</button></div>
     <div class="prog" id="dscore"></div>
     <button class="btn alt sm" id="drestart" title="保留历史记录">↺ 从头重做</button>
     <button class="ghosti" id="dclose" style="margin-top:8px">结束</button>
@@ -199,6 +199,12 @@ button{-webkit-tap-highlight-color:transparent}
 <script src="images.js"></script>
 <script>
   var $=function(id){return document.getElementById(id);};
+  // Submit-button hint follows the user's shortcut settings (shortcuts.js); without
+  // it (phone/PWA) the page's own Enter handler applies. A cleared binding shows no key.
+  function submitHint(){ var S=window.IELTSShortcuts; if(!S) return ' (Enter)'; var k=S.label('submit'); return k?' ('+k+')':''; }
+  function setSubmit(text){ var b=$('dsubmit'); if(!b) return; b.dataset.base=text; b.textContent=text+submitHint(); }
+  window.addEventListener('ielts:shortcuts',function(){ var b=$('dsubmit'); if(b) b.textContent=(b.dataset.base||'提交')+submitHint(); });
+  setSubmit('提交');
   var DICT=window.DICT||{};
   // Review ledger (srs.js), shared with the decks. The stub only keeps practice usable
   // if that script failed to load; it schedules nothing.
@@ -638,7 +644,7 @@ button{-webkit-tap-highlight-color:transparent}
     var known=RV.info(e.w).rec;
     homShown=!!(known&&known.hom);           // homophones cannot be told apart by ear: show the meaning first
     if(homShown) $('dtr').innerHTML='同音词，按这个意思拼写：'+posBadge(e)+esc(e.tr||'（暂无中文释义）'); else $('dtr').textContent='提交答案后显示中文意思';
-    $('dans').value=''; $('dans').readOnly=false; $('dfb').textContent=''; $('dsubmit').textContent='提交 (Enter)';
+    $('dans').value=''; $('dans').readOnly=false; $('dfb').textContent=''; setSubmit('提交');
     $('dscore').textContent='✓ '+dright+'　✗ '+dwrong.length;
     checkpoint('dict',dCat,dorder,di,{right:dright,wrong:dwrong,draft:''});
     setTimeout(function(){ try{$('dans').focus();}catch(e){} },60); speak(e.w);
@@ -662,7 +668,7 @@ button{-webkit-tap-highlight-color:transparent}
     if(ok){ dright++; $('dfb').innerHTML='<span style="color:var('+(res.clean?'--good':'--bad')+')">'+okText(res)+'</span> '+mediaInline(e.w,30)+plan; }
     else { dwrong.push(e.id); $('dfb').innerHTML='<span style="color:var(--bad)">✗ 应为 <b>'+esc(e.w)+'</b></span> '+mediaInline(e.w,30)+plan; }
     $('dtr').innerHTML=posBadge(e)+esc(e.tr||'（暂无中文释义）');
-    $('dans').readOnly=true; $('dsubmit').textContent='下一个 (Enter)';
+    $('dans').readOnly=true; setSubmit('下一个');
     $('dscore').textContent='✓ '+dright+'　✗ '+dwrong.length; savePractice(); speak(e.w);
   }
   function dNext(){ di++; if(di>=dorder.length) dEnd(); else dShow(); }
