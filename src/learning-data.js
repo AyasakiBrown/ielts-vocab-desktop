@@ -110,25 +110,70 @@
       if (d.config[f]) storage.setItem('ielts_'+f,JSON.stringify(d.config[f])); else storage.removeItem('ielts_'+f);
     }
   }
-  const api = {normalize, parse, pack, summary, hydrate, remember, mergeReview};
+  // Per-day totals of the three word decks, newest first. Dates are compared as
+  // numbers so un-padded legacy keys (2026-9-30) still sort before 2026-10-1.
+  const DAILY_DECKS = ['p1', 'vj', 'scene'];
+  function dayNumber(date) {
+    const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(date || '');
+    return m ? (+m[1]) * 10000 + (+m[2]) * 100 + (+m[3]) : NaN;
+  }
+  function dailyRows(root) {
+    const d = normalize(root).decks, totals = new Map();
+    // normalize() has already folded each deck's current daily into history.
+    for (const n of DAILY_DECKS) for (const h of Object.values(d[n].history)) {
+      const day = dayNumber(h.date);
+      if (!Number.isFinite(day) || !(h.done > 0)) continue;
+      const t = totals.get(day) ?? {done: 0, ok: 0};
+      t.done += h.done; t.ok += h.ok; totals.set(day, t);
+    }
+    return [...totals].sort((a, b) => b[0] - a[0]).map(([day, t]) => ({
+      day, date: `${Math.floor(day / 10000)}-${String(Math.floor(day / 100) % 100).padStart(2, '0')}-${String(day % 100).padStart(2, '0')}`,
+      done: t.done, ok: t.ok, rate: t.done ? Math.round(t.ok / t.done * 100) : null
+    }));
+  }
+  const localDay = (now = new Date()) => now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+  // Day number for "today minus n days" in local time.
+  function daysAgo(n, now = new Date()) { const x = new Date(now.getFullYear(), now.getMonth(), now.getDate() - n); return localDay(x); }
+  const api = {normalize, parse, pack, summary, hydrate, remember, mergeReview, dailyRows, dayNumber, daysAgo};
   if (typeof module !== 'undefined') module.exports = api;
   else {
     scope.IELTSData = api;
+    function renderHistory(box, rows) {
+      box.replaceChildren();
+      const note = text => { const p = document.createElement('p'); p.style.cssText = 'color:#526074;margin:8px 0'; p.textContent = text; return p; };
+      if (!rows.length) { box.append(note('还没有答题记录。在三个词库中听写、选择或卡片练习并提交答案后，这里会按天显示完成题数和正确率。')); return; }
+      const since = daysAgo(6), recent = rows.filter(r => r.day >= since);
+      let all = false;
+      const table = document.createElement('table');
+      table.style.cssText = 'width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;margin-top:6px';
+      const toggle = document.createElement('button'); toggle.id = 'learning-history-toggle';
+      const empty = note('最近 7 天没有答题记录。');
+      const cell = (tag, text, right) => { const c = document.createElement(tag); c.textContent = text; c.style.cssText = `padding:6px 8px;border-bottom:1px solid #e6eaf0;text-align:${right ? 'right' : 'left'}`; return c; };
+      const draw = () => {
+        const shown = all ? rows : recent;
+        table.replaceChildren();
+        const head = table.createTHead().insertRow();
+        ['日期', '完成题数', '正确题数', '正确率'].forEach((t, i) => head.append(cell('th', t, i > 0)));
+        const body = table.createTBody();
+        for (const r of shown) {
+          const tr = body.insertRow();
+          tr.append(cell('td', r.date), cell('td', String(r.done), 1), cell('td', String(r.ok), 1), cell('td', r.rate === null ? '—' : r.rate + '%', 1));
+        }
+        table.hidden = !shown.length; empty.hidden = shown.length > 0;
+        toggle.textContent = all ? '只看最近 7 天' : `显示全部（${rows.length} 天）`;
+        toggle.hidden = rows.length === recent.length;
+      };
+      toggle.onclick = () => { all = !all; draw(); };
+      box.append(empty, table, toggle); draw();
+    }
     scope.showLearningData = () => {
       const old = document.getElementById('learning-data-panel'); if (old) {old.focus(); return;}
       const panel = document.createElement('dialog'); panel.id='learning-data-panel';
       panel.style.cssText='max-width:620px;width:85%;max-height:80vh;overflow:auto;border:0;border-radius:16px;padding:24px;font:15px system-ui;color:#182337';
-      panel.innerHTML='<h2>学习记录与数据转移</h2><p>更新时只替换程序，使用同一系统账户，保留应用数据目录。换电脑或跨系统时，先导出完整备份，再在新软件中恢复。</p><p>备份包含你的个人学习数据，请自行妥善保存，不要上传到公开的软件发布页。</p><div id="learning-data-summary"></div><p><button data-action="export">导出完整备份</button> <button data-action="import">从备份恢复…</button> <button data-action="folder">打开自动备份目录</button></p><h3>每日学习记录</h3><p>从本版开始保存三个词库的每日答题统计；不包含未提交的练习，旧版未记录的历史无法补回。</p><div id="learning-history"></div><p><button id="learning-close">关闭</button></p>';
+      panel.innerHTML='<h2>学习记录与数据转移</h2><p>更新时只替换程序，使用同一系统账户，保留应用数据目录。换电脑或跨系统时，先导出完整备份，再在新软件中恢复。</p><p>备份包含你的个人学习数据，请自行妥善保存，不要上传到公开的软件发布页。</p><div id="learning-data-summary"></div><p><button data-action="export">导出完整备份</button> <button data-action="import">从备份恢复…</button> <button data-action="folder">打开自动备份目录</button></p><h3>每日学习记录</h3><p style="font-size:13px;color:#526074">只统计 Part 1 高频词、词汇真经、听力场景词汇三个词库中已提交的答题；生词本、错词本和今日复习不计入。v1.0.3 之前未记录的日期无法补回。</p><div id="learning-history"></div><p><button id="learning-close">关闭</button></p>';
       const state=normalize(scope.__INITIAL_STATE__ || {v:1,decks:{}});
       panel.querySelector('#learning-data-summary').textContent=summary(state);
-      const totals={};
-      for(const n of ['p1','vj','scene']) for(const h of Object.values(state.decks[n].history)) {
-        const t=totals[h.date]??={done:0,ok:0};t.done+=h.done;t.ok+=h.ok;
-      }
-      const hist=panel.querySelector('#learning-history');
-      const dates=Object.keys(totals).sort().reverse();
-      hist.textContent=dates.length ? dates.map(date=>`${date}：完成 ${totals[date].done}，正确 ${totals[date].ok}`).join('\n') : '暂无历史记录';
-      hist.style.whiteSpace='pre-line';
+      renderHistory(panel.querySelector('#learning-history'), dailyRows(state));
       panel.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>scope.webkit?.messageHandlers?.learningData?.postMessage(b.dataset.action));
       panel.querySelector('#learning-close').onclick=()=>panel.close();panel.onclose=()=>panel.remove();
       document.body.append(panel); panel.showModal();

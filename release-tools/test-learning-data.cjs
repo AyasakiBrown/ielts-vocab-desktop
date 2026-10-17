@@ -93,3 +93,17 @@ test('逐次错词记录随完整备份及恢复保留，旧备份不会残留�
  Data.hydrate(restored,storage);assert.deepEqual(JSON.parse(values.get('ielts_wrong_events')),root.decks.wrong.events);
  Data.hydrate(fixture(),storage);assert.deepEqual(JSON.parse(values.get('ielts_wrong_events')),{});
 });
+test('每日记录按年月日数值倒序，跨月不排错；零答题不出现',()=>{
+  const root=Data.normalize({v:1,decks:{
+    p1:{prog:{},daily:{date:'2026-10-10',done:4,ok:4},history:{'2026-9-30':{date:'2026-9-30',done:10,ok:7},'2026-10-1':{date:'2026-10-1',done:5,ok:5}}},
+    vj:{prog:{},history:{'2026-10-01':{date:'2026-10-01',done:3,ok:1},'2026-10-02':{date:'2026-10-02',done:0,ok:0}}},
+  }});
+  const rows=Data.dailyRows(root);
+  assert.deepEqual(rows.map(r=>r.date),['2026-10-10','2026-10-01','2026-09-30']);
+  assert.deepEqual(rows[1],{day:20261001,date:'2026-10-01',done:8,ok:6,rate:75});
+  assert.equal(Data.dailyRows({v:1,decks:{}}).length,0);
+  assert.equal(Data.dayNumber('2026-9-30')<Data.dayNumber('2026-10-1'),true);
+  assert.equal(Data.daysAgo(6,new Date(2026,9,3)),20260927);
+  // 原始记录与备份格式不变
+  assert.deepEqual(Data.parse(Data.pack(root)),root);
+});
