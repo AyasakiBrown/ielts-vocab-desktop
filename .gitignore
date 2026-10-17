@@ -1,0 +1,11 @@
+*.pem
+*.crt
+data.json
+backups/
+.DS_Store
+.claude/
+.codex/
+.env*
+node_modules/
+GitHub-Release/
+*.log

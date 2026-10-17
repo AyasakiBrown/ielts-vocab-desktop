@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>雅思词汇听写 · 合集</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --ink:#1d2330; --soft:#6b7280; --line:#e5e7eb;
+    --accent:#2563eb; --accent2:#0ea5a4; --good:#16a34a; --track:#eef0f3; --shadow:0 1px 3px rgba(0,0,0,.06),0 6px 18px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0f1320; --card:#171c2b; --ink:#e8ecf3; --soft:#9aa3b2; --line:#262d40;
+           --accent:#5b8cff; --accent2:#2dd4bf; --good:#34d399; --track:#222a3d; --shadow:0 1px 3px rgba(0,0,0,.4); }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+       -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:680px;margin:0 auto;padding:38px 20px 48px}
+  header h1{margin:0 0 6px;font-size:25px;letter-spacing:.3px}
+  header p{margin:0;color:var(--soft);font-size:13.5px;line-height:1.6}
+  .grid{display:flex;flex-direction:column;gap:14px;margin-top:26px}
+  a.card{display:block;text-decoration:none;color:inherit;background:var(--card);
+         border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;box-shadow:var(--shadow);
+         transition:transform .12s ease,box-shadow .12s ease,border-color .12s}
+  a.card:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 4px 12px rgba(37,99,235,.14),0 12px 28px rgba(0,0,0,.08)}
+  .top{display:flex;align-items:center;gap:13px}
+  .ico{width:46px;height:46px;border-radius:12px;flex:0 0 auto;display:grid;place-items:center;font-size:24px;
+       background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+  .name{font-size:16.5px;font-weight:650;margin:0}
+  .desc{margin:2px 0 0;font-size:12.5px;color:var(--soft)}
+  .arrow{margin-left:auto;color:var(--soft);font-size:20px}
+  .barwrap{margin-top:14px;height:9px;border-radius:99px;background:var(--track);overflow:hidden}
+  .bar{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0}
+  .stats{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--soft)}
+  .stats b{color:var(--ink);font-weight:600}
+  footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);color:var(--soft);font-size:11.5px;line-height:1.7}
+  code{background:var(--track);padding:1px 6px;border-radius:5px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📚 雅思词汇听写 · 合集</h1>
+    <p>三个词库合在一个 App 里 · 进度自动保存到本地一个文件，可与 IELTS Daily Tracker 同步。<br>菜单栏「词库」可切换页面；在「帮助 → 快捷键设置」中自定义键位。</p>
+  </header>
+
+  <div class="grid" id="grid"></div>
+
+  <div id="zoombox" style="margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow)">
+    <div style="font-size:13.5px;font-weight:650">🔤 字号 <span id="zoomval" style="font-weight:400;color:var(--soft);font-size:12px"></span></div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button id="zMinus" style="flex:1;padding:8px 4px;border-radius:9px;border:1px solid var(--line);background:transparent;color:inherit;cursor:pointer;font-size:16px">A−</button>
+      <button id="zReset" style="flex:1;padding:8px 4px;border-radius:9px;border:1px solid var(--line);background:transparent;color:inherit;cursor:pointer;font-size:13px">重置</button>
+      <button id="zPlus" style="flex:1;padding:8px 4px;border-radius:9px;border:1px solid var(--line);background:transparent;color:inherit;cursor:pointer;font-size:19px">A+</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--soft);margin-top:9px">整体缩放,点一下立即全局生效(三个词库 + 生词本都跟着变)。也可用菜单「显示」或自行设置的缩放快捷键。</div>
+  </div>
+
+  <footer>
+    数据保存在 <code>~/Library/Application Support/IELTSVocab/data.json</code> —— 清浏览器缓存不会丢，备份这个文件即可迁移／恢复。<br>
+    每个词库里 📊 统计 的「⬇️ 导出 / ⬆️ 导入」依旧可用，可把旧的浏览器进度导入进来。
+  </footer>
+</div>
+
+<script>
+  var DECKS=[
+    {k:'p1',    file:'p1.html',    ico:'①', name:'Part 1 高频词',   desc:'职业 · 房屋 · 服务 · 衣物',          total:357},
+    {k:'vj',    file:'vj.html',    ico:'②', name:'词汇真经',         desc:'刘洪波 · 22 章场景词汇',            total:3621},
+    {k:'scene', file:'scene.html', ico:'③', name:'听力场景词汇',     desc:'住宿/旅游/求职/医疗… 13 个场景',     total:1217}
+  ];
+  function todayStr(){var d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
+  function deckData(k){
+    try{ var s=window.__INITIAL_STATE__; if(s&&s.decks&&s.decks[k]) return s.decks[k]; }catch(e){}
+    return null;
+  }
+  function cnt(prog,f){ var n=0; if(prog){ for(var en in prog){ if(f(prog[en])) n++; } } return n; }
+  function card(d){
+    var data=deckData(d.k), prog=data&&data.prog, daily=data&&data.daily;
+    var studied=cnt(prog,function(p){return p&&p.seen>0;});
+    var ok=cnt(prog,function(p){return p&&p.box>=1;});
+    var pct=d.total?Math.min(100,Math.round(studied/d.total*100)):0;
+    var todo=(daily&&daily.date===todayStr())?(daily.done||0):0;
+    var a=document.createElement('a');
+    a.className='card'; a.href=d.file;
+    a.innerHTML=
+      '<div class="top"><div class="ico">'+d.ico+'</div>'+
+      '<div><p class="name">'+d.name+'</p><p class="desc">'+d.desc+' · '+d.total+' 词</p></div>'+
+      '<div class="arrow">›</div></div>'+
+      '<div class="barwrap"><div class="bar" style="width:'+pct+'%"></div></div>'+
+      '<div class="stats"><span>学过 <b>'+studied+'</b> / '+d.total+' （'+pct+'%）· 答对 <b>'+ok+'</b></span>'+
+      '<span>今日已练 <b>'+todo+'</b> 词</span></div>';
+    return a;
+  }
+  var g=document.getElementById('grid');
+  function listLen(k){ try{ var b=window.__INITIAL_STATE__&&window.__INITIAL_STATE__.decks&&window.__INITIAL_STATE__.decks[k]; if(b&&b.list) return b.list.length; }catch(e){} return 0; }
+  function bookCard(href,ico,grad,name,desc,stats){
+    var a=document.createElement('a'); a.className='card'; a.href=href;
+    a.innerHTML='<div class="top"><div class="ico" style="background:'+grad+'">'+ico+'</div>'+
+      '<div><p class="name">'+name+'</p><p class="desc">'+desc+'</p></div>'+
+      '<div class="arrow">›</div></div>'+
+      '<div class="stats" style="margin-top:12px">'+stats+'</div>';
+    return a;
+  }
+  function renderCards(){
+    g.innerHTML='';
+    DECKS.forEach(function(d){ g.appendChild(card(d)); });
+    g.appendChild(bookCard('notebook.html','📒','linear-gradient(135deg,#f59e0b,#ef4444)','生词本','练习里不会的词 · 自动配释义+发音',
+      '<span>已收录 <b>'+listLen('notebook')+'</b> 词</span><span>离线词典 5.8 万</span>'));
+    g.appendChild(bookCard('wrong.html','📕','linear-gradient(135deg,#ef4444,#b91c1c)','错词本','听写拼错的词 · 自动收集 · 针对性重练',
+      '<span>待攻克 <b>'+listLen('wrong')+'</b> 词</span><span>✍️ 听写错词自动进</span>'));
+  }
+  renderCards();
+  // PWA:自动同步拉到新数据后(SYNC_JS 更新 __INITIAL_STATE__ 并派发事件),卡片即时刷新
+  window.addEventListener('ielts:pulled', renderCards);
+  (function(){
+    var z=1.0; try{ var c=window.__INITIAL_STATE__&&window.__INITIAL_STATE__.decks&&window.__INITIAL_STATE__.decks.config; if(c&&c.zoom) z=c.zoom; }catch(e){}
+    function show(){ document.getElementById('zoomval').textContent='— '+Math.round(z*100)+'%'; }
+    window.addEventListener('ielts:zoom', function(e){ z=e.detail; show(); });
+    function setZ(v){ z=Math.min(1.8,Math.max(0.6,Math.round(v*20)/20)); show(); try{ if(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.zoom) webkit.messageHandlers.zoom.postMessage(String(z)); }catch(e){} }
+    document.getElementById('zMinus').onclick=function(){ setZ(z-0.1); };
+    document.getElementById('zPlus').onclick=function(){ setZ(z+0.1); };
+    document.getElementById('zReset').onclick=function(){ setZ(1.0); };
+    show();
+  })();
+</script>
+</body>
+</html>

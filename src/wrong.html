@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>错词本</title>
+<style>
+  :root{ --bg:#f5f6f8; --card:#fff; --ink:#1d2330; --soft:#6b7280; --line:#e5e7eb; --accent:#2563eb; --accent2:#0ea5a4; --good:#16a34a; --bad:#dc2626; --chip:#eef2ff; --warn:#b45309; --warnbg:#fff7ed; --track:#eef0f3; --shadow:0 1px 3px rgba(0,0,0,.06),0 6px 18px rgba(0,0,0,.05); }
+  @media (prefers-color-scheme:dark){ :root{ --bg:#0f1320; --card:#171c2b; --ink:#e8ecf3; --soft:#9aa3b2; --line:#262d40; --accent:#5b8cff; --accent2:#2dd4bf; --good:#34d399; --bad:#f87171; --chip:#1e2740; --warn:#fbbf24; --warnbg:#231a0e; --track:#222a3d; --shadow:0 1px 3px rgba(0,0,0,.4); } }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:680px;margin:0 auto;padding:30px 18px 60px}
+  h1{margin:0 0 3px;font-size:23px}
+  .sub{color:var(--soft);font-size:12.5px;margin:0 0 18px;line-height:1.6}
+  .tip{background:var(--warnbg);border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:12.5px;color:var(--warn);margin-bottom:14px;line-height:1.6}
+  .tools{display:flex;gap:8px;align-items:center;margin:0 2px 12px;flex-wrap:wrap}
+  .tools .count{color:var(--soft);font-size:12.5px;margin-right:auto}
+  .tools .count b{color:var(--bad);font-size:15px}
+  input{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 11px;width:100%}
+  input:focus{outline:none;border-color:var(--accent)}
+  .search{flex:1;min-width:140px}
+  .btn{border:none;border-radius:9px;padding:9px 14px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;white-space:nowrap}
+  .btn.alt{background:transparent;border:1px solid var(--line);color:var(--ink)}
+  .btn.sm{padding:5px 10px;font-size:12px}
+  .ghosti{background:transparent;border:none;cursor:pointer;color:var(--soft);font-size:16px;padding:2px 5px}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px 14px;box-shadow:var(--shadow);margin-bottom:10px}
+  .item .top{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+  .item .w{font-size:17px;font-weight:650}
+  .item .ph{color:var(--accent2);font-size:13px}
+  .item .meta{margin-left:auto;display:flex;gap:2px;align-items:center}
+  .tr{margin:7px 0 0;font-size:13.5px;line-height:1.55;white-space:pre-wrap;color:var(--ink)}
+  .ex{font-size:12.5px;color:var(--soft);margin-top:6px}
+  .badges{margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .tag{display:inline-block;background:var(--chip);color:var(--accent);font-size:11px;padding:1px 8px;border-radius:999px}
+  .pos{display:inline-block;background:var(--chip);color:var(--accent);font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;letter-spacing:.3px;white-space:nowrap;vertical-align:middle}
+  .ntag{display:inline-block;background:rgba(220,38,38,.1);color:var(--bad);font-size:11px;padding:1px 8px;border-radius:999px;font-weight:600}
+  .when{color:var(--soft);font-size:11.5px;margin-left:auto}
+  .empty{text-align:center;color:var(--soft);padding:46px 14px;font-size:13.5px;line-height:1.7}
+  .empty .big{font-size:40px;display:block;margin-bottom:10px}
+  /* dictation overlay */
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50}
+  .ov.show{display:flex}
+  .rc{background:var(--card);border-radius:18px;padding:26px 22px;width:min(440px,90vw);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .rc .rtr{margin:6px 0 4px;font-size:16px;line-height:1.6;white-space:pre-wrap;min-height:24px;color:var(--ink)}
+  .rc .nav{display:flex;gap:8px;justify-content:center;margin-top:14px}
+  .rc .prog{color:var(--soft);font-size:12px;margin-top:10px}
+body{overscroll-behavior-y:contain}
+button{-webkit-tap-highlight-color:transparent}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📕 错词本</h1>
+  <p class="sub">听写练习里拼错的词会自动收进这里（含中文、来源词库、错误次数）。针对薄弱词专门复习，掌握后移出即可。数据存本地、可同步。</p>
+  <div class="tip" id="tip">💡 在「① Part 1」「② 词汇真经」「③ 听力场景」里做 <b>✍️ 听写</b> 时，凡是拼错的词都会自动落到这本错词本里。</div>
+
+  <div class="tools">
+    <span class="count" id="count"></span>
+    <input class="search" id="search" placeholder="🔎 搜索单词 / 释义">
+    <button class="btn sm" id="dictate">🎧 重听写</button>
+    <button class="btn alt sm" id="sortBtn">↕️ 排序</button>
+    <button class="btn alt sm" id="export">⬇️ 导出</button>
+    <button class="btn alt sm" id="clear">🧹 清空</button>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<div class="ov" id="dov">
+  <div class="rc">
+    <div class="prog" id="dprog"></div>
+    <div class="rtr" id="dtr">释义提示</div>
+    <button class="btn alt sm" id="dsay">🔊 再听一次</button>
+    <div style="margin-top:14px"><input id="dans" placeholder="听写：输入英文拼写" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go"></div>
+    <div id="dfb" style="min-height:24px;margin-top:10px;font-size:15px"></div>
+    <div class="nav"><button class="btn" id="dsubmit">提交 (Enter)</button><button class="btn alt" id="dskip">跳过 ›</button></div>
+    <div class="prog" id="dscore"></div>
+    <button class="ghosti" id="dclose" style="margin-top:8px">结束</button>
+  </div>
+</div>
+
+<script>
+  var $=function(id){return document.getElementById(id);};
+  /* ---------- storage ---------- */
+  var WR=[], DEL={};
+  try{ var ls=localStorage.getItem('ielts_wrong'); if(ls) WR=JSON.parse(ls)||[]; }catch(e){}
+  try{ DEL=JSON.parse(localStorage.getItem('ielts_wrong_del'))||{}; }catch(e){}
+  // deletion tombstones: {enLower: deletedAtTs}. A record older than its tombstone stays
+  // dead everywhere; a NEW mistake (fresh ts) legitimately resurrects the word.
+  (function(){ var cut=Date.now()-180*864e5; for(var k in DEL){ if(DEL[k]<cut) delete DEL[k]; } })();
+  function tombed(e){ var k=(e&&e.en||'').toLowerCase(); return !!(DEL[k]&&((e.ts||0)<=DEL[k])); }
+  // merge whatever the native/PWA layer injected (union by word + tombstones)
+  try{ var b=window.__INITIAL_STATE__&&window.__INITIAL_STATE__.decks&&window.__INITIAL_STATE__.decks.wrong;
+    if(b){ var changed=false;
+      var bdel=b.del||{}; for(var dk in bdel){ if((bdel[dk]||0)>(DEL[dk]||0)){ DEL[dk]=bdel[dk]; changed=true; } }
+      var kept=WR.filter(function(e){return !tombed(e);}); if(kept.length!==WR.length){ WR=kept; changed=true; }
+      if(b.list&&b.list.length){ var seen={}; WR.forEach(function(e){ if(e&&e.en) seen[e.en.toLowerCase()]=e; });
+        b.list.forEach(function(e){ if(!e||!e.en||tombed(e)) return; var k=e.en.toLowerCase();
+          if(seen[k]){ if((e.n||1)>(seen[k].n||1)){ seen[k].n=e.n; changed=true; } }
+          else { WR.push(e); seen[k]=e; changed=true; } });
+      }
+      if(changed) save();
+    } }catch(e){}
+  function save(){
+    try{ localStorage.setItem('ielts_wrong', JSON.stringify(WR)); }catch(e){}
+    try{ localStorage.setItem('ielts_wrong_del', JSON.stringify(DEL)); }catch(e){}
+    try{ if(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.persist){ webkit.messageHandlers.persist.postMessage(JSON.stringify({deck:"wrong",payload:{list:WR,del:DEL}})); } }catch(e){}
+  }
+  /* ---------- media + TTS ---------- */
+  function emo(w){ var E=window.EMOJI||{}; w=(w||"").toLowerCase().trim(); if(E[w])return E[w]; return E[w.replace(/ies$/,"y")]||E[w.replace(/es$/,"")]||E[w.replace(/s$/,"")]||""; }
+  function pic(w){ var I=window.IMG||{}; w=(w||"").toLowerCase().trim(); if(I[w])return I[w]; return I[w.replace(/ies$/,"y")]||I[w.replace(/es$/,"")]||I[w.replace(/s$/,"")]||""; }
+  function mediaInline(w,size){ size=size||28; var im=pic(w); if(im) return '<img src="'+im+'" style="width:'+size+'px;height:'+size+'px;border-radius:5px;object-fit:cover;vertical-align:middle">'; var e=emo(w); return e?'<span style="font-size:'+(size-3)+'px;vertical-align:middle">'+e+'</span>':''; }
+  var VOICES=[];
+  function loadVoices(){ try{ var all=(window.speechSynthesis&&speechSynthesis.getVoices())||[]; VOICES=all.filter(function(v){return /^en[-_]/i.test(v.lang)||/english/i.test(v.name);}); if(!VOICES.length) VOICES=all; }catch(e){} }
+  if(window.speechSynthesis){ try{ speechSynthesis.onvoiceschanged=loadVoices; }catch(e){} loadVoices(); setTimeout(loadVoices,300); }
+  // Prefer enhanced / Siri / premium / known-good en-GB voices (checks voiceURI too, where iOS
+  // hides the enhanced-vs-compact difference) instead of grabbing the first accent match.
+  function voiceScore(v){
+    var n=(v.name||'').toLowerCase(), l=(v.lang||'').toLowerCase().replace('_','-'), u=(v.voiceURI||'').toLowerCase(), s=0;
+    if(l==='en-gb') s+=6; else if(l.slice(0,2)==='en') s+=2;
+    if(/premium/.test(n)||/premium/.test(u)) s+=4;
+    if(/enhanced/.test(n)||/enhanced/.test(u)) s+=3;
+    if(/siri/.test(n)||/siri/.test(u)) s+=3;
+    if(/compact/.test(u)) s-=3;
+    if(/\b(daniel|kate|serena|arthur|martha|stephanie|oliver|samantha|karen|moira|tessa)\b/.test(n)) s+=2;
+    if(v.localService) s+=1;
+    if(/novelty|eloquence|trinoids|whisper|zarvox|bells|bubbles|organ|cellos|boing|albert|jester|bahh|wobble/.test(n)) s-=6;
+    return s;
+  }
+  function bestVoice(){ var best=VOICES[0]||null, bs=-1e9; VOICES.forEach(function(v){ var sc=voiceScore(v); if(sc>bs){bs=sc; best=v;} }); return best; }
+  // screen wake lock — keep the phone awake through a re-dictation session
+  var _wake=null, _wantWake=false;
+  function _acqWake(){ try{ if(_wantWake&&!_wake&&navigator.wakeLock){ navigator.wakeLock.request('screen').then(function(w){ if(_wantWake){ _wake=w; w.addEventListener('release',function(){_wake=null;}); } else { w.release(); } }).catch(function(){}); } }catch(e){} }
+  function keepAwake(on){ _wantWake=on; if(on){_acqWake();} else { try{ if(_wake){_wake.release();_wake=null;} }catch(e){} } }
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _acqWake(); });
+  function speak(t){ try{ if(!window.speechSynthesis||!t) return; if(!VOICES.length) loadVoices(); var u=new SpeechSynthesisUtterance(t); u.lang='en-GB'; u.rate=0.9; var v=bestVoice(); if(v) u.voice=v; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){} }
+  /* ---------- helpers ---------- */
+  function esc(s){ return (s||"").replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function normalize(s){ return (s||"").toLowerCase().replace(/[^a-z]/g,""); }
+  function fmtd(ts){ if(!ts) return ""; var d=new Date(ts); return (d.getMonth()+1)+"/"+d.getDate(); }
+  var SRCN={p1:"Part 1",vj:"词汇真经",scene:"听力场景",nb:"生词本"};
+  function srcName(s){ return SRCN[s]||s||"听写"; }
+  function keyOf(e){ return (e.en||"").toLowerCase(); }
+  function findE(k){ for(var i=0;i<WR.length;i++) if(keyOf(WR[i])===k) return WR[i]; return null; }
+  function posBadge(e){ var p=e&&e.pos?(''+e.pos).trim():''; return p?'<span class="pos">'+esc(p)+'</span> ':''; }
+  /* ---------- sorting ---------- */
+  var SORTS=[["错得最多",function(a,b){return (b.n||1)-(a.n||1)||(b.ts||0)-(a.ts||0);}],
+             ["最近写错",function(a,b){return (b.ts||0)-(a.ts||0);}],
+             ["字母顺序",function(a,b){return (a.en||"").localeCompare(b.en||"");}]];
+  var sortI=0;
+  /* ---------- list ---------- */
+  function render(){
+    var q=$('search').value.trim().toLowerCase();
+    var rows=WR.slice().sort(SORTS[sortI][1]).filter(function(e){ return !q || (e.en||"").toLowerCase().indexOf(q)>=0 || (e.zh||"").toLowerCase().indexOf(q)>=0; });
+    $('count').textContent='';
+    var c=document.createElement('span'); c.innerHTML='共 <b>'+WR.length+'</b> 个错词'+(q?('（筛出 '+rows.length+'）'):'')+'　·　'+SORTS[sortI][0];
+    $('count').appendChild(c);
+    if(!WR.length){ $('list').innerHTML='<div class="empty"><span class="big">🎯</span>还没有错词。<br>去三个词库里做 ✍️ 听写，拼错的词会自动收到这里。</div>'; return; }
+    $('list').innerHTML=rows.map(function(e){
+      var media=mediaInline(e.en,30);
+      return '<div class="item" data-k="'+esc(keyOf(e))+'">'+
+        '<div class="top">'+(media?media+' ':'')+'<span class="w">'+esc(e.en)+'</span>'+(e.ph?'<span class="ph">['+esc(e.ph)+']</span>':'')+' '+posBadge(e)+
+        '<span class="meta"><button class="ghosti say" title="朗读">🔊</button><button class="ghosti master" title="已掌握，移出">✅</button><button class="ghosti del" title="删除">🗑️</button></span></div>'+
+        (e.zh?'<div class="tr">'+esc(e.zh)+'</div>':'')+
+        (e.col?'<div class="ex">🗣️ '+esc(e.col)+'</div>':'')+
+        '<div class="badges"><span class="ntag">✗ 错 '+(e.n||1)+' 次</span><span class="tag">'+esc(srcName(e.src))+'</span><span class="when">'+fmtd(e.ts)+'</span></div>'+
+      '</div>';
+    }).join('');
+  }
+  $('list').addEventListener('click', function(ev){
+    var it=ev.target.closest('.item'); if(!it) return; var e=findE(it.getAttribute('data-k')); if(!e) return;
+    if(ev.target.classList.contains('say')) speak(e.en);
+    else if(ev.target.classList.contains('master')){ if(confirm('「'+e.en+'」已掌握，移出错词本？')){ DEL[keyOf(e)]=Date.now(); WR=WR.filter(function(x){return keyOf(x)!==keyOf(e);}); save(); render(); } }
+    else if(ev.target.classList.contains('del')){ if(confirm('删除「'+e.en+'」？')){ DEL[keyOf(e)]=Date.now(); WR=WR.filter(function(x){return keyOf(x)!==keyOf(e);}); save(); render(); } }
+  });
+  $('search').addEventListener('input', render);
+  $('sortBtn').onclick=function(){ sortI=(sortI+1)%SORTS.length; render(); };
+  $('export').onclick=function(){
+    var blob=new Blob([JSON.stringify({wrong:WR},null,1)],{type:'application/json'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ielts_错词本.json'; a.click();
+  };
+  $('clear').onclick=function(){ if(!WR.length){ alert('错词本是空的'); return; } if(confirm('确定清空整本错词本（共 '+WR.length+' 词）？此操作不可撤销。')){ var now=Date.now(); WR.forEach(function(x){ DEL[keyOf(x)]=now; }); WR=[]; save(); render(); } };
+
+  /* ---------- re-dictation (重听写) ---------- */
+  var dorder=[], di=0, dright=0, dwrong=0, dpass=[];
+  function dToggle(show){ ['dans','dsay','dsubmit','dskip'].forEach(function(id){ $(id).style.display=show?'':'none'; }); }
+  function openDictate(){
+    if(!WR.length){ alert('错词本是空的，没有可练的词'); return; }
+    dorder=WR.slice().sort(SORTS[sortI][1]);
+    for(var i=dorder.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=dorder[i];dorder[i]=dorder[j];dorder[j]=t; }
+    di=0; dright=0; dwrong=0; dpass=[]; dToggle(true); $('dov').classList.add('show'); keepAwake(true); dShow();
+  }
+  function dShow(){
+    var e=dorder[di]; if(!e){ dEnd(); return; }
+    $('dprog').textContent='第 '+(di+1)+' / '+dorder.length+' 个';
+    $('dtr').innerHTML=posBadge(e)+esc(e.zh||'（无释义提示，靠听拼写）');
+    $('dans').value=''; $('dans').readOnly=false; $('dfb').textContent=''; $('dsubmit').textContent='提交 (Enter)';
+    $('dscore').textContent='✓ '+dright+'　✗ '+dwrong;
+    setTimeout(function(){ try{$('dans').focus();}catch(e){} },60); speak(e.en);
+  }
+  function dCheck(){
+    var e=dorder[di]; if(!e) return;
+    if($('dans').readOnly){ dNext(); return; }
+    var got=normalize($('dans').value);
+    var alts=(e.alts&&e.alts.length?e.alts:[e.en]).map(normalize).filter(Boolean);
+    var ok=got.length>0 && alts.indexOf(got)>=0;
+    if(ok){ dright++; dpass.push(keyOf(e)); $('dfb').innerHTML='<span style="color:var(--good)">✓ 正确</span> '+mediaInline(e.en,28); }
+    else { dwrong++; $('dfb').innerHTML='<span style="color:var(--bad)">✗ 应为 <b>'+esc(e.en)+'</b></span> '+mediaInline(e.en,28); }
+    $('dans').readOnly=true; $('dsubmit').textContent='下一个 (Enter)';
+    $('dscore').textContent='✓ '+dright+'　✗ '+dwrong; speak(e.en);
+  }
+  function dNext(){ di++; if(di>=dorder.length) dEnd(); else dShow(); }
+  function dEnd(){
+    var total=dorder.length, pct=total?Math.round(dright/total*100):0;
+    $('dprog').textContent=''; $('dtr').textContent='重听写完成 🎉'; dToggle(false);
+    var btn = dpass.length?(' <button class="btn sm" id="dmaster">✅ 移出答对的 '+dpass.length+' 词</button>'):'';
+    $('dfb').innerHTML='本轮 <b>'+dright+' / '+total+'</b>（'+pct+'%）'+btn;
+    $('dscore').textContent='';
+    var mb=$('dmaster'); if(mb) mb.onclick=function(){
+      var pset={}, now=Date.now(); dpass.forEach(function(k){pset[k]=1; DEL[k]=now;});
+      WR=WR.filter(function(x){return !pset[keyOf(x)];}); save(); render();
+      $('dfb').innerHTML='已移出 '+dpass.length+' 个掌握的词 👍'; dpass=[];
+    };
+  }
+  $('dictate').onclick=openDictate;
+  $('dsay').onclick=function(){ var e=dorder[di]; if(e) speak(e.en); };
+  $('dsubmit').onclick=dCheck;
+  $('dskip').onclick=function(){ if(!$('dans').readOnly){ dwrong++; $('dscore').textContent='✓ '+dright+'　✗ '+dwrong; } dNext(); };
+  $('dans').addEventListener('keydown', function(ev){ if(window.__CUSTOM_SHORTCUTS__)return; if(ev.key==='Enter' && !ev.isComposing && ev.keyCode!==229 && !ev.repeat){ ev.preventDefault(); dCheck(); } });
+  $('dclose').onclick=function(){ $('dov').classList.remove('show'); dToggle(true); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} if(_pullPending){_pullPending=false;} rehydrateFromStorage(); };
+  $('dov').addEventListener('click', function(ev){ if(ev.target===$('dov')) $('dclose').click(); });
+
+  /* live refresh after a sync pull — see the deck pages for why this is required.
+     Defer while the re-dictation overlay is open so the running queue isn't disturbed. */
+  var _pullPending=false;
+  function rehydrateFromStorage(){
+    if($('dov').classList.contains('show')){ _pullPending=true; return; }
+    try{ var w=JSON.parse(localStorage.getItem('ielts_wrong')); if(w) WR=w; }catch(e){}
+    try{ var d=JSON.parse(localStorage.getItem('ielts_wrong_del')); if(d) DEL=d; }catch(e){}
+    render();
+  }
+  window.addEventListener('ielts:pulled',rehydrateFromStorage);
+
+  render();
+</script>
+</body>
+</html>
