@@ -2,12 +2,12 @@
 
 支持 Windows 和 macOS 的离线桌面工具，包含听写、生词本、错词本、今日复习，以及听力、阅读、写作和口语分类练习。学习数据保存在本地。
 
-## 下载 v1.1.0（测试版）
+## 下载 v1.1.1（测试版）
 
-- [Windows 10/11 · 64 位](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/download/v1.1.0/IELTSVocab-Windows-x64-1.1.0.zip)
-- [macOS 13+ · Intel / Apple Silicon](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/download/v1.1.0/IELTSVocab-macOS-universal-1.1.0.zip)
-- [完整源码包](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/download/v1.1.0/IELTSVocab-Source-1.1.0.zip)
-- [更新说明与全部附件](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/tag/v1.1.0)
+- [Windows 10/11 · 64 位](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/download/v1.1.1/IELTSVocab-Windows-x64-1.1.1.zip)
+- [macOS 13+ · Intel / Apple Silicon](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/download/v1.1.1/IELTSVocab-macOS-universal-1.1.1.zip)
+- [完整源码包](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/download/v1.1.1/IELTSVocab-Source-1.1.1.zip)
+- [更新说明与全部附件](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/tag/v1.1.1)
 
 Windows 版本尚未完成真机验证，因此本版标记为测试版。
 
@@ -18,6 +18,14 @@ Windows 版本尚未完成真机验证，因此本版标记为测试版。
 **Mac：** 解压后将应用拖入“应用程序”。本版仅本地签名，尚未获得 Apple 公证。若提示“无法验证开发者”或“Apple 无法检查是否包含恶意软件”，确认下载来源后先尝试打开一次，再前往 **系统设置 → 隐私与安全性 → 仍要打开**。无需关闭系统整体安全保护。
 
 发音依赖系统英语语音；离线发音需已安装本地语音。
+
+## v1.1.1 更新
+
+- 生词本增加英文释义、相近拼写建议和重复词提示；再次添加已有单词时可更新原条目。
+- 补充部分词典释义；「补全释义」保留自行修改过的内容。
+- 生词条目按编辑时间保存，较旧记录不会覆盖较新的释义和分类修改。
+- 学习记录改为表格，显示完成题数、正确题数和正确率；默认最近 7 天，可切换全部，修正跨月日期排序。
+- 听写提交按钮的按键提示跟随自定义快捷键；清除绑定后隐藏提示。
 
 ## v1.1.0 新增：今日复习与错因训练
 
@@ -35,6 +43,8 @@ Windows 版本尚未完成真机验证，因此本版标记为测试版。
 
 发布包不附带作者的学习记录、个人生词、备份、同步私钥或自定义键位。本次为桌面离线版，不含手机同步。
 
-完整应用源码请下载 Release 中的 `IELTSVocab-Source-1.1.0.zip`。GitHub 自动生成的“Source code”附件只反映仓库当前文件，不等于完整应用源码。
+应用源码在本仓库的 [`dev` 分支](https://github.com/AyasakiBrown/ielts-vocab-desktop/tree/dev)：`src/` 为页面与 Mac 外壳，`release-tools/` 为 Windows 外壳、构建脚本和测试。构建方法见 `release-tools/README.md`「从源码构建」，各版本与源码提交的对应见 `release-tools/VERSIONS.md`。
+
+v1.1.0 及更早版本的标签指向下载说明提交，对应源码以 `dev` 上的导入提交和 Release 中的 `IELTSVocab-Source-*.zip` 为准；GitHub 自动生成的“Source code”附件不等于完整应用源码。
 
 第三方词书、词典和图片的公开分发授权尚未核实；对外公开分发前需核实相关授权。
