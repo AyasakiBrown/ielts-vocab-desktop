@@ -20,6 +20,20 @@ ASSETS = ['index.html', 'p1.html', 'vj.html', 'scene.html', 'notebook.html',
 def run(*args):
     subprocess.run(args, check=True)
 
+def source_commit():
+    """The git commit the release is built from, so each tag points at real source."""
+    git = ['git', '-C', str(ROOT)]
+    try:
+        head = subprocess.run(git + ['rev-parse', 'HEAD'], capture_output=True, text=True, check=True).stdout.strip()
+        dirty = subprocess.run(git + ['status', '--porcelain', '--', 'src', 'release-tools', 'build.sh'],
+                               capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None  # building from an extracted Source zip: no repository
+    if dirty and not os.environ.get('IELTS_ALLOW_DIRTY'):
+        raise SystemExit('src/、release-tools/ 或 build.sh 有未提交的改动。请先提交，再从该提交构建发布包；'
+                         '仅试构建时可设 IELTS_ALLOW_DIRTY=1（结果会标记 -dirty，不能用于发布）。\n' + dirty)
+    return head + ('-dirty' if dirty else '')
+
 def write(path, text):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding='utf-8')
@@ -51,6 +65,7 @@ def audit(folder):
             assert not re.search(pattern, b, re.I), f'Privacy scan failed: {p.relative_to(folder)}'
 
 def main():
+    commit = source_commit()
     OUT.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='ielts-release-') as tmp:
         stage = Path(tmp)
@@ -60,9 +75,10 @@ def main():
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / 'src' / name, target)
         # Include only the public build files, never personal sync scripts/certificates.
-        for name in ['main.cjs', 'desktop.js', 'preload.cjs', 'data-store.cjs', 'test-learning-data.cjs', 'test-srs.cjs', 'test_native_data.py', 'build_release.py', 'README.md']:
+        for name in ['main.cjs', 'desktop.js', 'preload.cjs', 'data-store.cjs', 'test-learning-data.cjs', 'test-srs.cjs', 'test_native_data.py', 'build_release.py', 'README.md', 'VERSIONS.md']:
             write(source / 'release-tools' / name, (ROOT / 'release-tools' / name).read_text())
         write(source / 'README.md', (ROOT / 'release-tools' / 'README.md').read_text())
+        if commit: write(source / 'SOURCE_COMMIT.txt', f'v{VERSION} 构建自提交 {commit}\n')
         write(source / '.gitignore', '*.pem\n*.crt\ndata.json\nbackups/\n.DS_Store\n.claude/\n.codex/\n.env*\nnode_modules/\nGitHub-Release/\n*.log\n')
 
         mac = stage / 'IELTSVocab-macOS-universal'
@@ -122,8 +138,11 @@ def main():
             audit(folder)
             archive(folder, OUT / (folder.name + '-' + VERSION + '.zip'))
         write(OUT / 'README.md', (source / 'README.md').read_text())
+        if commit: write(OUT / 'SOURCE_COMMIT.txt', (source / 'SOURCE_COMMIT.txt').read_text())
         write(OUT / 'SHA256SUMS.txt', ''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n' for p in sorted(OUT.glob('*.zip'))))
         print('Release archives built; allowlist and privacy scans passed.', flush=True)
+        if commit:
+            print(f'Source commit: {commit}\n发布后打标签：git tag -a v{VERSION} {commit.removesuffix("-dirty")} -m "v{VERSION}"', flush=True)
 
 if __name__ == '__main__':
     main()

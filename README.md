@@ -35,6 +35,8 @@ Windows 版本尚未完成真机验证，因此本版标记为测试版。
 
 发布包不附带作者的学习记录、个人生词、备份、同步私钥或自定义键位。本次为桌面离线版，不含手机同步。
 
-完整应用源码请下载 Release 中的 `IELTSVocab-Source-1.1.0.zip`。GitHub 自动生成的“Source code”附件只反映仓库当前文件，不等于完整应用源码。
+应用源码在本仓库的 [`dev` 分支](https://github.com/AyasakiBrown/ielts-vocab-desktop/tree/dev)：`src/` 为页面与 Mac 外壳，`release-tools/` 为 Windows 外壳、构建脚本和测试。构建方法见 `release-tools/README.md`「从源码构建」，各版本与源码提交的对应见 `release-tools/VERSIONS.md`。
+
+v1.1.0 及更早版本的标签指向下载说明提交，对应源码以 `dev` 上的导入提交和 Release 中的 `IELTSVocab-Source-*.zip` 为准；GitHub 自动生成的“Source code”附件不等于完整应用源码。
 
 第三方词书、词典和图片的公开分发授权尚未核实；对外公开分发前需核实相关授权。

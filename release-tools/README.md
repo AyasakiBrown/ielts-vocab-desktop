@@ -32,6 +32,12 @@ Mac 数据存放在当前用户的 `~/Library/Application Support/IELTSVocab/dat
 python3 release-tools/build_release.py
 ```
 
+本机开发构建（只生成当前架构的 Mac 应用）：`./build.sh`。
+
+测试：`node release-tools/test-srs.cjs`、`node --test release-tools/test-learning-data.cjs`、`python3 release-tools/test_native_data.py`；界面测试（`test-mistakes.cjs` 等）需要 Playwright 与本机 Chrome。
+
+发布构建要求 `src/`、`release-tools/` 已提交，并把提交号写入 `SOURCE_COMMIT.txt`；版本与源码提交的对应见 `release-tools/VERSIONS.md`。
+
 输出到 `GitHub-Release/`。脚本构建 Mac 通用二进制，并下载固定版本 Electron 44.3.0 的 Windows x64 官方运行时，使用官方 SHA-256 清单校验。保留 Electron 自带许可证文件。
 
 Windows 使用 Electron 官方的[手动分发方式](https://www.electronjs.org/docs/latest/tutorial/application-distribution)。当前不提供自动更新。
