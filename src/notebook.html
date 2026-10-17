@@ -60,6 +60,21 @@
   .ghosti.sw.on{color:#db2777}
   .swtoggle input{accent-color:#db2777}
   .need{color:var(--bad);font-size:11.5px}
+  .old{margin:0 0 9px;padding:9px 11px;border-radius:10px;background:color-mix(in srgb,var(--good) 9%,var(--card));border:1px solid color-mix(in srgb,var(--good) 35%,var(--line));font-size:13px;line-height:1.55}
+  .old .oh{font-weight:650;color:var(--good)}
+  .old .otr{white-space:pre-wrap;margin-top:3px}
+  .old .oex{color:var(--soft);font-size:12.5px;margin-top:2px}
+  .en{margin-top:6px;font-size:12.5px;line-height:1.5;color:var(--soft)}
+  .en .enl{display:block}
+  .en .enp{font-style:italic;color:var(--accent2);margin-right:4px}
+  .en summary{cursor:pointer;list-style:none;color:var(--accent);font-size:12px}
+  .en summary::-webkit-details-marker{display:none}
+  .sug{margin-top:7px;font-size:12px;color:var(--soft);display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+  .sugw{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:2px 9px;font:inherit;font-size:12px;cursor:pointer}
+  .sugw:hover{border-color:var(--accent)}
+  .item.flash{outline:2px solid var(--good);outline-offset:1px}
+  [hidden]{display:none!important}
+  @media (max-height:700px){ .addbox{position:static} }
   .empty{text-align:center;color:var(--soft);padding:40px 10px;font-size:13px}
   /* review overlay */
   .ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50}
@@ -91,9 +106,12 @@ button{-webkit-tap-highlight-color:transparent}
       <input id="w" placeholder="输入生词，回车添加（如 mitigate）" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus>
       <button class="btn" id="add">添加</button>
     </div>
+    <div class="sug" id="psug" hidden></div>
     <div class="prev" id="prev">
       <div class="row" style="gap:10px"><b id="pw"></b><span class="ph" id="pph"></span><span id="pemo" style="font-size:22px"></span><button class="ghosti" id="psay" title="朗读">🔊</button></div>
+      <div class="old" id="pold" hidden></div>
       <textarea id="ptr" placeholder="中文释义（自动填入，可改）"></textarea>
+      <div class="en" id="pen" hidden></div>
       <div class="row" style="margin-top:7px"><input id="pex" placeholder="例句 / 语境（可选）"></div>
       <div class="row" style="margin-top:7px"><input id="ptag" placeholder="来源 / 标签，如 C18T2 听力（可选）"></div>
     </div>
@@ -115,6 +133,7 @@ button{-webkit-tap-highlight-color:transparent}
     <button class="btn alt sm" id="dictate">✍️ 听写</button>
     <button class="btn alt sm" id="review">🎴 复习</button>
     <button class="btn alt sm" id="export">⬇️ 导出</button>
+    <button class="btn sm" id="upgradeTr" hidden title="只更新还是词典原文的释义；你自己改过的不动">📚 补全释义</button>
     <div class="catpractice" aria-label="分类专项练习">
       <div class="cprow"><span class="cptitle">🎧 听力错词</span><button class="btn alt sm" id="dictateLW" title="只听写标记为听力错词的词">听写</button></div>
       <div class="cprow"><span class="cptitle">📖 阅读错词</span><button class="btn alt sm" id="dictateRW">听写</button><button class="btn alt sm" id="reviewRW">意思抽查</button><button class="btn alt sm" id="quizRW">选择题</button></div>
@@ -175,6 +194,7 @@ button{-webkit-tap-highlight-color:transparent}
 </div>
 
 <script src="dict.js"></script>
+<script src="defs.js"></script>
 <script src="emoji.js"></script>
 <script src="images.js"></script>
 <script>
@@ -229,8 +249,10 @@ button{-webkit-tap-highlight-color:transparent}
         b.list.forEach(function(e){
           if(!e||!e.w||tombed(e)) return; var k=e.w.toLowerCase(), o=have[k];
           if(!o){ NB.push(e); have[k]=e; changed=true; return; }
+          var eu=e.ut||0, ou=o.ut||0;   // ut = last edit time: the newer edit wins
+          if(eu>ou){ ['ph','tr','ex','tag','lw','rw','ww','sw','ut'].forEach(function(f){ if(f in e) o[f]=e[f]; }); changed=true; return; }
           ['ph','tr','ex','tag'].forEach(function(f){ if(!o[f]&&e[f]){o[f]=e[f];changed=true;} });
-          ['lw','rw','ww','sw'].forEach(function(f){ if(e[f]&&!o[f]){o[f]=true;changed=true;} });
+          if(eu===ou) ['lw','rw','ww','sw'].forEach(function(f){ if(e[f]&&!o[f]){o[f]=true;changed=true;} });
         });
       }
       if(changed) save();
@@ -263,6 +285,28 @@ button{-webkit-tap-highlight-color:transparent}
     }
     for(var i=0;i<c.length;i++){ var x=get(c[i]); if(x){ x.lemma=c[i]; return x; } }
     return null;
+  }
+  /* ---------- English definitions (ECDICT / WordNet, src/defs.js) ---------- */
+  var DEFS=window.DEFS||{};
+  var ENPOS={n:'n.',v:'v.',a:'adj.',s:'adj.',r:'adv.'};
+  function defsOf(w){
+    var k=wkey(w); if(!k) return [];
+    var v=DEFS[k]; if(!v){ var r=look(k); if(r&&r.lemma) v=DEFS[r.lemma]; }
+    if(!v) return [];
+    return String(v).split('\n').map(function(l){ var m=/^([nvasr])\.?\s+(.*)$/.exec(l.trim()); return m?{p:ENPOS[m[1]],t:m[2]}:{p:'',t:l.trim()}; }).filter(function(x){ return x.t; });
+  }
+  function defsHtml(w,show){
+    var L=defsOf(w); if(!L.length) return '';
+    var line=function(x){ return '<span class="enl">'+(x.p?'<span class="enp">'+x.p+'</span>':'')+esc(x.t)+'</span>'; };
+    show=show||2;
+    return '<span class="enl" style="font-size:11.5px">🇬🇧 英文释义</span>'+L.slice(0,show).map(line).join('')+
+      (L.length>show?'<details><summary>还有 '+(L.length-show)+' 条 ›</summary>'+L.slice(show).map(line).join('')+'</details>':'');
+  }
+  /* ---------- 补全释义：保存时用的是词典原文、之后词典补了义项的词 ---------- */
+  var SUPMARK=' / 〔补充〕';
+  function upgradable(e){
+    var r=look(e&&e.w); if(!r||!r.tr||r.lemma||r.tr.indexOf(SUPMARK)<0) return null;
+    return (e.tr||'').trim()===r.tr.split(SUPMARK)[0].trim() ? r.tr : null;
   }
   /* ---------- part of speech (词性, incl. vt/vi) from the translation, with dict fallback ---------- */
   function posClean(s){ if(!s) return ''; var re=/(vt|vi|adj|adv|prep|pron|interj|conj|abbr|aux|art|num|int|ad|n|v|a)\./g,m,seen={},out=[]; while((m=re.exec(s))){ var t=m[1]; if(t==='a')t='adj'; else if(t==='ad')t='adv'; if(!seen[t]){ seen[t]=1; out.push(t+'.'); } } return out.join('/'); }
@@ -297,22 +341,88 @@ button{-webkit-tap-highlight-color:transparent}
   document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _acqWake(); });
   function speak(t){ try{ if(!window.speechSynthesis||!t) return; if(!VOICES.length) loadVoices(); var u=new SpeechSynthesisUtterance(t); u.lang='en-GB'; u.rate=0.9; var v=bestVoice(); if(v) u.voice=v; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){} }
   /* ---------- add flow ---------- */
-  var cur=null;
+  var cur=null, matchId=null;
+  var TAGIDS={lw:'plw',rw:'prw',ww:'pww',sw:'psw'};
+  // 已记录的词：比较时忽略大小写和结尾标点（旧数据里有 "altogether." 这种）
+  function wkey(s){ return (s||'').trim().toLowerCase().replace(/[.,;:!?]+$/,''); }
+  function wkeys(e){ var k=wkey(e&&e.w); return k?[k].concat(k.split(/\s*\/\s*/).filter(Boolean)):[]; }
+  function findRec(w){
+    var k=wkey(w); if(!k) return null;
+    for(var i=0;i<NB.length;i++){ if(wkeys(NB[i]).indexOf(k)>=0) return {e:NB[i],how:'same'}; }
+    var r=look(w), lem=r&&r.lemma;
+    if(lem&&lem!==k){ for(var j=0;j<NB.length;j++){ if(wkeys(NB[j]).indexOf(lem)>=0) return {e:NB[j],how:'lemma'}; } }
+    return null;
+  }
+  function tagChips(e){ var h=''; for(var c in CATS){ if(e[c]) h+='<span class="'+c+'tag">'+catText(c)+'</span> '; } if(e.tag) h+='<span class="tag">'+esc(e.tag)+'</span> '; if(RV.badge(e.w)) h+='<span class="tag">📅 '+esc(RV.badge(e.w))+'</span> '; return h; }
+  function showOld(m){
+    var box=$('pold'); if(!m){ box.hidden=true; box.innerHTML=''; return; }
+    var e=m.e;
+    box.innerHTML='<div class="oh">✓ 已记录'+(m.how==='lemma'?'原形「'+esc(e.w)+'」':'')+'　<span style="font-weight:400;color:var(--soft)">'+(e.ts?fmtd(e.ts)+' 添加':'')+'</span>'+
+      ' <button class="btn alt sm" id="pgo" data-id="'+e.id+'">在列表中查看</button></div>'+
+      '<div class="otr">'+(esc(e.tr)||'<span class="need">还没有释义</span>')+'</div>'+
+      (e.ex?'<div class="oex">例句：'+esc(e.ex)+'</div>':'')+
+      (tagChips(e)?'<div style="margin-top:5px">'+tagChips(e)+'</div>':'');
+    box.hidden=false;
+  }
+  function showSug(w){
+    var k=wkey(w), box=$('psug'), out=[];
+    if(k.length>=2){ for(var i=NB.length-1;i>=0&&out.length<6;i--){ var ek=wkey(NB[i].w); if(ek!==k&&ek.indexOf(k)===0) out.push(NB[i].w); } }
+    box.innerHTML=out.length?'已记录的相近词：'+out.map(function(x){ return '<button class="sugw" data-w="'+esc(x)+'">'+esc(x)+'</button>'; }).join(''):'';
+    box.hidden=!out.length;
+  }
+  // 输入的正好是已记录的词：用它保存的内容和标签填好表单，按钮变「更新」，不再重复添加
+  function setMatch(e){
+    var id=e?e.id:null; if(id===matchId) return;
+    var was=matchId; matchId=id;
+    for(var c in TAGIDS){ var el=$(TAGIDS[c]); if(el&&(e||was)) el.checked=!!(e&&e[c]); }
+    $('pex').placeholder=e&&e.ex?'已保存的例句见上方；这里填写会替换它':'例句 / 语境（可选）';
+    $('ptag').placeholder=e&&e.tag?'已保存：'+e.tag+'（这里填写会替换它）':'来源 / 标签，如 C18T2 听力（可选）';
+    $('add').textContent=e?'更新':'添加';
+  }
   function preview(){
-    var w=$('w').value.trim(); if(!w){ $('prev').classList.remove('show'); cur=null; return; }
-    var r=look(w);
-    cur={w:w, ph:(r&&r.ph)||"", tr:(r&&r.tr)||""};
+    var w=$('w').value.trim(); showSug(w);
+    if(!w){ $('prev').classList.remove('show'); cur=null; showOld(null); setMatch(null); return; }
+    var r=look(w), m=findRec(w), same=m&&m.how==='same'?m.e:null;
+    cur={w:w, ph:(same&&same.ph)||(r&&r.ph)||"", tr:(r&&r.tr)||""};
     $('pw').textContent=w; $('pph').textContent=cur.ph?("["+cur.ph+"]"):""; $('pemo').innerHTML=mediaInline(w,36);
-    $('ptr').value=cur.tr;
-    $('hint').textContent = r ? (r.lemma?("词典命中原形："+r.lemma):"已查到，回车或点添加即可保存") : "词典没有这个词，先加入、自己补释义也行";
+    $('ptr').value=(same&&same.tr)||cur.tr;
+    showOld(m); setMatch(same);
+    var dh=defsHtml(w,3); $('pen').innerHTML=dh; $('pen').hidden=!dh;
+    $('hint').textContent = same ? "这个词已经记过了：回车或点「更新」只会更新原记录（释义、例句、标签），不会重复添加"
+      : m ? "你记过它的原形「"+m.e.w+"」；回车仍会把「"+w+"」作为新词加入"
+      : r ? (r.lemma?("词典命中原形："+r.lemma):"已查到，回车或点添加即可保存") : "词典没有这个词，先加入、自己补释义也行";
     $('prev').classList.add('show');
+  }
+  function flashItem(id,scroll){
+    var el=document.querySelector('.item[data-id="'+id+'"]'); if(!el) return;
+    if(scroll){ var ab=document.querySelector('.addbox'), top=ab&&getComputedStyle(ab).position==='sticky'?ab.offsetHeight+24:16;
+      window.scrollTo({top:Math.max(0,el.getBoundingClientRect().top+window.scrollY-top),behavior:'smooth'}); }
+    el.classList.add('flash'); setTimeout(function(){ el.classList.remove('flash'); },2200);
+  }
+  function reveal(id){
+    if($('search').value||filterMode){ $('search').value=''; if(filterMode) setFilter(filterMode); }
+    var e=findE(id); resetForm(); if(e) $('hint').textContent='已在下方列表中定位到「'+e.w+'」';
+    render(); flashItem(id,true);
+  }
+  function resetForm(){
+    $('w').value=''; $('pex').value=''; $('ptag').value=''; $('ptr').value=''; ['plw','prw','pww','psw'].forEach(function(id){if($(id))$(id).checked=false;}); $('prev').classList.remove('show'); cur=null;
+    showOld(null); setMatch(null); showSug(''); $('pen').hidden=true;
   }
   function add(){
     var w=$('w').value.trim(); if(!w) return;
     if(!cur||cur.w!==w) preview();
+    var old=matchId&&findE(matchId);
+    if(old){
+      var tr=$('ptr').value.trim(), ex=$('pex').value.trim(), tg=$('ptag').value.trim();
+      if(tr) old.tr=tr; if(ex) old.ex=ex; if(tg) old.tag=tg; if(!old.ph&&cur&&cur.ph) old.ph=cur.ph;
+      for(var c in TAGIDS){ var el=$(TAGIDS[c]); if(el) old[c]=el.checked; }
+      old.ut=Date.now(); save(); resetForm();
+      $('hint').textContent='已更新：'+old.w+'（没有重复添加，共 '+NB.length+' 词）';
+      $('w').focus(); render(); flashItem(old.id,false); return;
+    }
     var e={id:uid(), w:w, ph:(cur&&cur.ph)||"", tr:$('ptr').value.trim(), ex:$('pex').value.trim(), tag:$('ptag').value.trim(), lw:!!($('plw')&&$('plw').checked), rw:!!($('prw')&&$('prw').checked), ww:!!($('pww')&&$('pww').checked), sw:!!($('psw')&&$('psw').checked), ts:Date.now()};
     NB.push(e); save();
-    $('w').value=''; $('pex').value=''; $('ptag').value=''; $('ptr').value=''; ['plw','prw','pww','psw'].forEach(function(id){if($(id))$(id).checked=false;}); $('prev').classList.remove('show'); cur=null;
+    resetForm();
     $('hint').textContent='已添加：'+w+'　（共 '+NB.length+' 词）';
     $('w').focus(); render();
   }
@@ -320,6 +430,8 @@ button{-webkit-tap-highlight-color:transparent}
   $('w').addEventListener('keydown', function(ev){ if(window.__CUSTOM_SHORTCUTS__)return; if(ev.key==='Enter' && !ev.isComposing && ev.keyCode!==229 && !ev.repeat){ ev.preventDefault(); add(); } });
   $('add').onclick=add;
   $('psay').onclick=function(){ speak($('w').value.trim()); };
+  $('pold').addEventListener('click',function(ev){ var b=ev.target.closest('#pgo'); if(b) reveal(b.getAttribute('data-id')); });
+  $('psug').addEventListener('click',function(ev){ var b=ev.target.closest('.sugw'); if(!b) return; $('w').value=b.getAttribute('data-w'); preview(); $('w').focus(); });
   /* ---------- list ---------- */
   function esc(s){ return (s||"").replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function fmtd(ts){ var d=new Date(ts); return (d.getMonth()+1)+"/"+d.getDate(); }
@@ -332,6 +444,7 @@ button{-webkit-tap-highlight-color:transparent}
       return !q || e.w.toLowerCase().indexOf(q)>=0 || (e.tr||"").toLowerCase().indexOf(q)>=0;
     });
     $('count').textContent='共 '+NB.length+' 词'+(counts.lw?('　·　🎧 '+counts.lw):'')+(counts.rw?('　·　📖 '+counts.rw):'')+(counts.ww?('　·　📝 '+counts.ww):'')+(counts.sw?('　·　🗣️ '+counts.sw):'')+((q||filterMode)?('（筛出 '+rows.length+'）'):'');
+    var up=NB.filter(upgradable).length; $('upgradeTr').hidden=!up; $('upgradeTr').textContent='📚 补全释义（'+up+' 词）';
     if(!NB.length){ $('list').innerHTML='<div class="empty">还没有生词。上面输入一个词、回车试试 👆</div>'; return; }
     if(!rows.length){ var cc=CATS[filterMode]; $('list').innerHTML='<div class="empty">'+(cc?('还没有标记「'+catText(filterMode)+'」的词。<br>在任意单词右上角点 '+cc.emoji+' 即可标记。'):'没有匹配的词。')+'</div>'; return; }
     $('list').innerHTML=rows.map(function(e){
@@ -340,6 +453,7 @@ button{-webkit-tap-highlight-color:transparent}
         '<div class="top">'+(media?media+' ':'')+'<span class="w">'+esc(e.w)+'</span>'+(e.ph?'<span class="ph">['+esc(e.ph)+']</span>':'')+' '+posBadge(e)+
         '<span class="meta"><button class="ghosti say" title="朗读">🔊</button><button class="ghosti lw'+(e.lw?' on':'')+'" title="标记/取消「听力错词」">🎧</button><button class="ghosti rw'+(e.rw?' on':'')+'" title="标记/取消「阅读错词」">📖</button><button class="ghosti ww'+(e.ww?' on':'')+'" title="标记/取消「写作生词」">📝</button><button class="ghosti sw'+(e.sw?' on':'')+'" title="标记/取消「口语生词」">🗣️</button><button class="ghosti del" title="删除">🗑️</button></span></div>'+
         '<div class="tr" contenteditable="true" data-f="tr">'+(esc(e.tr)|| '<span class="need">点此补释义</span>')+'</div>'+
+        (defsOf(e.w).length?'<div class="en">'+defsHtml(e.w,2)+'</div>':'')+
         '<div class="exrow"><input class="ex" data-f="ex" placeholder="＋ 例句/语境" value="'+esc(e.ex||'')+'"></div>'+
         '<div style="margin-top:6px">'+(e.lw?'<span class="lwtag">🎧 听力错词</span> ':'')+(e.rw?'<span class="rwtag">📖 阅读错词</span> ':'')+(e.ww?'<span class="wwtag">📝 写作生词</span> ':'')+(e.sw?'<span class="swtag">🗣️ 口语生词</span> ':'')+(e.tag?'<span class="tag">'+esc(e.tag)+'</span> ':'')+(RV.badge(e.w)?'<span class="tag" title="听写与词义分开记录，显示最先到期的一项">📅 '+esc(RV.badge(e.w))+'</span> ':'')+'<span class="ex" style="float:right">'+fmtd(e.ts)+'</span></div>'+
       '</div>';
@@ -349,19 +463,24 @@ button{-webkit-tap-highlight-color:transparent}
   $('list').addEventListener('click', function(ev){
     var it=ev.target.closest('.item'); if(!it) return; var e=findE(it.getAttribute('data-id')); if(!e) return;
     if(ev.target.classList.contains('say')) speak(e.w);
-    else if(ev.target.classList.contains('lw')){ e.lw=!e.lw; save(); render(); }
-    else if(ev.target.classList.contains('rw')){ e.rw=!e.rw; save(); render(); }
-    else if(ev.target.classList.contains('ww')){ e.ww=!e.ww; save(); render(); }
-    else if(ev.target.classList.contains('sw')){ e.sw=!e.sw; save(); render(); }
+    else if(ev.target.classList.contains('lw')){ e.lw=!e.lw; e.ut=Date.now(); save(); render(); }
+    else if(ev.target.classList.contains('rw')){ e.rw=!e.rw; e.ut=Date.now(); save(); render(); }
+    else if(ev.target.classList.contains('ww')){ e.ww=!e.ww; e.ut=Date.now(); save(); render(); }
+    else if(ev.target.classList.contains('sw')){ e.sw=!e.sw; e.ut=Date.now(); save(); render(); }
     else if(ev.target.classList.contains('del')){ if(confirm('删除「'+e.w+'」？')){ DEL[(e.w||'').toLowerCase()]=Date.now(); NB=NB.filter(function(x){return x.id!==e.id;}); save(); render(); } }
   });
   $('list').addEventListener('blur', function(ev){
     var f=ev.target.getAttribute&&ev.target.getAttribute('data-f'); if(!f) return;
     var it=ev.target.closest('.item'); var e=findE(it.getAttribute('data-id')); if(!e) return;
     var val = f==='tr' ? ev.target.textContent.trim() : ev.target.value.trim();
-    if(e[f]!==val){ e[f]=val; save(); }
+    if(e[f]!==val){ e[f]=val; e.ut=Date.now(); save(); }
   }, true);
   $('search').addEventListener('input', render);
+  $('upgradeTr').onclick=function(){
+    var n=0; NB.forEach(function(e){ var t=upgradable(e); if(t){ e.tr=t; e.ut=Date.now(); n++; } });
+    if(n){ save(); render(); }
+    $('hint').textContent='已为 '+n+' 个词补上词典新增的义项（标有〔补充〕）；你改过的释义没有动。';
+  };
   function setFilter(m){ filterMode=(filterMode===m)?'':m; ['LW','RW','WW','SW'].forEach(function(k){ $('only'+k).classList.toggle('on',filterMode===k.toLowerCase()); }); render(); }
   $('onlyLW').onclick=function(){ setFilter('lw'); };
   $('onlyRW').onclick=function(){ setFilter('rw'); };

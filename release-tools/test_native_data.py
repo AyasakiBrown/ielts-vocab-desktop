@@ -23,6 +23,10 @@ let checkpoint: [String: Any] = ["words":["apple","pear"],"idx":1,"ts":200]
 let nb = mergeDeckPayload(existing: decks["notebook"] as? [String: Any], deck:"notebook", payload:["sessions":["review:rw":checkpoint]])
 let stale = mergeDeckPayload(existing: nb, deck:"notebook", payload:["sessions":["review:rw":["idx":0,"ts":100],"dict:ww":["idx":2,"ts":300]]])
 let kept = mergeDeckPayload(existing: stale, deck:"notebook", payload:["list":[]])
+let edited = mergeDeckPayload(existing: ["list":[["w":"clip","tr":"old","lw":true,"ts":1]]], deck:"notebook", payload:["list":[["w":"clip","tr":"new","lw":false,"ts":1,"ut":5]]])
+let olderEdit = mergeDeckPayload(existing: edited, deck:"notebook", payload:["list":[["w":"clip","tr":"stale","lw":true,"ts":1]]])
+let ed = (olderEdit["list"] as! [[String: Any]])[0]
+assert(ed["tr"] as! String == "new" && (ed["lw"] as! Bool) == false, "newer notebook edit must win")
 let sessions = kept["sessions"] as! [String: Any]
 assert((sessions["review:rw"] as! [String: Any])["idx"] as! Int == 1)
 assert(sessions.count == 2)
@@ -63,7 +67,7 @@ var reported = false; reportDataError = { _ in reported = true }
 try "damaged".write(to: dataFileURL(), atomically:true, encoding:.utf8)
 persistDeck("{\"deck\":\"config\",\"payload\":{\"zoom\":1.2}}")
 assert(reported); assert(try String(contentsOf: dataFileURL(), encoding:.utf8) == "damaged")
-print("Swift: history, category preservation, newer-answer-wins progress, review ledger merge, pre-restore backup, exact replacement and corruption protection passed")
+print("Swift: history, category preservation, notebook edits (newer ut wins), newer-answer-wins progress, review ledger merge, pre-restore backup, exact replacement and corruption protection passed")
 '''.replace('assert(try String(contentsOf: dataFileURL(), encoding:.utf8) == "damaged")', 'let unchanged = try String(contentsOf: dataFileURL(), encoding:.utf8); assert(unchanged == "damaged")')
 with tempfile.TemporaryDirectory(prefix='ielts-native-data-test-') as folder:
     folder = Path(folder)

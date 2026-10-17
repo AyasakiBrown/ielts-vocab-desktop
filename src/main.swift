@@ -160,8 +160,16 @@ func mergeDeckPayload(existing: [String: Any]?, deck: String, payload: [String: 
                     if tsOf(e) > tsOf(o) { o["ts"] = e["ts"] }
                     for f in ["zh", "pos", "col", "src", "alts"] where isEmptyVal(o[f]) && !isEmptyVal(e[f]) { o[f] = e[f] }
                 } else {
-                    for f in ["ph", "tr", "ex", "tag"] where isEmptyVal(o[f]) && !isEmptyVal(e[f]) { o[f] = e[f] }
-                    for f in ["lw", "rw", "ww", "sw"] where (e[f] as? NSNumber)?.boolValue == true { o[f] = true }
+                    // ut = last edit time of the entry: a newer edit replaces the text + marks
+                    let eu = (e["ut"] as? NSNumber)?.doubleValue ?? 0, ou = (o["ut"] as? NSNumber)?.doubleValue ?? 0
+                    if eu > ou {
+                        for f in ["ph", "tr", "ex", "tag", "lw", "rw", "ww", "sw", "ut"] where e[f] != nil { o[f] = e[f] }
+                    } else {
+                        for f in ["ph", "tr", "ex", "tag"] where isEmptyVal(o[f]) && !isEmptyVal(e[f]) { o[f] = e[f] }
+                        if eu == ou {
+                            for f in ["lw", "rw", "ww", "sw"] where (e[f] as? NSNumber)?.boolValue == true { o[f] = true }
+                        }
+                    }
                 }
                 lst[i] = o
             } else {
