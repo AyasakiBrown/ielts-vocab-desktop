@@ -13,12 +13,13 @@
   decks.notebook = {list: read('ielts_nb', []), del: read('ielts_nb_del', {})};
   decks.wrong = {list: read('ielts_wrong', []), del: read('ielts_wrong_del', {})};
   decks.srs = {items: read('ielts_srs', {}), meta: read('ielts_srs_meta', {})};
+  decks.stats = {days: read('ielts_stats', {}).days || {}};
   decks.config = read('ielts_desktop_config', {});
   for(const key of ['shortcutsMac','shortcutsWindows']) {
     const old=read('ielts_'+key,null); if(old)decks.config[key]=old;
   }
   function failure(error) {
-    const show=()=>{const banner=document.createElement('div');banner.setAttribute('role','alert');banner.style.cssText='position:fixed;top:0;left:0;right:0;background:#8b1e18;color:white;padding:16px;z-index:2147483647';banner.textContent='学习数据保存失败：'+error.message+'。请停止练习，检查磁盘空间或备份文件；不要清空应用数据。';document.body.append(banner);};
+    const show=()=>{const banner=document.createElement('div');banner.setAttribute('role','alert');banner.style.cssText='position:fixed;top:0;left:0;right:0;background:#8b1e18;color:white;padding:16px;z-index:2147483647';banner.textContent=error.message.includes('从最近的有效备份恢复')?error.message+'。':'学习数据保存失败：'+error.message+'。请停止练习，检查磁盘空间或备份文件；不要清空应用数据。';document.body.append(banner);};
     if(document.body)show();else document.addEventListener('DOMContentLoaded',show,{once:true});
   }
   try {

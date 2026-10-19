@@ -75,6 +75,7 @@
     <div class="grid" id="stats"></div>
     <p class="note" id="detail"></p>
     <div class="tools">
+      <button class="btn lg" id="resume" hidden>继续上次复习</button>
       <button class="btn lg" id="start">开始复习</button>
       <button class="btn alt" id="startD">只练听写</button>
       <button class="btn alt" id="startM">只练词义</button>
@@ -205,7 +206,10 @@
     }else parts.push(s.tracked?'今天到期的词已全部复习完 🎉':'还没有复习记录。去词库或生词本做一次听写 / 选择题，答过的词会自动排进复习。');
     if(s.waiting) parts.push('另有 '+s.waiting+' 个旧错词在排队，按每日上限逐天放出，不会一次压过来');
     $('detail').textContent=parts.join('　·　');
-    $('start').textContent=q.length?('开始复习（'+q.length+'）'):'开始复习';
+    var rs=loadSess();
+    $('resume').hidden=!rs;
+    if(rs) $('resume').textContent='继续上次复习（还剩 '+(rs.Q.length-rs.qi)+' 题 · ✓ '+rs.right+' ✗ '+rs.missed.length+'）';
+    $('start').textContent=(rs?'重新开始':'开始复习')+(q.length?'（'+q.length+'）':'');
     $('start').disabled=!q.length; $('startD').disabled=!nd; $('startM').disabled=!nm;
     $('startD').textContent='只练听写'+(nd?'（'+nd+'）':''); $('startM').textContent='只练词义'+(nm?'（'+nm+'）':'');
     $('more').hidden=!(s.waiting>0&&!q.length);
@@ -230,8 +234,43 @@
   function sourceOf(x){ return (x.rec.src&&x.rec.src[0])||'wrong'; }
   function begin(list){
     Q=list.filter(usable); if(!Q.length) return;
+    clearSess();
     mode='review'; OWN=ownWords(); qi=0; right=0; softN=0; missed=[];
     $('ov').classList.add('show'); keepAwake(true); show();
+  }
+
+  /* ---------- 继续上次复习: the round's queue (with its 隔题重测 copies), position, score and
+     typed draft, kept on this device for the same day. An answered question resumes at the
+     next one, so a submitted answer is never asked or counted again. ---------- */
+  var SESS='ielts_review_sess';
+  function saveSess(){
+    if(mode!=='review'||!Q.length||!$('ov').classList.contains('show')) return;
+    var at=Math.min(Q.length,qi+(answered?1:0));
+    if(at>=Q.length){ clearSess(); return; }
+    var s={v:1,day:RV.dayNo(),ts:Date.now(),items:Q.map(function(x){return [x.key,x.track];}),qi:at,right:right,softN:softN,missed:missed,
+      draft:(!answered&&cur&&cur.track==='d')?$('dans').value:'',hinted:!answered&&hinted};
+    try{ localStorage.setItem(SESS,JSON.stringify(s)); }catch(e){}
+  }
+  function clearSess(){ try{ localStorage.removeItem(SESS); }catch(e){} }
+  function loadSess(){
+    var s=null; try{ s=JSON.parse(localStorage.getItem(SESS)); }catch(e){}
+    if(!s||s.v!==1||s.day!==RV.dayNo()||!Array.isArray(s.items)) return null;
+    var all=RV.all(), made={}, list=[], at=0;
+    s.items.forEach(function(it,i){
+      var k=it&&it[0], t=it&&it[1], id=k+'|'+t, rec=has(all,k)?all[k]:null;
+      if(!made[id]&&rec&&rec[t]){ var x={key:k,track:t,rec:rec,tr:rec[t]}; if(usable(x)) made[id]=x; }
+      if(made[id]){ list.push(made[id]); if(i<s.qi) at++; }     // the same object for re-test copies, as in the round itself
+    });
+    if(at>=list.length) return null;
+    return {Q:list,qi:at,right:s.right||0,softN:s.softN||0,missed:Array.isArray(s.missed)?s.missed:[],draft:at===s.qi?(s.draft||''):'',hinted:at===s.qi&&!!s.hinted};
+  }
+  function resume(){
+    var r=loadSess(); if(!r){ clearSess(); paint(); return; }
+    Q=r.Q; qi=r.qi; right=r.right; softN=r.softN; missed=r.missed;
+    mode='review'; OWN=ownWords();
+    $('ov').classList.add('show'); keepAwake(true); show();
+    if(cur&&cur.track==='d'){ if(r.draft) $('dans').value=r.draft; if(r.hinted) $('dletter').click(); }
+    saveSess();
   }
   function toggle(ids,on){ ids.forEach(function(id){ $(id).style.display=on?'':'none'; }); }
   function show(){
@@ -252,12 +291,9 @@
       setTimeout(function(){ try{$('dans').focus();}catch(e){} },60);
     }else{
       $('mword').textContent=wordOf(cur); $('mph').textContent=cur.rec.ph?('['+cur.rec.ph+']'):'';
-      var correct=String(cur.rec.zh).trim(), seen={}, pool=[], all=RV.all(); seen[correct]=1;
-      Object.keys(all).forEach(function(k){ var z=all[k]&&all[k].zh&&String(all[k].zh).trim(); if(z&&!seen[z]){ seen[z]=1; pool.push(z); } });
-      for(var i=pool.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=pool[i];pool[i]=pool[j];pool[j]=t; }
+      var correct=String(cur.rec.zh).trim(), pool=distractorsFor(cur);
       if(pool.length>=3){
-        opts=[correct].concat(pool.slice(0,3));
-        for(i=opts.length-1;i>0;i--){ j=Math.floor(Math.random()*(i+1)); t=opts[i];opts[i]=opts[j];opts[j]=t; }
+        opts=mix([correct].concat(pool));
         $('mchoices').innerHTML=opts.map(function(z,n){ return '<button class="choice" data-i="'+n+'">'+esc(z)+'</button>'; }).join('');
       }else{                    // too few other meanings for options: recall first, then self-mark
         selfCheck=true; opts=[];
@@ -265,7 +301,41 @@
       }
     }
     speak(sayOf(cur));
+    saveSess();
   }
+  // Wrong options: past confusions of this word, then same part of speech / related meaning /
+  // similar spelling (srs.js distractors). Options reported as ambiguous are never reused.
+  var AMB='ielts_mcq_amb';
+  function ambFlags(){ try{ var o=JSON.parse(localStorage.getItem(AMB)); return o&&typeof o==='object'?o:{}; }catch(e){ return {}; } }
+  function distractorsFor(x){
+    var all=RV.all(), pool=[], confused=[], w=RV.fold(wordOf(x));
+    Object.keys(all).forEach(function(k){ var r=all[k]; if(r&&r.zh) pool.push({key:k,w:r.w||k,zh:r.zh,pos:r.pos}); });
+    Object.keys(OWN.mean).forEach(function(k){ if(!has(all,k)) pool.push({key:k,w:OWN.word[k]||k,zh:OWN.mean[k]}); });
+    var ev={}; try{ ev=IELTSMistakes.read(); }catch(e){}
+    Object.keys(ev).forEach(function(id){ var e=ev[id]; if(!e) return;
+      if(RV.fold(e.word)===w&&e.mode==='quiz'){ if(e.answer) confused.push(e.answer); if(e.alt&&e.alt.w) confused.push(e.alt.w); }
+      else if(e.alt&&RV.fold(e.alt.w)===w&&e.meaning) confused.push(e.meaning);     // the other way round
+    });
+    return RV.distractors({key:x.key,w:wordOf(x),zh:x.rec.zh,pos:x.rec.pos},pool,3,{confused:confused,exclude:ambFlags()[x.key]||[]});
+  }
+  function ambiguous(){                  // "this option is also right": never offer it again; if it cost the answer, undo it
+    var correct=String(cur.rec.zh).trim(), others=opts.filter(function(z){return z!==correct;});
+    $('ambBox').innerHTML='<div class="plan">哪一个选项也说得通？</div>'+others.map(function(z,i){ return '<button class="choice" data-amb="'+i+'" style="font-size:14px;padding:8px 12px">'+esc(z)+'</button>'; }).join('');
+    $('ambBox').onclick=function(ev){
+      var b=ev.target.closest('[data-amb]'); if(!b) return;
+      var z=others[+b.getAttribute('data-amb')], f=ambFlags(); (f[cur.key]=f[cur.key]||[]).push(z);
+      try{ localStorage.setItem(AMB,JSON.stringify(f)); }catch(e){}
+      var undone=last&&last.key===cur.key&&last.chose===z;
+      if(undone){
+        RV.restoreTrack({key:cur.key},cur.track,last.snap);
+        var mi=missed.lastIndexOf(cur.key); if(mi>=0) missed.splice(mi,1);
+        if(last.copyAt>=0&&Q[last.copyAt]===cur) Q.splice(last.copyAt,1);
+        right++; $('rscore').textContent='✓ '+right+'　✗ '+missed.length; last=null; saveSess();
+      }
+      $('ambBox').innerHTML='<div class="plan">已记录：这个词以后不再用这个选项。'+(undone?'本题不算答错，复习安排已恢复到答题前。':'')+'</div>';
+    };
+  }
+  var last=null;
   function addToWrongBook(x){           // same list the decks feed, so 错词本 stays complete
     var src=(x.rec.src||[]).filter(function(s){return s!=='notebook';})[0]; if(!src) return;
     var L=[]; try{ L=JSON.parse(localStorage.getItem('ielts_wrong'))||[]; }catch(e){}
@@ -278,18 +348,24 @@
   }
   function settle(res,typed,headline,extra){
     answered=true;
+    var snap=JSON.parse(JSON.stringify((RV.all()[cur.key]||{})[cur.track]||null)), copyAt=-1;
     if(res==='bad'){
       missed.push(cur.key);
-      if(Q.indexOf(cur,qi+1)<0) Q.splice(Math.min(Q.length,qi+4),0,cur);      // 隔几题再测
+      if(Q.indexOf(cur,qi+1)<0){ copyAt=Math.min(Q.length,qi+4); Q.splice(copyAt,0,cur); }      // 隔几题再测
       IELTSMistakes.record({en:wordOf(cur),zh:cur.rec.zh||''},sourceOf(cur),cur.track==='d'?'dict':'quiz',typed,extra);
       addToWrongBook(cur);
     }else{ right++; if(res==='soft') softN++; }
     var r=RV.answer({key:cur.key},cur.track,res);
-    $('rfb').innerHTML=headline+(r&&r.text?'<div class="plan">📅 '+esc(r.text)+'</div>':'');
+    var choice=cur.track==='m'&&opts.length;
+    last=choice?{key:cur.key,chose:res==='bad'?typed:null,snap:snap,copyAt:copyAt}:null;
+    $('rfb').innerHTML=headline+(r&&r.text?'<div class="plan">📅 '+esc(r.text)+'</div>':'')+
+      (choice?'<div id="ambBox"><button class="ghosti" id="amb" style="font-size:13px;margin-top:6px">⚑ 题目有歧义？</button></div>':'');
+    if(choice) $('amb').onclick=ambiguous;
     $('rscore').textContent='✓ '+right+'　✗ '+missed.length;
     toggle(['dsubmit'],cur.track==='d'); toggle(['mnext'],cur.track!=='d'); toggle(['dskip'],false);
     setSubmit('下一个');
     if(cur.track!=='d') $('mnext').focus();
+    saveSess();
   }
   function submitDict(){
     if(!cur||cur.track!=='d') return;
@@ -328,6 +404,7 @@
   }
   function next(){ qi++; show(); }
   function finish(){
+    clearSess();
     cur=null; keepAwake(false); try{speechSynthesis.cancel();}catch(e){}
     $('dictBox').style.display='none'; $('choiceBox').style.display='none'; $('cardBox').style.display='none'; toggle(['dsubmit','mnext','dskip'],false);
     var uniq=missed.filter(function(k,i){return missed.indexOf(k)===i;}), s=RV.summary();
@@ -337,7 +414,7 @@
       '<div class="plan">后续复习已自动安排：明天到期 '+s.tomorrow+' 词'+(s.due?'，今天还剩 '+s.due+' 词':'')+'。</div>';
     $('rscore').textContent='';
   }
-  function close(){ if(mode==='drill') creditDrills(); mode='review'; $('ov').classList.remove('show'); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} cur=null; paint(); }
+  function close(){ if(mode==='drill') creditDrills(); else saveSess(); mode='review'; $('ov').classList.remove('show'); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} cur=null; paint(); }
 
   /* ---------- dictionary + own-word lookups (diagnosis, contrasts) ---------- */
   var DICT=window.DICT||{}, OWN={set:new Set(),mean:{},word:{}};
@@ -526,6 +603,7 @@
     var typed=$('dans').value, g=RV.grade(typed,dstep.accept);
     if(g.empty){ try{$('dans').focus();}catch(e){} return; }
     var ok=g.ok&&g.clean, dg=(!ok&&dstep.final)?RV.diagnose(typed,dstep.accept,DX):null;
+    if(dstep.final&&window.IELTSStats) IELTSStats.tally('review',dstep.accept[0],ok?'ok':'bad');   // the unaided whole-word test counts as an answer
     stepDone(ok,ok?'<span style="color:var(--good)">✓ 正确</span>　<span class="cloze" style="font-size:18px">'+dstep.reveal+'</span>'
       :'<span style="color:var(--bad)">✗ 应为</span>　<span class="cloze" style="font-size:18px">'+dstep.reveal+'</span><div class="plan">你写的：'+esc(typed)+'</div>'+
         (dg?'<div class="plan" style="font-size:13px;color:var(--ink)">'+RV.explain(dg)+'</div>':(dstep.tip?'<div class="plan">'+esc(dstep.tip)+'</div>':'')));
@@ -563,7 +641,11 @@
     if($('drillMore')) $('drillMore').onclick=beginDrill;
   }
 
+  $('resume').onclick=resume;
   $('start').onclick=function(){ begin(RV.queue()); };
+  $('dans').addEventListener('input',function(){ if(mode==='review') saveSess(); });
+  window.addEventListener('pagehide',saveSess);
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='hidden') saveSess(); });
   $('startD').onclick=function(){ begin(RV.queue().filter(function(x){return x.track==='d';})); };
   $('startM').onclick=function(){ begin(RV.queue().filter(function(x){return x.track==='m';})); };
   $('more').onclick=function(){ begin(RV.queue({cap:false}).filter(usable).slice(0,20)); };

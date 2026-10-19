@@ -30,3 +30,32 @@ assert srs["meta"] == {"seed": 1, "cap": 30, "capT": 20}
 server.merge(root, "srs", {"items": {}, "meta": {}})            # an empty push changes nothing
 assert root["decks"]["srs"] == srs
 print("server.py: newer answer wins for progress, review ledger merges per track, cap follows the latest change")
+
+# daily answer log: devices add up, the same record re-sent (or an older smaller copy) counts once
+server.merge(root, "stats", {"days": {"2026-10-19": {"devA": {"n": 10, "ok": 8}}}})
+server.merge(root, "stats", {"days": {"2026-10-19": {"devB": {"n": 10, "ok": 9}, "devA": {"n": 4, "ok": 4}}}})
+server.merge(root, "stats", {"days": {"2026-10-19": {"devA": {"n": 10, "ok": 8}}}})
+day = root["decks"]["stats"]["days"]["2026-10-19"]
+assert sum(r["n"] for r in day.values()) == 20 and day["devA"]["n"] == 10
+
+# an unreadable data.json: reads refuse (no quarantine, no empty root), the file is untouched,
+# and --restore-latest puts the newest valid backup back while keeping the damaged file
+import json, os, tempfile, time
+with tempfile.TemporaryDirectory() as d:
+    server.DATA_DIR, server.DATAFILE = d, os.path.join(d, "data.json")
+    os.makedirs(os.path.join(d, "backups"))
+    with open(server.DATAFILE, "w") as f: f.write("{broken")
+    try:
+        server.load_data(); raise AssertionError("corrupt data.json must not load")
+    except server.DataCorrupt:
+        pass
+    assert open(server.DATAFILE).read() == "{broken" and sorted(os.listdir(d)) == ["backups", "data.json"]
+    good = {"v": 1, "decks": {"p1": {"prog": {"apple": {"box": 2}}}}}
+    with open(os.path.join(d, "backups", "data-20261018.json"), "w") as f: json.dump(good, f)
+    with open(os.path.join(d, "backups", "daily-2026-10-19.json"), "w") as f: f.write("nope")
+    later = time.time() + 5; os.utime(os.path.join(d, "backups", "daily-2026-10-19.json"), (later, later))
+    src, _ = server.restore_latest()
+    assert src.endswith("data-20261018.json") and server.load_data() == good
+    kept = [n for n in os.listdir(d) if n.startswith("data.json.corrupt-")]
+    assert len(kept) == 1 and open(os.path.join(d, kept[0])).read() == "{broken"
+print("server.py: per-device answer log adds up without double counting; corrupt data.json stops writes and restores from the latest valid backup")

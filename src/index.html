@@ -84,6 +84,7 @@
     var ok=cnt(prog,function(p){return p&&p.box>=1;});
     var pct=d.total?Math.min(100,Math.round(studied/d.total*100)):0;
     var todo=(daily&&daily.date===todayStr())?(daily.done||0):0;
+    if(window.IELTSStats) todo=Math.max(todo,IELTSStats.today(d.k).done);   // all devices' answers today
     var a=document.createElement('a');
     a.className='card'; a.href=d.file;
     a.innerHTML=
@@ -92,7 +93,7 @@
       '<div class="arrow">›</div></div>'+
       '<div class="barwrap"><div class="bar" style="width:'+pct+'%"></div></div>'+
       '<div class="stats"><span>学过 <b>'+studied+'</b> / '+d.total+' （'+pct+'%）· 答对 <b>'+ok+'</b></span>'+
-      '<span>今日已练 <b>'+todo+'</b> 词</span></div>';
+      '<span>今日已答 <b>'+todo+'</b> 题</span></div>';
     return a;
   }
   var g=document.getElementById('grid');

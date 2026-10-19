@@ -63,11 +63,25 @@ try writeRoot(["v":1,"decks":[:]])
 assert((loadRoot().0["decks"] as! [String: Any]).isEmpty)
 let backups = try FileManager.default.contentsOfDirectory(at: backupDirectory(), includingPropertiesForKeys:nil)
 assert(backups.count == 2)
-var reported = false; reportDataError = { _ in reported = true }
+var reported = false; reportCorrupt = { reported = true }
 try "damaged".write(to: dataFileURL(), atomically:true, encoding:.utf8)
 persistDeck("{\"deck\":\"config\",\"payload\":{\"zoom\":1.2}}")
 assert(reported); assert(try String(contentsOf: dataFileURL(), encoding:.utf8) == "damaged")
-print("Swift: history, category preservation, notebook edits (newer ut wins), newer-answer-wins progress, review ledger merge, pre-restore backup, exact replacement and corruption protection passed")
+// restore from the newest valid backup; the damaged file stays beside it
+let latest = backupCandidates()
+assert(!latest.isEmpty)
+try replaceRoot(latest[0].2)
+assert(loadRoot().1)
+let leftovers = try FileManager.default.contentsOfDirectory(atPath: dataFileURL().deletingLastPathComponent().path).filter { $0.hasPrefix("data.json.corrupt-") }
+assert(leftovers.count == 1)
+let keptText = try String(contentsOf: dataFileURL().deletingLastPathComponent().appendingPathComponent(leftovers[0]), encoding:.utf8); assert(keptText == "damaged")
+// daily answer log: devices add up, a resent or smaller copy never counts twice
+let s1 = mergeDeckPayload(existing:nil, deck:"stats", payload:["days":["2026-10-19":["devA":["n":10,"ok":8]]]])
+let s2 = mergeDeckPayload(existing:s1, deck:"stats", payload:["days":["2026-10-19":["devB":["n":10,"ok":9],"devA":["n":4,"ok":4]]]])
+let s3 = mergeDeckPayload(existing:s2, deck:"stats", payload:["days":["2026-10-19":["devA":["n":10,"ok":8]]]])
+let sday = (s3["days"] as! [String: Any])["2026-10-19"] as! [String: Any]
+assert(sday.count == 2 && (((sday["devA"] as! [String: Any])["n"]) as! NSNumber).intValue == 10)
+print("Swift: history, category preservation, notebook edits (newer ut wins), newer-answer-wins progress, review ledger merge, pre-restore backup, exact replacement and corruption protection, restore from the latest valid backup and per-device daily answer log passed")
 '''.replace('assert(try String(contentsOf: dataFileURL(), encoding:.utf8) == "damaged")', 'let unchanged = try String(contentsOf: dataFileURL(), encoding:.utf8); assert(unchanged == "damaged")')
 with tempfile.TemporaryDirectory(prefix='ielts-native-data-test-') as folder:
     folder = Path(folder)

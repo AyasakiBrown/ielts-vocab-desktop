@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 let APP_NAME = "雅思词汇听写合集"
 let DATA_DIR = "IELTSVocab"
 var reportDataError: ((String) -> Void)?
+var reportCorrupt: (() -> Void)?
+let CORRUPT_TEXT = "学习数据文件 data.json 无法读取，已停止保存，原文件保持不动。请在菜单「学习数据 → 从最近的有效备份恢复…」恢复后再继续练习。"
 
 func backupDirectory() throws -> URL {
     let dir = dataFileURL().deletingLastPathComponent().appendingPathComponent("backups")
@@ -133,6 +135,23 @@ func mergeDaily(_ old: [String: Any]?, _ new: [String: Any]) -> [String: Any] {
     let ot = dateTuple(old["date"]), nt = dateTuple(new["date"])
     return nt.lexicographicallyPrecedes(ot) ? old : new
 }
+// Daily answer log (srs.js IELTSStats): per day and device the record with more answers
+// wins, so devices add up and a record synced twice still counts once.
+func mergeStats(existing: [String: Any]?, payload: [String: Any]) -> [String: Any] {
+    var days = (existing?["days"] as? [String: Any]) ?? [:]
+    for (date, raw) in (payload["days"] as? [String: Any]) ?? [:] {
+        guard let day = raw as? [String: Any] else { continue }
+        var mine = (days[date] as? [String: Any]) ?? [:]
+        for (dev, rec) in day {
+            guard let r = rec as? [String: Any] else { continue }
+            let n = (r["n"] as? NSNumber)?.intValue ?? 0
+            let old = ((mine[dev] as? [String: Any])?["n"] as? NSNumber)?.intValue ?? 0
+            if mine[dev] == nil || n > old { mine[dev] = r }
+        }
+        days[date] = mine
+    }
+    return ["days": days]
+}
 func mergeDeckPayload(existing: [String: Any]?, deck: String, payload: [String: Any]) -> [String: Any] {
     var cur = existing ?? [:]
     if deck == "notebook" || deck == "wrong" {
@@ -198,6 +217,7 @@ func mergeDeckPayload(existing: [String: Any]?, deck: String, payload: [String: 
         return cur
     }
     if deck == "srs" { return mergeReview(existing: existing, payload: payload) }
+    if deck == "stats" { return mergeStats(existing: existing, payload: payload) }
     // deck pages (p1/vj/scene): per word the newer record wins (see progressWins).
     var prog = (cur["prog"] as? [String: Any]) ?? [:]
     for (k, v) in (payload["prog"] as? [String: Any]) ?? [:] {
@@ -241,13 +261,42 @@ func loadRoot() -> ([String: Any], Bool) {
     return ([:], false)                           // exists but unreadable — refuse to clobber
 }
 
+// Valid backups, newest first: the app's daily-/before-restore-/migration- files and the
+// sync server's data-*.json copies. Each must unwrap to {v:1, decks:{…}}.
+func backupCandidates() -> [(URL, Date, [String: Any])] {
+    guard let dir = try? backupDirectory(),
+          let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey]) else { return [] }
+    var out: [(URL, Date, [String: Any])] = []
+    for url in files where url.pathExtension == "json" {
+        guard let d = try? Data(contentsOf: url), var o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { continue }
+        if o["format"] as? String == "IELTSVocabBackup" { guard let inner = o["data"] as? [String: Any] else { continue }; o = inner }
+        guard (o["v"] as? NSNumber)?.intValue == 1, o["decks"] is [String: Any] else { continue }
+        let date = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+        out.append((url, date, o))
+    }
+    return out.sorted { $0.1 > $1.1 }
+}
+// Replace data.json with `root`. A healthy current file is backed up first; a damaged one
+// is kept beside it as data.json.corrupt-<time> (never deleted, never overwritten).
+func replaceRoot(_ root: [String: Any]) throws {
+    let (current, safe) = loadRoot()
+    let url = dataFileURL()
+    if !safe {
+        let f = DateFormatter(); f.dateFormat = "yyyyMMddHHmmss"
+        try FileManager.default.moveItem(at: url, to: url.appendingPathExtension("corrupt-" + f.string(from: Date())))
+    } else if !current.isEmpty {
+        try backupRoot(current, reason: "before-restore")
+    }
+    try writeRoot(root)
+}
+
 func persistDeck(_ body: String) {
     guard let bd = body.data(using: .utf8),
           let obj = try? JSONSerialization.jsonObject(with: bd) as? [String: Any],
           let deck = obj["deck"] as? String else { return }
     withDataLock {
         let (rootIn, safe) = loadRoot()
-        guard safe else { reportDataError?("原数据文件无法读取，已停止写入，请保留原文件并检查备份。"); return }
+        guard safe else { reportCorrupt?(); return }
         var root = rootIn
         var decks = root["decks"] as? [String: Any] ?? [:]
         decks[deck] = mergeDeckPayload(existing: decks[deck] as? [String: Any],
@@ -271,6 +320,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
         reportDataError = { [weak self] message in self?.dataError(message) }
+        reportCorrupt = { [weak self] in DispatchQueue.main.async { self?.showCorrupt() } }
 
         let controller = WKUserContentController()
         controller.add(self, name: "persist")
@@ -333,6 +383,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         let (root, safe) = loadRoot()
         let initial = safe ? ((try? JSONSerialization.data(withJSONObject: root)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}") : "{}"
         controller.addUserScript(WKUserScript(source: "window.__INITIAL_STATE__ = \(initial);", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        if !safe {
+            let msg = String(data: try! JSONSerialization.data(withJSONObject: [CORRUPT_TEXT]), encoding: .utf8)!
+            controller.addUserScript(WKUserScript(source: "window.__DATA_ERROR__ = \(msg)[0]; document.addEventListener('DOMContentLoaded', function(){ var b=document.createElement('div'); b.setAttribute('role','alert'); b.style.cssText='position:sticky;top:0;z-index:2147483647;background:#8b1e18;color:#fff;padding:12px 16px;font:14px/1.5 system-ui'; b.textContent=window.__DATA_ERROR__; document.body.prepend(b); });", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+            DispatchQueue.main.async { self.showCorrupt() }
+        }
         for name in ["learning-data", "shortcuts", "mistakes", "srs", "emoji", "images"] {
             let cfg = (root["decks"] as? [String: Any])?["config"] as? [String: Any]
             if name == "images" && ["off", "emoji"].contains(cfg?["imgMode"] as? String ?? "") { continue }
@@ -364,6 +419,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     @objc func exportLearningData() { dataAction("export") }
     @objc func importLearningData() { dataAction("import") }
     @objc func openBackupFolder() { dataAction("folder") }
+    @objc func restoreLatestBackup() { dataAction("latest") }
     func dataAction(_ action: String) {
         guard !dataBusy else { return }
         if action == "folder" {
@@ -395,39 +451,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
                     let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
                     guard size <= 32 * 1024 * 1024 else { throw NSError(domain: "备份超过 32 MB", code: 1) }
                     let text = try String(contentsOf: url, encoding: .utf8)
-                    let encoded = try JSONSerialization.data(withJSONObject: [text])
-                    let argument = String(data: encoded, encoding: .utf8)!
-                    self.webView.evaluateJavaScript("JSON.stringify(IELTSData.parse((\(argument))[0]))") { value, error in
-                        guard error == nil, let validated = value as? String, let bytes = validated.data(using: .utf8), let root = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any] else {
-                            self.dataBusy = false; self.dataError("备份格式无效或版本不受支持。未修改当前记录。"); return
-                        }
-                        self.webView.evaluateJavaScript("IELTSData.summary(\(validated))") { value, _ in
-                            let confirm = NSAlert(); confirm.messageText = "用此备份恢复学习数据？"
-                            confirm.informativeText = (value as? String ?? "") + "\n将替换当前记录；恢复前会自动备份原数据。"
-                            confirm.addButton(withTitle: "取消"); confirm.addButton(withTitle: "恢复")
-                            confirm.beginSheetModal(for: self.window) { result in
-                                defer { self.dataBusy = false }
-                                guard result == .alertSecondButtonReturn else { return }
-                                var success = false
-                                withDataLock {
-                                    let (current, safe) = loadRoot()
-                                    guard safe else { self.dataError("当前文件损坏，无法创建恢复前备份。请先保留原文件。"); return }
-                                    do {
-                                        if !current.isEmpty { try backupRoot(current, reason: "before-restore") }
-                                        try writeRoot(root); success = true
-                                    } catch { self.dataError(error.localizedDescription) }
-                                }
-                                if success {
-                                    let cfg = (root["decks"] as? [String: Any])?["config"] as? [String: Any]
-                                    self.zoom = CGFloat((cfg?["zoom"] as? NSNumber)?.doubleValue ?? 1)
-                                    self.loadResource("index")
-                                }
-                            }
-                        }
-                    }
+                    self.confirmRestore(text, note: "")
                 } catch { self.dataBusy = false; self.dataError(error.localizedDescription) }
             }
+        } else if action == "latest" {
+            guard let (url, date, root) = backupCandidates().first,
+                  let bytes = try? JSONSerialization.data(withJSONObject: root), let text = String(data: bytes, encoding: .utf8) else {
+                dataBusy = false; dataError("备份目录里没有可用的备份。可用「从备份恢复…」选择自己导出的备份文件。"); return
+            }
+            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm"
+            confirmRestore(text, note: "最近的有效备份：\(url.lastPathComponent)（\(f.string(from: date))）\n")
         } else { dataBusy = false }
+    }
+    // Validate with IELTSData.parse (the same rules as every other import), confirm, restore.
+    func confirmRestore(_ text: String, note: String) {
+        guard let encoded = try? JSONSerialization.data(withJSONObject: [text]), let argument = String(data: encoded, encoding: .utf8) else { dataBusy = false; return }
+        webView.evaluateJavaScript("JSON.stringify(IELTSData.parse((\(argument))[0]))") { value, error in
+            guard error == nil, let validated = value as? String, let bytes = validated.data(using: .utf8), let root = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any] else {
+                self.dataBusy = false; self.dataError("备份格式无效或版本不受支持。未修改当前记录。"); return
+            }
+            self.webView.evaluateJavaScript("IELTSData.summary(\(validated))") { value, _ in
+                let (_, safe) = loadRoot()
+                let confirm = NSAlert(); confirm.messageText = "用此备份恢复学习数据？"
+                confirm.informativeText = note + (value as? String ?? "") + (safe ? "\n将替换当前记录；恢复前会自动备份原数据。" : "\n当前数据文件无法读取，会原样保留为 data.json.corrupt-<时间>，不会删除。")
+                confirm.addButton(withTitle: "取消"); confirm.addButton(withTitle: "恢复")
+                confirm.beginSheetModal(for: self.window) { result in
+                    defer { self.dataBusy = false }
+                    guard result == .alertSecondButtonReturn else { return }
+                    self.applyRestore(root)
+                }
+            }
+        }
+    }
+    func applyRestore(_ root: [String: Any]) {
+        var success = false
+        withDataLock {
+            do { try replaceRoot(root); success = true } catch { self.dataError(error.localizedDescription) }
+        }
+        guard success else { return }
+        corruptShown = false
+        let cfg = (root["decks"] as? [String: Any])?["config"] as? [String: Any]
+        zoom = CGFloat((cfg?["zoom"] as? NSNumber)?.doubleValue ?? 1)
+        loadResource("index")
+    }
+    // One sheet per damaged state (not one per answer), offering the restore right away.
+    var corruptShown = false
+    func showCorrupt() {
+        guard !corruptShown, window != nil, window.attachedSheet == nil else { return }
+        corruptShown = true
+        let alert = NSAlert(); alert.alertStyle = .critical
+        alert.messageText = "学习数据文件无法读取"
+        alert.informativeText = CORRUPT_TEXT
+        alert.addButton(withTitle: "从最近的有效备份恢复…"); alert.addButton(withTitle: "打开备份目录"); alert.addButton(withTitle: "稍后")
+        alert.beginSheetModal(for: window) { result in
+            if result == .alertFirstButtonReturn { self.dataAction("latest") }
+            else if result == .alertSecondButtonReturn { self.dataAction("folder") }
+        }
     }
 
     @objc func goHome()  { loadResource("index") }
@@ -448,6 +527,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         webView.pageZoom = zoom
         webView.evaluateJavaScript("window.__INITIAL_STATE__ ||= {}; window.__INITIAL_STATE__.decks ||= {}; window.__INITIAL_STATE__.decks.config ||= {}; window.__INITIAL_STATE__.decks.config.zoom = \(Double(zoom)); window.dispatchEvent(new CustomEvent('ielts:zoom', {detail: \(Double(zoom))}));", completionHandler: nil)
+    }
+
+    // 生词本 口语练习 records the learner's own voice for playback (never saved): grant the
+    // microphone to the app's own bundled pages only; macOS still asks the user once.
+    @available(macOS 12.0, *)
+    func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo,
+                 type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+        decisionHandler(type == .microphone && frame.isMainFrame && (webView.url?.isFileURL ?? false) ? .grant : .deny)
     }
 
     // MARK: - WKUIDelegate — JS alert/confirm/prompt → native NSAlert.
@@ -500,7 +587,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         webView.evaluateJavaScript("window.__INITIAL_STATE__ ||= {}; window.__INITIAL_STATE__.decks ||= {}; window.__INITIAL_STATE__.decks.config ||= {}; window.__INITIAL_STATE__.decks.config.zoom = \(Double(zoom)); window.dispatchEvent(new CustomEvent('ielts:zoom', {detail: \(Double(zoom))}));", completionHandler: nil)
         withDataLock {
             let (rootIn, safe) = loadRoot()
-            guard safe else { reportDataError?("原数据文件无法读取，已停止写入，请保留原文件并检查备份。"); return }
+            guard safe else { reportCorrupt?(); return }
             var root = rootIn
             var decks = root["decks"] as? [String: Any] ?? [:]
             var cfg = decks["config"] as? [String: Any] ?? [:]
@@ -547,7 +634,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
 
         let dataItem = NSMenuItem(); main.addItem(dataItem)
         let dataMenu = NSMenu(title: "学习数据")
-        for (title, action) in [("学习记录与数据转移", #selector(showLearningData)), ("导出完整备份…", #selector(exportLearningData)), ("从备份恢复…", #selector(importLearningData)), ("打开自动备份目录", #selector(openBackupFolder))] {
+        for (title, action) in [("学习记录与数据转移", #selector(showLearningData)), ("导出完整备份…", #selector(exportLearningData)), ("从备份恢复…", #selector(importLearningData)), ("从最近的有效备份恢复…", #selector(restoreLatestBackup)), ("打开自动备份目录", #selector(openBackupFolder))] {
             let item = dataMenu.addItem(withTitle: title, action: action, keyEquivalent: ""); item.target = self
         }
         dataItem.submenu = dataMenu

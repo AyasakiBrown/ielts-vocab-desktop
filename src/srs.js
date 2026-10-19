@@ -241,6 +241,7 @@
     delete tr.rc; delete tr.sd; delete tr.so; delete tr.mk;
     tr.last = today; tr.t = now; r.t = now;
     persist([k]);
+    if (!item || typeof item !== 'object' || !item.noTally) tally(PAGE === 'wrong' || PAGE === 'review' || PAGE === 'notebook' ? PAGE : item && item.src, r.w || k, res, now);
     const st = stageOf(tr);
     return {key: k, track: name, event, before, lv: tr.lv, due: tr.due, stage: st, label: LABEL[st], text: feedback(event, tr, today)};
   }
@@ -600,6 +601,143 @@
   }
   Object.assign(api, {CAUSE, diagnose, spots, chunks, troubles, drilled, drillEffect, distance, explain, noteHomophone});
 
+  /* ---------- meaning-choice distractors ----------
+     Wrong options should be plausible, not random: words this learner has mixed it up with
+     first, then same part of speech, related meaning (shared characters) or similar spelling.
+     An option that shares a whole sense with the right answer would make the question
+     ambiguous, so it is never used; opts.exclude lists options reported as ambiguous. */
+  const POSMAP = {n: 'n', v: 'v', vt: 'v', vi: 'v', a: 'adj', adj: 'adj', ad: 'adv', adv: 'adv', prep: 'prep', conj: 'conj', pron: 'pron', num: 'num', int: 'int', interj: 'int', art: 'art', aux: 'v', abbr: 'abbr'};
+  function posOf(pos, zh) {
+    const out = new Set();
+    for (const m of String(pos || '').concat('\n', String(zh || '')).matchAll(/(?:^|[\s\n&/])([a-z]{1,6})\./gi)) {
+      const p = POSMAP[m[1].toLowerCase()]; if (p) out.add(p);
+    }
+    return out;
+  }
+  function senses(zh) {
+    return String(zh || '').replace(/[a-z]{1,6}\.\s*/gi, ' ').split(/[；;，,、\/\n]|\s{2,}/)
+      .map(x => x.replace(/[（(][^）)]*[）)]|[\[\]【】<>〈〉…]/g, '').trim()).filter(x => x.length >= 1);
+  }
+  const COMMON = new Set('的地得了是在有和与或及使把被人物者性化等之一不可以为'.split(''));
+  const hanzi = zh => new Set([...senses(zh).join('')].filter(c => /[\u4e00-\u9fff]/.test(c) && !COMMON.has(c)));
+  function distractors(target, pool, n, opts) {
+    opts = opts || {}; n = n || 3;
+    const want = String(target.zh || '').trim(), mine = new Set(senses(want)), chars = hanzi(want), pos = posOf(target.pos, want);
+    const w = fold(target.w || target.key || ''), confused = new Set((opts.confused || []).map(x => String(x).trim()));
+    const exclude = new Set((opts.exclude || []).map(x => String(x).trim())), seen = new Set([want]), scored = [];
+    for (const x of pool || []) {
+      const zh = String(x && x.zh || '').trim(), k = fold(x && (x.w || x.key) || '');
+      if (!zh || seen.has(zh) || exclude.has(zh) || (k && k === w)) continue;
+      seen.add(zh);
+      if (k && w && grade(k, [w]).ok) continue;                      // harbor for harbour: the same word
+      if (senses(zh).some(t => [...mine].some(m => t === m || (Math.min(t.length, m.length) >= 2 && (t.includes(m) || m.includes(t)))))) continue;   // same sense → two right answers
+      let score = Math.random() * 1.5;
+      if (confused.has(zh) || (k && confused.has(k))) score += 100;
+      const p = posOf(x.pos, zh); if (pos.size && [...p].some(t => pos.has(t))) score += 6;
+      const share = [...hanzi(zh)].filter(c => chars.has(c)).length; score += Math.min(2, share) * 2.5;
+      if (k && w && (k.slice(0, 3) === w.slice(0, 3) || distance(k, w) <= 2)) score += 3;
+      scored.push([score, zh]);
+    }
+    return scored.sort((a, b) => b[0] - a[0]).slice(0, n).map(x => x[1]);
+  }
+  // Undo one graded answer (an ambiguous question reported by the learner): the track goes
+  // back to its state before the answer, stamped now so the correction wins every merge.
+  function restoreTrack(item, name, snap, now) {
+    const k = fold(typeof item === 'string' ? item : item && (item.key || item.en || item.w));
+    if (!k || !own(L, k) || !TRACKS.includes(name)) return null;
+    now = now == null ? api.clock() : now;
+    L[k][name] = Object.assign({lv: 0, due: dayNo(now), n: 0, h: []}, snap || {}, {t: now}); L[k].t = now;
+    persist([k]); return k;
+  }
+  Object.assign(api, {distractors, restoreTrack, senses});
+
+  /* ---------- daily answer log (deck `stats`) ----------
+     {days: {"YYYY-MM-DD": {device: {n, ok, s: {source: [n, ok]}, w: {word: [secondOfDay, res]}}}}}
+     Each device only ever grows its own record for a day, so every store merges per
+     day + device by keeping the larger n: re-syncing the same record never counts it
+     twice, and two devices' answers add up instead of collapsing to the larger one.
+     res: 1 clean, 2 hint / format slip, 0 wrong — w keeps the day's FIRST answer per word.
+     Records older than KEEP_W days drop w and keep u (words) + f (first-try clean). */
+  const SKEY = 'ielts_stats', DEVKEY = 'ielts_dev', KEEP_W = 60;
+  const SOURCES = ['p1', 'vj', 'scene', 'notebook', 'wrong', 'review'];
+  const PAGE = (() => { try { const m = /([a-z0-9]+)\.html/i.exec(scope.location.pathname); return m ? m[1] : ''; } catch (e) { return ''; } })();
+  const pad2 = n => String(n).padStart(2, '0');
+  function dateKey(ms) { const d = new Date(ms == null ? api.clock() : ms); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function devId() {
+    let id = null; try { id = store().getItem(DEVKEY); } catch (e) {}
+    if (!id) {
+      id = 'd' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+      try { store().setItem(DEVKEY, id); } catch (e) {}
+    }
+    return id;
+  }
+  const count = x => (x && typeof x === 'object' && Number(x.n)) || 0;
+  // Same rule as server.py _merge_stats, main.swift mergeStats, learning-data.js mergeStats.
+  function mergeStats(cur, inc) {
+    const out = {days: Object.assign({}, cur && cur.days)};
+    let changed = false;
+    const days = inc && inc.days && typeof inc.days === 'object' ? inc.days : {};
+    for (const date of Object.keys(days)) {
+      const day = days[date]; if (!day || typeof day !== 'object' || date === '__proto__') continue;
+      const mine = Object.assign({}, own(out.days, date) ? out.days[date] : null);
+      for (const dev of Object.keys(day)) {
+        if (dev === '__proto__' || !day[dev] || typeof day[dev] !== 'object') continue;
+        if (!own(mine, dev) || count(day[dev]) > count(mine[dev])) { mine[dev] = day[dev]; changed = true; }
+      }
+      out.days[date] = mine;
+    }
+    out.changed = changed;
+    return out;
+  }
+  function readStats() { const v = readJSON(SKEY, {}); return {days: v.days && typeof v.days === 'object' ? v.days : {}}; }
+  function writeStats(S) { try { store().setItem(SKEY, JSON.stringify({days: S.days})); } catch (e) {} }
+  function compact(S, today) {
+    const cut = dateKey(new Date(today + 'T00:00:00').getTime() - KEEP_W * 864e5);
+    for (const date of Object.keys(S.days)) {
+      if (date >= cut) continue;
+      for (const dev of Object.keys(S.days[date] || {})) {
+        const r = S.days[date][dev];
+        if (!r || !r.w) continue;
+        const ws = Object.values(r.w);
+        r.u = ws.length; r.f = ws.filter(x => Array.isArray(x) && x[1] === 1).length; delete r.w;
+      }
+    }
+  }
+  // One submitted answer. src: where it was practised (the page), res: 'ok' | 'soft' | 'bad'.
+  function tally(src, word, res, now) {
+    now = now == null ? api.clock() : now;
+    src = SOURCES.includes(src) ? src : SOURCES.includes(PAGE) ? PAGE : 'other';
+    const S = readStats(), date = dateKey(now), dev = devId(), k = fold(word);
+    const day = S.days[date] = Object.assign({}, S.days[date]);
+    const r = day[dev] = Object.assign({n: 0, ok: 0, s: {}, w: {}}, day[dev]);
+    const good = res !== 'bad', d = new Date(now);
+    r.n++; if (good) r.ok++;
+    r.s = Object.assign({}, r.s); const sc = (r.s[src] || [0, 0]).slice(); sc[0]++; if (good) sc[1]++; r.s[src] = sc;
+    r.w = Object.assign({}, r.w);
+    if (k && !own(r.w, k)) r.w[k] = [d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds(), res === 'ok' ? 1 : res === 'soft' ? 2 : 0];
+    compact(S, date); writeStats(S);
+    try { scope.webkit?.messageHandlers?.persist?.postMessage(JSON.stringify({deck: 'stats', payload: {days: {[date]: {[dev]: r}}}})); } catch (e) {}
+    return r;
+  }
+  // Today's totals across every device, optionally for one source.
+  function todayTotals(src, now) {
+    const day = readStats().days[dateKey(now)] || {}, t = {done: 0, ok: 0};
+    for (const dev of Object.keys(day)) {
+      const r = day[dev]; if (!r) continue;
+      if (src) { const sc = r.s && r.s[src]; if (sc) { t.done += sc[0] || 0; t.ok += sc[1] || 0; } }
+      else { t.done += r.n || 0; t.ok += r.ok || 0; }
+    }
+    return t;
+  }
+  function adoptStats(deck) {
+    if (!deck || typeof deck !== 'object') return false;
+    const m = mergeStats(readStats(), deck);
+    if (m.changed) writeStats(m);
+    return m.changed;
+  }
+  const stats = {tally, today: todayTotals, merge: mergeStats, adopt: adoptStats, read: readStats, devId, dateKey, SOURCES};
+  api.stats = stats;
+
   /* ---------- one-time import of what the app already knows ---------- */
   function seed(now) {
     if ((M.seed || 0) >= 1) return 0;
@@ -654,8 +792,10 @@
   api.meta = () => M;
   load();
   try { if (adopt(scope.__INITIAL_STATE__ && scope.__INITIAL_STATE__.decks && scope.__INITIAL_STATE__.decks.srs)) write(); } catch (e) {}
+  try { adoptStats(scope.__INITIAL_STATE__ && scope.__INITIAL_STATE__.decks && scope.__INITIAL_STATE__.decks.stats); } catch (e) {}
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   scope.IELTSReview = api;
+  scope.IELTSStats = stats;
   try { seed(); } catch (e) {}
   try { scope.addEventListener('ielts:pulled', load); } catch (e) {}
 })(typeof window === 'undefined' ? globalThis : window);

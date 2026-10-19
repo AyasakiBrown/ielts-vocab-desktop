@@ -4,7 +4,7 @@
 //        (no version bump needed for the phone to catch up while online).
 // Assets (dict/emoji/images/icons): cache-first (big, rarely change; version bump refreshes).
 // /data and /sync* always go to the network (never cached).
-var C = "ielts-pwa-v27";
+var C = "ielts-pwa-v28";
 var SHELL = ["/", "/index.html", "/review.html", "/p1.html", "/vj.html", "/scene.html", "/notebook.html", "/wrong.html",
              "/mistakes.js", "/srs.js", "/dict.js", "/defs.js", "/emoji.js", "/images.js", "/icon-180.png", "/manifest.webmanifest"];
 var PAGES = ["/", "/index.html", "/review.html", "/p1.html", "/vj.html", "/scene.html", "/notebook.html", "/wrong.html"];

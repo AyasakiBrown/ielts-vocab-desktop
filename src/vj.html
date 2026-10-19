@@ -536,8 +536,10 @@ function recordResult(item,ok,track,soft){
   if(ok){p.ok++; if(!soft){p.streak++;p.box=Math.min(5,p.box+1);} p.last=true;}
   else{p.bad++;p.streak=0;p.box=0;p.last=false;}
   p.t=Date.now();
-  saveProg(); bumpDaily(ok);
-  return RV.answer(Object.assign({},item,{src:DECK}),track||'d',ok?(soft?'soft':'ok'):'bad');
+  saveProg();
+  const r=RV.answer(Object.assign({},item,{src:DECK}),track||'d',ok?(soft?'soft':'ok'):'bad');
+  bumpDaily(ok);
+  return r;
 }
 // 错词隔几题再测: bring a missed word back four questions later in the same round
 function requeue(it){
@@ -943,8 +945,11 @@ function enterMode(m,rebuild){
 /* ---------- header stats ---------- */
 function updateHStats(){
   if(daily.date!==todayStr()) daily={date:todayStr(),done:0,ok:0};
-  $('hsDone').textContent=daily.done;
-  $('hsAcc').textContent=daily.done?Math.round(daily.ok/daily.done*100)+'%':'—';
+  // every device's answers today (srs.js answer log); the per-deck counter only covers
+  // answers from before that log existed, so the larger of the two is shown
+  var t=window.IELTSStats?IELTSStats.today(DECK):{done:0,ok:0}; if(daily.done>t.done) t=daily;
+  $('hsDone').textContent=t.done;
+  $('hsAcc').textContent=t.done?Math.round(t.ok/t.done*100)+'%':'—';
   $('hsMaster').textContent=VOCAB.filter(isMastered).length;
 }
 

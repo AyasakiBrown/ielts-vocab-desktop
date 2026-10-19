@@ -4,9 +4,27 @@ const Data = require('./src/learning-data.js');
 
 class DataStore {
   constructor(directory) { this.directory=directory; this.file=path.join(directory,'data.json'); }
+  // An existing file that cannot be parsed throws (code CORRUPT): nothing is written
+  // until it is restored, and the file itself is never touched by save().
   read() {
     if (!fs.existsSync(this.file)) return null;
-    return Data.parse(fs.readFileSync(this.file,'utf8'));
+    try { return Data.parse(fs.readFileSync(this.file,'utf8')); }
+    catch (error) {
+      const e = Error('学习数据文件无法读取（'+error.message+'），已停止保存，原文件保持不动。请用菜单「学习数据 → 从最近的有效备份恢复…」恢复');
+      e.code = 'CORRUPT'; throw e;
+    }
+  }
+  corrupt() { try { this.read(); return false; } catch (e) { if (e.code === 'CORRUPT') return true; throw e; } }
+  // Newest backup that passes the same validation as a manual restore.
+  latestBackup() {
+    const dir=path.join(this.directory,'backups');
+    if(!fs.existsSync(dir)) return null;
+    const files=fs.readdirSync(dir).filter(n=>n.endsWith('.json')).map(n=>path.join(dir,n))
+      .map(file=>({file,mtime:fs.statSync(file).mtimeMs})).sort((a,b)=>b.mtime-a.mtime);
+    for(const f of files) {
+      try { return {file:f.file,mtime:f.mtime,root:Data.parse(fs.readFileSync(f.file,'utf8'))}; } catch {}
+    }
+    return null;
   }
   write(root) {
     root=Data.normalize(root);
@@ -34,6 +52,7 @@ class DataStore {
     this.backup(root);
     if(deck==='config') Object.assign(root.decks.config,payload);
     else if(deck==='srs') root.decks.srs=Data.mergeReview(root.decks.srs,payload);
+    else if(deck==='stats') root.decks.stats=Data.mergeStats(root.decks.stats,payload);
     else if(['p1','vj','scene'].includes(deck)) {
       Data.remember(root.decks[deck],root.decks[deck].daily);
       Object.assign(root.decks[deck],payload);
@@ -41,10 +60,11 @@ class DataStore {
     } else Object.assign(root.decks[deck],payload);
     return this.write(root);
   }
+  // A damaged current file is kept beside the restored one as data.json.corrupt-<time>.
   restore(root) {
     root=Data.normalize(root);
-    const current=this.read();
-    if(current) this.backup(current,'before-restore');
+    if(this.corrupt()) fs.renameSync(this.file,this.file+'.corrupt-'+new Date().toISOString().replace(/[:.]/g,'-'));
+    else { const current=this.read(); if(current) this.backup(current,'before-restore'); }
     return this.write(root);
   }
 }

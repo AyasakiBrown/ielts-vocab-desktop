@@ -173,4 +173,19 @@ data.set('ielts_wrong_events', JSON.stringify(Object.assign(JSON.parse(data.get(
 assert.deepEqual(RV.troubles({min: 2}).map(t => t.key), ['navigate', 'accommodation', 'notable']);      // missed again → back in
 assert.deepEqual(RV.drillEffect(), {done: 1, again: 1});
 RV.drilled({en: 'weight'}, 'homophone', ['d']); assert.equal(RV.all().weight.hom, 1);
+
+// ---- daily answer log: every answer counted once per device, devices add up ----
+data.delete('ielts_stats'); data.set('ielts_dev', 'devA'); sent.length = 0;
+const S = RV.stats, today = S.dateKey(now);
+RV.answer({en: 'harbour', src: 'p1'}, 'd', 'bad'); RV.answer({en: 'harbour', src: 'p1'}, 'd', 'ok'); RV.answer({en: 'quay', src: 'vj'}, 'm', 'soft');
+let mine = S.read().days[today].devA;
+assert.deepEqual([mine.n, mine.ok, mine.s.p1, mine.s.vj], [3, 2, [2, 1], [1, 1]]);
+assert.deepEqual(Object.keys(mine.w).sort(), ['harbour', 'quay']); assert.equal(mine.w.harbour[1], 0);   // first answer of the day kept
+assert.equal(sent.filter(m => m.deck === 'stats').length, 3);
+assert.deepEqual(Object.keys(sent.at(-1).payload.days[today]), ['devA']);                             // only this device's day is sent
+S.adopt({days: {[today]: {devB: {n: 5, ok: 5, s: {notebook: [5, 5]}}, devA: {n: 1, ok: 1}}}});        // another device + a stale copy of ours
+assert.deepEqual(S.today(), {done: 8, ok: 7}); assert.deepEqual(S.today('p1'), {done: 2, ok: 1});
+S.adopt({days: {[today]: {devB: {n: 5, ok: 5, s: {notebook: [5, 5]}}}}});                             // re-synced: still 8
+assert.equal(S.today().done, 8);
+S.tally('review', 'quay', 'ok'); assert.deepEqual(S.read().days[today].devA.s.review, [1, 1]);
 console.log('PASS: UK/US spellings accepted, misspellings rejected, format slips flagged; cross-day promotion, lapses, hints, merge, queue cap and seeding behave as specified; mistakes are diagnosed by cause and drilled words wait for an unaided re-test.');

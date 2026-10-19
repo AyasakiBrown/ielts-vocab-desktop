@@ -126,8 +126,8 @@
     }
     if(id==='close' && !overlay)return false;
     if(id==='flip' && typing)return false;
-    let ids={replay:['dsay','rsay','msay','dReplay','fSpeak'],next:['dskip','rnext','mnext','dSkip','fNext','qNext'],previous:['rprev','fPrev'],close:['dclose','rclose','mclose','closeModal'],flip:['rflip','flash']}[id]||[];
-    if(id==='submit') {const focus=document.activeElement?.id; ids=focus==='w'?['add']:focus==='dictInput'?['dSubmit']:focus==='dans'?['dsubmit']:[];}
+    let ids={replay:['dsay','rsay','msay','xsay','dReplay','fSpeak'],next:['dskip','rnext','mnext','xnext','dSkip','fNext','qNext'],previous:['rprev','fPrev'],close:['dclose','rclose','mclose','xclose','closeModal'],flip:['rflip','flash']}[id]||[];
+    if(id==='submit') {const focus=document.activeElement?.id; ids=focus==='w'?['add']:focus==='dictInput'?['dSubmit']:focus==='dans'?['dsubmit']:focus==='xans'?['xsubmit']:[];}
     const button=ids.map(x=>scope.querySelector('#'+x)).find(visible);
     if(button){button.click();return true;}return false;
   }

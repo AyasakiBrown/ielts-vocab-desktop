@@ -42,7 +42,23 @@ test('替换恢复前备份原数据，磁盘重开一致；损坏文件不会�
   assert.deepEqual(new Store(store.directory).read(),next);
   const backup=fs.readdirSync(path.join(store.directory,'backups')).find(n=>n.startsWith('before-restore-'));
   assert.deepEqual(Data.parse(fs.readFileSync(path.join(store.directory,'backups',backup),'utf8')),old);
-  fs.writeFileSync(store.file,'damaged');assert.throws(()=>store.restore(old));assert.equal(fs.readFileSync(store.file,'utf8'),'damaged');
+  fs.writeFileSync(store.file,'damaged');
+  assert.throws(()=>store.save('p1',{prog:{}}),e=>e.code==='CORRUPT');assert.equal(fs.readFileSync(store.file,'utf8'),'damaged');
+  store.restore(old);assert.deepEqual(store.read(),old);
+  const kept=fs.readdirSync(store.directory).find(n=>n.startsWith('data.json.corrupt-'));
+  assert.equal(fs.readFileSync(path.join(store.directory,kept),'utf8'),'damaged');
+});
+test('损坏时找到最近的有效备份：跳过损坏和非学习数据的文件',()=>{
+  const store=new Store(path.join(temp,'latest'));const dir=path.join(store.directory,'backups');fs.mkdirSync(dir,{recursive:true});
+  const older=fixture(),newer=Data.normalize({v:1,decks:{wrong:{list:[{en:'kiwi',ts:1}]}}});
+  const put=(name,text,age)=>{const f=path.join(dir,name);fs.writeFileSync(f,text);const t=new Date(Date.now()-age*1000);fs.utimesSync(f,t,t);};
+  put('daily-2026-10-01.json',Data.pack(older),300);
+  put('data-20261002.json',JSON.stringify(newer),200);             // the sync server keeps raw copies
+  put('daily-2026-10-03.json','{broken',100);
+  put('daily-2026-10-04.json','{"hello":1}',50);
+  assert.equal(store.latestBackup().file,path.join(dir,'data-20261002.json'));
+  assert.deepEqual(store.latestBackup().root,newer);
+  fs.mkdirSync(store.directory,{recursive:true});fs.writeFileSync(store.file,'{');assert.equal(store.corrupt(),true);
 });
 test('自动备份失败阻止恢复写入',()=>{
   const store=new Store(path.join(temp,'failure'));store.write(fixture());const before=fs.readFileSync(store.file,'utf8');
@@ -100,10 +116,41 @@ test('每日记录按年月日数值倒序，跨月不排错；零答题不出�
   }});
   const rows=Data.dailyRows(root);
   assert.deepEqual(rows.map(r=>r.date),['2026-10-10','2026-10-01','2026-09-30']);
-  assert.deepEqual(rows[1],{day:20261001,date:'2026-10-01',done:8,ok:6,rate:75});
+  assert.deepEqual(rows[1],{day:20261001,date:'2026-10-01',done:8,ok:6,rate:75,words:null,firstRate:null,src:{p1:{done:5,ok:5},vj:{done:3,ok:1}}});
   assert.equal(Data.dailyRows({v:1,decks:{}}).length,0);
   assert.equal(Data.dayNumber('2026-9-30')<Data.dayNumber('2026-10-1'),true);
   assert.equal(Data.daysAgo(6,new Date(2026,9,3)),20260927);
   // 原始记录与备份格式不变
   assert.deepEqual(Data.parse(Data.pack(root)),root);
+});
+
+test('多设备答题记录相加，重复同步不重复计数；统计所有来源、独立词数和首次正确率',()=>{
+  const a={n:10,ok:8,s:{p1:[6,5],notebook:[4,3]},w:{apple:[100,1],pear:[200,0]}};
+  const b={n:10,ok:9,s:{review:[7,6],wrong:[3,3]},w:{apple:[50,0],kiwi:[300,1]}};
+  let stats=Data.mergeStats({},{days:{'2026-10-19':{devA:a}}});
+  stats=Data.mergeStats(stats,{days:{'2026-10-19':{devB:b}}});
+  stats=Data.mergeStats(stats,{days:{'2026-10-19':{devA:a,devB:b}}});            // the same records again
+  stats=Data.mergeStats(stats,{days:{'2026-10-19':{devA:{n:4,ok:4,s:{p1:[4,4]}}}}}); // an older, smaller copy loses
+  assert.equal(stats.days['2026-10-19'].devA.n,10);
+  const root=Data.normalize({v:1,decks:{stats,p1:{prog:{},history:{'2026-10-19':{date:'2026-10-19',done:5,ok:5}}}}});
+  const [row]=Data.dailyRows(root);
+  assert.equal(row.done,20);assert.equal(row.ok,17);
+  assert.deepEqual(Object.keys(row.src).sort(),['notebook','p1','review','wrong']);
+  assert.equal(row.words,3);                         // apple, pear, kiwi
+  assert.equal(row.firstRate,33);                    // apple's first answer (devB, earlier) was wrong; kiwi right
+  // before the log existed: the old per-deck counter is larger and wins for that deck
+  const old=Data.normalize({v:1,decks:{stats:{days:{'2026-10-18':{devA:{n:2,ok:2,s:{vj:[2,2]},w:{x:[1,1],y:[2,1]}}}}},vj:{prog:{},history:{'2026-10-18':{date:'2026-10-18',done:9,ok:6}}}}});
+  assert.deepEqual(Data.dailyRows(old)[0].src,{vj:{done:9,ok:6}});
+  // compacted old days keep counts without the word list
+  const compacted=Data.normalize({v:1,decks:{stats:{days:{'2026-06-01':{devA:{n:5,ok:4,s:{p1:[5,4]},u:3,f:2}}}}}});
+  assert.equal(Data.dailyRows(compacted)[0].words,3);assert.equal(Data.dailyRows(compacted)[0].firstRate,67);
+  assert.deepEqual(Data.parse(Data.pack(root)),root);
+  assert.throws(()=>Data.normalize({v:1,decks:{stats:{days:{'2026-10-19':{devA:{n:-1}}}}}}));
+});
+test('Windows 保存答题记录按设备合并',()=>{
+  const store=new Store(path.join(temp,'stats'));store.write(fixture());
+  store.save('stats',{days:{'2026-10-19':{devA:{n:3,ok:2,s:{p1:[3,2]}}}}});
+  store.save('stats',{days:{'2026-10-19':{devB:{n:1,ok:1,s:{wrong:[1,1]}}}}});
+  store.save('stats',{days:{'2026-10-19':{devA:{n:2,ok:2,s:{p1:[2,2]}}}}});
+  const day=store.read().decks.stats.days['2026-10-19'];assert.equal(day.devA.n,3);assert.equal(day.devB.n,1);
 });

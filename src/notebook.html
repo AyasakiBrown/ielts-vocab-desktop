@@ -31,10 +31,10 @@
   .tools .count{color:var(--soft);font-size:12.5px;margin-right:auto}
   .search{flex:1;min-width:140px}
   .catpractice{width:100%;display:grid;gap:7px;margin-top:2px;padding-top:10px;border-top:1px solid var(--line)}
-  .cprow{display:flex;gap:6px;align-items:center}
+  .cprow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .cptitle{width:94px;flex:0 0 94px;font-size:12px;font-weight:650;color:var(--soft)}
   .cprow .btn{flex:1}
-  @media(max-width:480px){.cptitle{width:82px;flex-basis:82px}.cprow .btn{padding-left:6px;padding-right:6px}}
+  @media(max-width:480px){.cptitle{width:100%;flex-basis:100%}.cprow .btn{padding:6px 6px;min-width:calc(33% - 6px)}}
   .item{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px 14px;box-shadow:var(--shadow);margin-bottom:10px}
   .item .top{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
   .item .w{font-size:17px;font-weight:650}
@@ -92,6 +92,16 @@
   .mcopt.correct{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--card));color:var(--good)}
   .mcopt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,var(--card));color:var(--bad)}
   .mcopt:disabled{cursor:default}
+  /* 写作 / 口语 production drills */
+  .xcloze{font-size:19px;line-height:1.7;margin:14px 0 6px}
+  .xcloze .gap{display:inline-block;min-width:72px;border-bottom:2px solid var(--accent);margin:0 4px}
+  .xmean{color:var(--soft);font-size:14px;margin-top:8px;line-height:1.55;white-space:pre-wrap}
+  .xmean.big{color:var(--ink);font-size:17px;margin:14px 0 4px}
+  .xq{margin:14px 0 4px;font-size:15px;line-height:1.6;text-align:left;background:var(--bg);border-radius:10px;padding:10px 12px}
+  .xtip{font-size:12.5px;color:var(--soft);margin-top:8px;line-height:1.5}
+  .xsent{font-size:17px;line-height:1.6;margin:12px 0;transition:filter .2s}
+  .xsent.hidden{filter:blur(6px)}
+  .xref{font-size:13px;color:var(--soft);margin-top:8px;line-height:1.55;text-align:left}
 body{overscroll-behavior-y:contain}
 button{-webkit-tap-highlight-color:transparent}
 </style>
@@ -137,8 +147,8 @@ button{-webkit-tap-highlight-color:transparent}
     <div class="catpractice" aria-label="分类专项练习">
       <div class="cprow"><span class="cptitle">🎧 听力错词</span><button class="btn alt sm" id="dictateLW" title="只听写标记为听力错词的词">听写</button></div>
       <div class="cprow"><span class="cptitle">📖 阅读错词</span><button class="btn alt sm" id="dictateRW">听写</button><button class="btn alt sm" id="reviewRW">意思抽查</button><button class="btn alt sm" id="quizRW">选择题</button></div>
-      <div class="cprow"><span class="cptitle">📝 写作生词</span><button class="btn alt sm" id="dictateWW">听写</button><button class="btn alt sm" id="reviewWW">意思抽查</button><button class="btn alt sm" id="quizWW">选择题</button></div>
-      <div class="cprow"><span class="cptitle">🗣️ 口语生词</span><button class="btn alt sm" id="dictateSW">听写</button><button class="btn alt sm" id="reviewSW">意思抽查</button><button class="btn alt sm" id="quizSW">选择题</button></div>
+      <div class="cprow"><span class="cptitle">📝 写作生词</span><button class="btn alt sm" id="dictateWW">听写</button><button class="btn alt sm" id="reviewWW">意思抽查</button><button class="btn alt sm" id="quizWW">选择题</button><button class="btn alt sm" id="xwcloze" title="在你记下的例句 / 搭配里挖空，写出这个词">搭配填空</button><button class="btn alt sm" id="xwprompt" title="看中文意思，写出英文表达">看中文写</button></div>
+      <div class="cprow"><span class="cptitle">🗣️ 口语生词</span><button class="btn alt sm" id="dictateSW">听写</button><button class="btn alt sm" id="reviewSW">意思抽查</button><button class="btn alt sm" id="quizSW">选择题</button><button class="btn alt sm" id="xsprompt" title="按口语题情境，开口说一句用上这个词的话">情境说句</button><button class="btn alt sm" id="xsrepeat" title="听一句话，跟着复述，录音回放对比">短句复述</button></div>
     </div>
   </div>
 
@@ -193,6 +203,29 @@ button{-webkit-tap-highlight-color:transparent}
   </div>
 </div>
 
+<div class="ov" id="xov">
+  <div class="rc">
+    <div class="prog" id="xprog"></div>
+    <div id="xbody"></div>
+    <div class="row" id="xinrow" style="margin-top:14px"><input id="xans" placeholder="写出英文" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go"></div>
+    <div class="nav" id="xrec" style="flex-wrap:wrap">
+      <button class="btn alt sm" id="xrecbtn">🎙️ 录音</button>
+      <button class="btn alt sm" id="xplay" disabled>▶ 听我的录音</button>
+      <button class="btn alt sm" id="xsay">🔊 原音</button>
+    </div>
+    <div class="xtip" id="xrecnote"></div>
+    <div id="xfb" style="min-height:24px;margin-top:10px;font-size:14.5px;line-height:1.55"></div>
+    <div class="nav">
+      <button class="btn" id="xsubmit" data-base="提交">提交 (Enter)</button>
+      <button class="btn" id="xok" hidden>✓ 说出来了</button>
+      <button class="btn alt" id="xbad" hidden>✗ 卡住了</button>
+      <button class="btn alt" id="xnext">跳过 ›</button>
+    </div>
+    <div class="prog" id="xscore"></div>
+    <button class="ghosti" id="xclose" style="margin-top:8px">结束</button>
+  </div>
+</div>
+
 <script src="dict.js"></script>
 <script src="defs.js"></script>
 <script src="emoji.js"></script>
@@ -203,7 +236,7 @@ button{-webkit-tap-highlight-color:transparent}
   // it (phone/PWA) the page's own Enter handler applies. A cleared binding shows no key.
   function submitHint(){ var S=window.IELTSShortcuts; if(!S) return ' (Enter)'; var k=S.label('submit'); return k?' ('+k+')':''; }
   function setSubmit(text){ var b=$('dsubmit'); if(!b) return; b.dataset.base=text; b.textContent=text+submitHint(); }
-  window.addEventListener('ielts:shortcuts',function(){ var b=$('dsubmit'); if(b) b.textContent=(b.dataset.base||'提交')+submitHint(); });
+  window.addEventListener('ielts:shortcuts',function(){ ['dsubmit','xsubmit'].forEach(function(id){ var b=$(id); if(b) b.textContent=(b.dataset.base||'提交')+submitHint(); }); });
   setSubmit('提交');
   var DICT=window.DICT||{};
   // Review ledger (srs.js), shared with the decks. The stub only keeps practice usable
@@ -581,8 +614,11 @@ button{-webkit-tap-highlight-color:transparent}
     manswered=false; $('mword').textContent=e.w; $('mph').textContent=e.ph?('['+e.ph+']'):'';
     $('mprog').textContent=catText(mCat)+'　第 '+(mi+1)+' / '+morder.length;
     var correct=(e.tr||'').trim(), seen={}; seen[correct]=1; var distractors=[];
-    for(var i=0;i<NB.length;i++){ var tr=(NB[i].tr||'').trim(); if(tr&&!seen[tr]){ seen[tr]=1; distractors.push(tr); } }
-    shuffleArray(distractors); moptions=[correct].concat(distractors.slice(0,3)); shuffleArray(moptions);
+    // plausible options first (same part of speech, related meaning, similar spelling; never a second right answer)
+    if(RV.distractors) distractors=RV.distractors({w:e.w,zh:correct},NB.map(function(x){return {w:x.w,zh:x.tr};}),3);
+    distractors.forEach(function(tr){ seen[tr]=1; });
+    var rest=[]; for(var i=0;i<NB.length;i++){ var tr=(NB[i].tr||'').trim(); if(tr&&!seen[tr]){ seen[tr]=1; rest.push(tr); } }
+    distractors=distractors.concat(shuffleArray(rest)).slice(0,3); moptions=[correct].concat(distractors); shuffleArray(moptions);
     $('mchoices').innerHTML=moptions.map(function(tr,i){ return '<button class="mcopt" data-i="'+i+'">'+esc(tr)+'</button>'; }).join('');
     $('mfb').textContent=''; $('mnext').style.display='none'; $('mnext').textContent=(mi+1===morder.length)?'查看结果':'下一题 ›';
     checkpoint('quiz',mCat,morder,mi,{right:mright,wrong:mwrong});
@@ -692,12 +728,180 @@ button{-webkit-tap-highlight-color:transparent}
   $('dclose').onclick=function(){ savePractice(); $('dov').classList.remove('show'); dToggle(true); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} drainPull(); };
   $('dov').addEventListener('click', function(ev){ if(ev.target===$('dov')) $('dclose').click(); });
 
+  /* ---------- 写作 / 口语: small production drills ----------
+     写作 — 搭配填空 (the word blanked out of your own example / collocation) and 看中文写
+     (Chinese meaning → the English expression): graded and scheduled like dictation.
+     口语 — 情境说句 (one spoken sentence using the word for an exam-style prompt) and 短句复述
+     (hear a sentence, say it back, compare with your own recording): self-checked, so they
+     count in the daily answer log but never move the review level. */
+  var XN=10, X=null, REC=null;
+  var XTITLE={wcloze:'📝 搭配填空',wprompt:'📝 看中文写',sprompt:'🗣️ 情境说句',srepeat:'🗣️ 短句复述'};
+  var SPEAK_Q=['考官问：<i>What do you usually do at the weekend?</i> 回答里用上 {w}。',
+    '考官问：<i>How has your hometown changed in recent years?</i> 用上 {w}。',
+    '考官问：<i>Is there anything you would like to change about where you live?</i> 用上 {w}。',
+    '考官问：<i>Do you prefer studying alone or with other people? Why?</i> 用上 {w}。',
+    'Part 2：描述一个对你影响很大的人。用 {w} 说出开头的一两句。',
+    'Part 2：描述一次让你印象深刻的旅行。用 {w} 说一句细节。',
+    'Part 3：<i>What are the pros and cons of using technology in education?</i> 用 {w} 给出一个观点。',
+    'Part 3：<i>Should governments spend more money on public transport?</i> 用 {w} 表明立场并说明理由。',
+    '用 {w} 比较过去和现在的一个变化。',
+    '用 {w} 说一句你最近真实经历过的事。'];
+  function short(tr){ tr=String(tr||'').split('\n')[0].trim(); return tr.length>60?tr.slice(0,59)+'…':tr; }
+  function reEsc(x){ return String(x).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+  // The word (or a regular inflection of it) inside one clause of the learner's example.
+  function clozeIn(text,word){
+    var clauses=String(text||'').split(/[;；\n]|\s\/\s/).map(function(x){return x.trim();}).filter(Boolean);
+    var alts=String(word||'').split(/\s*\/\s*/).filter(function(a){return a.trim().length>=2;});
+    for(var i=0;i<clauses.length;i++) for(var j=0;j<alts.length;j++){
+      var a=alts[j].trim(), forms=[reEsc(a)+'(?:s|es|d|ed|ing)?'];
+      if(/e$/i.test(a)) forms.push(reEsc(a.slice(0,-1))+'(?:ing|ed)');
+      if(/[^aeiou]y$/i.test(a)) forms.push(reEsc(a.slice(0,-1))+'(?:ies|ied)');
+      var m=new RegExp('(^|[^A-Za-z])('+forms.join('|')+')(?![A-Za-z])','i').exec(clauses[i]);
+      if(!m) continue;
+      var at=m.index+m[1].length, pre=clauses[i].slice(0,at), post=clauses[i].slice(at+m[2].length);
+      if(/[A-Za-z]{2,}/.test(pre+post)) return {pre:pre,form:m[2],post:post};
+    }
+    return null;
+  }
+  function sentenceFor(e){
+    var ex=String(e.ex||''), c=clozeIn(ex,e.w);
+    if(c){ var line=(c.pre+c.form+c.post).trim(); if(line.split(/\s+/).length>=3) return line; }
+    var latin=/[A-Za-z][A-Za-z ,'’\-]{10,}[A-Za-z.!?]/.exec(ex); if(latin) return latin[0];
+    var d=defsOf(e.w)[0]; return d?e.w+' means '+d.t+'.':e.w;
+  }
+  function openProd(kind){
+    var cat=kind.charAt(0)==='w'?'ww':'sw', list=[];
+    for(var i=0;i<NB.length;i++){
+      var e=NB[i]; if(!e[cat]) continue;
+      if(kind==='wcloze'&&!clozeIn(e.ex,e.w)) continue;
+      if((kind==='wprompt'||kind==='sprompt')&&!(e.tr||'').trim()) continue;
+      list.push(i);
+    }
+    if(!list.length){
+      alert({wcloze:'还没有可以挖空的写作生词。\n在写作生词的「例句 / 语境」里写一句含这个词的英文搭配或句子，就能做搭配填空。',
+        wprompt:'还没有带中文释义的「写作生词」。',sprompt:'还没有带中文释义的「口语生词」。',srepeat:'还没有标记「口语生词」的词。'}[kind]); return;
+    }
+    list=(cat==='ww'?reviewOrder(list,'d'):shuffleArray(list)).slice(0,XN);
+    X={kind:kind,order:list,i:0,right:0,answered:false};
+    $('xov').classList.add('show'); keepAwake(true); xShow();
+  }
+  function xWriting(){ return X&&X.kind.charAt(0)==='w'; }
+  function xShow(){
+    stopRec(true);
+    var e=X&&NB[X.order[X.i]]; if(!e){ xEnd(); return; }
+    X.answered=false; X.hint=false; X.say=e.w; X.clip=null;
+    var w=xWriting(), body='';
+    $('xprog').textContent=XTITLE[X.kind]+'　第 '+(X.i+1)+' / '+X.order.length;
+    if(X.kind==='wcloze'){
+      var c=clozeIn(e.ex,e.w); X.want=[c.form]; X.reveal=esc(c.pre)+'<b>'+esc(c.form)+'</b>'+esc(c.post);
+      body='<div class="xcloze">'+esc(c.pre)+'<span class="gap">&nbsp;</span>'+esc(c.post)+'</div><div class="xmean">'+posBadge(e)+esc(short(e.tr))+'</div><div class="xtip">按句子需要写出正确形式（单复数、时态）</div>';
+    }else if(X.kind==='wprompt'){
+      X.want=nbItem(e).alts; X.reveal='<b>'+esc(e.w)+'</b>';
+      body='<div class="xmean big">'+posBadge(e)+esc(e.tr||'')+'</div><div class="xtip">写出对应的英文单词或表达　<button class="ghosti" id="xhint" style="font-size:13px">🔤 首字母</button><span id="xhinttext"></span></div>';
+    }else if(X.kind==='sprompt'){
+      var q=SPEAK_Q[Math.floor(Math.random()*SPEAK_Q.length)];
+      body='<div class="rw">'+esc(e.w)+'</div><div class="rph">'+(e.ph?'['+esc(e.ph)+']':'')+'</div><div class="xmean">'+posBadge(e)+esc(short(e.tr))+'</div>'+
+        '<div class="xq">'+q.replace('{w}','<b>'+esc(e.w)+'</b>')+'</div><div class="xtip">先想 5 秒，再完整说一句。可以录音，回放听听自己说得是否流畅。</div>';
+    }else{
+      X.say=sentenceFor(e);
+      body='<div class="xtip">听这句话，然后跟着完整复述一遍；说完录音回放，和原音对比。</div><div class="xsent hidden" id="xsent">'+esc(X.say)+'</div>'+
+        '<button class="ghosti" id="xshow" style="font-size:13px">👀 显示原句</button>';
+    }
+    $('xbody').innerHTML=body;
+    $('xinrow').hidden=!w; $('xrec').hidden=w; $('xsubmit').hidden=!w; $('xok').hidden=w; $('xbad').hidden=w;
+    $('xans').value=''; $('xans').readOnly=false; $('xfb').innerHTML=''; $('xnext').textContent='跳过 ›';
+    $('xsubmit').dataset.base='提交'; $('xsubmit').textContent='提交'+submitHint();
+    $('xrecnote').textContent=w?'':(recSupported()?'':'此环境不支持录音，可以直接开口说。');
+    $('xrecbtn').disabled=!recSupported(); $('xrecbtn').textContent='🎙️ 录音'; $('xplay').disabled=true;
+    $('xscore').textContent=(w?'✓ ':'说出 ')+X.right+'　/ 已做 '+X.i;
+    if($('xhint')) $('xhint').onclick=function(){ X.hint=true; var t=X.want[0]||'', n=t.replace(/\s/g,'').length; $('xhinttext').textContent=t.charAt(0)+' _'.repeat(Math.max(0,n-1))+'（'+n+' 字母）'; try{$('xans').focus();}catch(x){} };
+    if($('xshow')) $('xshow').onclick=function(){ $('xsent').classList.remove('hidden'); this.remove(); };
+    if(w) setTimeout(function(){ try{$('xans').focus();}catch(x){} },60);
+    if(X.kind==='srepeat'||X.kind==='sprompt') speak(X.say);
+  }
+  function xSubmit(){
+    if(!xWriting()) return;
+    if(X.answered){ xNext(); return; }
+    var e=NB[X.order[X.i]], typed=$('xans').value, g=RV.grade(typed,X.want);
+    if(g.empty){ try{$('xans').focus();}catch(x){} return; }
+    var res=!g.ok?'bad':(!g.clean||X.hint)?'soft':'ok';
+    X.answered=true; $('xans').readOnly=true;
+    if(res==='bad') requeue(X.order,X.i); else X.right++;
+    var plan=planText(RV.answer(nbItem(e),'d',res));
+    $('xfb').innerHTML=(res==='bad'?'<span style="color:var(--bad)">✗ 应为</span> ':res==='soft'?'<span style="color:var(--soft)">✓ 正确（'+(X.hint?'用了首字母提示':'写法有小误')+'，本次不计入掌握）</span> ':'<span style="color:var(--good)">✓ 正确</span> ')+
+      '<span style="font-size:16px">'+X.reveal+'</span>'+(res==='bad'?'<div class="xref">你写的：'+esc(typed)+'</div>':'')+
+      (e.ex&&X.kind==='wprompt'?'<div class="xref">你的例句：'+esc(e.ex)+'</div>':'')+plan;
+    $('xsubmit').dataset.base='下一个'; $('xsubmit').textContent='下一个'+submitHint(); $('xnext').hidden=true;
+    $('xscore').textContent='✓ '+X.right+'　/ 已做 '+(X.i+1);
+    speak(e.w);
+  }
+  function xSelf(ok){
+    if(xWriting()||X.answered) return;
+    var e=NB[X.order[X.i]]; X.answered=true; stopRec(false);
+    if(ok) X.right++;
+    if(window.IELTSStats) IELTSStats.tally('notebook',e.w,ok?'ok':'bad');
+    $('xok').hidden=true; $('xbad').hidden=true; $('xnext').hidden=false; $('xnext').textContent=X.i+1>=X.order.length?'查看结果 ›':'下一个 ›';
+    if($('xsent')) $('xsent').classList.remove('hidden');
+    $('xfb').innerHTML=(ok?'<span style="color:var(--good)">✓ 记为说出来了</span>':'<span style="color:var(--bad)">✗ 记为卡住了，下次再练</span>')+
+      (e.ex?'<div class="xref">你记下的例句：'+esc(e.ex)+'</div>':'')+'<div class="xref">口语练习靠自评，只计入每日答题记录，不改变复习安排。</div>';
+    $('xscore').textContent='说出 '+X.right+'　/ 已做 '+(X.i+1);
+    setTimeout(function(){ try{$('xnext').focus();}catch(x){} },30);
+  }
+  function xNext(){ X.i++; $('xnext').hidden=false; xShow(); }
+  function xEnd(){
+    stopRec(true);
+    var total=X.order.length, w=xWriting();
+    $('xprog').textContent=XTITLE[X.kind]+'　完成';
+    $('xbody').innerHTML='<div style="font-size:40px;margin-top:10px">'+(X.right===total?'🎉':'💪')+'</div>';
+    $('xinrow').hidden=true; $('xrec').hidden=true; $('xsubmit').hidden=true; $('xok').hidden=true; $('xbad').hidden=true; $('xnext').hidden=true; $('xrecnote').textContent='';
+    $('xfb').innerHTML=(w?'答对 ':'说出 ')+'<b>'+X.right+' / '+total+'</b>'+(w?'（含重测）':'')+' <button class="btn sm" id="xagain">再来一组</button>';
+    $('xscore').textContent='';
+    $('xagain').onclick=function(){ openProd(X.kind); };
+  }
+  function recSupported(){ return !!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder); }
+  function stopRec(discard){
+    if(!REC) return;
+    REC.discard=!!discard;
+    try{ if(REC.rec.state==='recording') REC.rec.stop(); else REC.stream.getTracks().forEach(function(t){t.stop();}); }catch(e){}
+    REC=null;
+  }
+  function toggleRec(){
+    if(REC){ stopRec(false); return; }
+    try{ speechSynthesis.cancel(); }catch(e){}
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      var r=new MediaRecorder(stream), chunks=[], me={stream:stream,rec:r,discard:false};
+      r.ondataavailable=function(ev){ if(ev.data&&ev.data.size) chunks.push(ev.data); };
+      r.onstop=function(){
+        stream.getTracks().forEach(function(t){t.stop();});
+        if(me.discard||!X) return;
+        if(X.clip) try{ URL.revokeObjectURL(X.clip); }catch(e){}
+        X.clip=URL.createObjectURL(new Blob(chunks,{type:r.mimeType||'audio/mp4'}));
+        $('xplay').disabled=false; $('xrecbtn').textContent='🎙️ 重录';
+      };
+      REC=me; r.start(); $('xrecbtn').textContent='⏹ 停止'; $('xrecnote').textContent='录音中…说完点「停止」';
+    }).catch(function(){ $('xrecnote').textContent='无法使用麦克风（未授权或设备不支持），可以直接开口说。'; });
+  }
+  $('xwcloze').onclick=function(){ openProd('wcloze'); };
+  $('xwprompt').onclick=function(){ openProd('wprompt'); };
+  $('xsprompt').onclick=function(){ openProd('sprompt'); };
+  $('xsrepeat').onclick=function(){ openProd('srepeat'); };
+  $('xsubmit').onclick=xSubmit;
+  $('xok').onclick=function(){ xSelf(true); };
+  $('xbad').onclick=function(){ xSelf(false); };
+  $('xnext').onclick=function(){ if(X&&xWriting()&&!X.answered) requeue(X.order,X.i); xNext(); };
+  $('xrecbtn').onclick=function(){ if(!REC) $('xrecnote').textContent=''; toggleRec(); };
+  $('xplay').onclick=function(){ if(X&&X.clip){ try{ new Audio(X.clip).play(); }catch(e){} } };
+  $('xsay').onclick=function(){ if(X) speak(X.say); };
+  $('xans').addEventListener('keydown',function(ev){ if(window.__CUSTOM_SHORTCUTS__)return; if(ev.key==='Enter'&&!ev.isComposing&&ev.keyCode!==229&&!ev.repeat){ ev.preventDefault(); xSubmit(); } });
+  $('xclose').onclick=function(){ stopRec(true); $('xov').classList.remove('show'); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} X=null; drainPull(); };
+  $('xov').addEventListener('click',function(ev){ if(ev.target===$('xov')) $('xclose').click(); });
+
   /* live refresh after a sync pull — see the deck pages for why this is required.
      dorder indexes into NB, so defer while a review/dictation overlay is open. */
   var _pullPending=false;
   // #mov (选择题) holds INDICES into NB via morder — swapping NB mid-quiz would silently
   // change the question under the user, so every overlay must gate the rehydrate.
-  function overlayOpen(){ return $('ov').classList.contains('show')||$('dov').classList.contains('show')||$('mov').classList.contains('show'); }
+  function overlayOpen(){ return $('ov').classList.contains('show')||$('dov').classList.contains('show')||$('mov').classList.contains('show')||$('xov').classList.contains('show'); }
   function rehydrateFromStorage(){
     if(overlayOpen()){ _pullPending=true; return; }
     try{ var n=JSON.parse(localStorage.getItem('ielts_nb')); if(n) NB=n; }catch(e){}
