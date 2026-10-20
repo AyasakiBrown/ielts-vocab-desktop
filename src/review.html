@@ -244,6 +244,7 @@
      next one, so a submitted answer is never asked or counted again. ---------- */
   var SESS='ielts_review_sess';
   function saveSess(){
+    if(window.__RESTORING__) return;
     if(mode!=='review'||!Q.length||!$('ov').classList.contains('show')) return;
     var at=Math.min(Q.length,qi+(answered?1:0));
     if(at>=Q.length){ clearSess(); return; }

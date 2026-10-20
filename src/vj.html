@@ -850,6 +850,7 @@ function paintProgress(pre,pos,len){
   if(cv) cv.textContent=st.total?(st.seen>=st.total?`本词库 ${st.total} 词已全部学过 ✓`:`本词库已学 ${st.seen} / ${st.total}（${Math.round(st.seen/st.total*100)}%）`):'';
 }
 function saveSess(){
+  if(window.__RESTORING__) return;
   if(!['dict','flash','quiz'].includes(state.mode)||!state.list.length) return;
   // Store the actual shuffled/smart queue. Submitted answers resume at the next
   // word so reopening cannot count the same answer twice.

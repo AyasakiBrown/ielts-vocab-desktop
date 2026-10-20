@@ -527,7 +527,8 @@
       const t = slot(e.word, e.source); if (!t) continue;
       t.n++; t.last = Math.max(t.last, e.ts || 0); if (e.meaning && !t.zh) t.zh = e.meaning;
       if (e.mode === 'quiz') { t.meaning.push({answer: String(e.answer || ''), alt: e.alt || null, ts: e.ts || 0}); t.causes.meaning = (t.causes.meaning || 0) + 1; continue; }
-      const dg = diagnose(e.answer, t.alts, opts); if (!dg) continue;
+      const expected = Array.isArray(e.expected) && e.expected.length ? e.expected : t.alts;
+      const dg = diagnose(e.answer, expected, opts); if (!dg) continue;
       dg.ts = e.ts || 0; t.causes[dg.cause] = (t.causes[dg.cause] || 0) + 1;
       const same = t.spell.findIndex(x => x.cause === dg.cause && x.chunk === dg.chunk && x.pre === dg.pre);
       if (same >= 0) { dg.times = (t.spell[same].times || 1) + 1; t.spell.splice(same, 1); }

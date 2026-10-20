@@ -59,6 +59,8 @@ python3 release-tools/build_release.py
 
 测试：`node release-tools/test-srs.cjs`、`node --test release-tools/test-learning-data.cjs`、`python3 release-tools/test_native_data.py`；界面测试（`test-mistakes.cjs` 等）需要 Playwright 与本机 Chrome。
 
+`test-production.cjs` 检查写作错词明细、重新开练的按钮状态，以及模拟麦克风的延迟授权、关闭、换题和资源释放；`test-session-resume.cjs` 同时检查恢复备份时旧页面不会回写进度，统计缓存和今日复习断点随恢复重置。模拟录音测试不替代真实麦克风验收。
+
 发布构建要求 `src/`、`release-tools/` 已提交，并把提交号写入 `SOURCE_COMMIT.txt`；版本与源码提交的对应见 `release-tools/VERSIONS.md`。
 
 输出到 `GitHub-Release/`。脚本构建 Mac 通用二进制，并下载固定版本 Electron 44.3.0 的 Windows x64 官方运行时，使用官方 SHA-256 清单校验。保留 Electron 自带许可证文件。
@@ -163,3 +165,13 @@ Tab 保留切换焦点的默认行为，不再跳题。中文输入法选字时 
 - 修正 Windows「词库」菜单名称与页面的对应关系。
 
 新统计从本版开始累积，旧日期缺失的独立词数和首次正确率无法补回。更新前建议导出完整备份；Windows 真机运行及两平台麦克风权限、录音回放仍待人工验收，因此继续标记为测试版。
+
+
+## v1.1.3 修复（2026-10-20）
+
+- 恢复完整备份时同步替换统计缓存、清除旧的今日复习断点，并阻止退出页面时的自动保存覆盖恢复结果。
+- 口语录音等待授权时关闭练习或换题，不会再在授权返回后启动录音；修复连续点击、延迟停止回调及录音资源释放。
+- 写作「看中文写」和「搭配填空」答错后记入每日错词明细；填空按题目要求的词形诊断错因。
+- 修复写作练习重新开练后「跳过」按钮消失的问题。
+
+自动回归覆盖备份恢复、练习续接、错词同步及模拟麦克风时序。Windows 真机运行及真实麦克风授权、录音回放仍待人工验收，本版继续标记为测试版。

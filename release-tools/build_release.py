@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = '1.1.2'
+VERSION = '1.1.3'
 OUT = ROOT / 'GitHub-Release' / ('v' + VERSION)
 ELECTRON = '44.3.0'
 ASSETS = ['index.html', 'p1.html', 'vj.html', 'scene.html', 'notebook.html',
@@ -75,7 +75,7 @@ def main():
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / 'src' / name, target)
         # Include only the public build files, never personal sync scripts/certificates.
-        for name in ['main.cjs', 'desktop.js', 'preload.cjs', 'data-store.cjs', 'test-learning-data.cjs', 'test-srs.cjs', 'test_native_data.py', 'build_release.py', 'README.md', 'VERSIONS.md']:
+        for name in ['main.cjs', 'desktop.js', 'preload.cjs', 'data-store.cjs', 'test-learning-data.cjs', 'test-srs.cjs', 'test_native_data.py', 'test-session-resume.cjs', 'test-quiz-retry.cjs', 'test-mistakes.cjs', 'test-production.cjs', 'build_release.py', 'README.md', 'VERSIONS.md']:
             write(source / 'release-tools' / name, (ROOT / 'release-tools' / name).read_text())
         write(source / 'README.md', (ROOT / 'release-tools' / 'README.md').read_text())
         if commit: write(source / 'SOURCE_COMMIT.txt', f'v{VERSION} 构建自提交 {commit}\n')

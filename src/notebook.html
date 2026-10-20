@@ -547,6 +547,7 @@ button{-webkit-tap-highlight-color:transparent}
     return Object.assign({},s,{order:words.map(function(w){return byWord.get(w);}),idx:idx});
   }
   function savePractice(){
+    if(window.__RESTORING__) return;
     if($('ov').classList.contains('show')) checkpoint('review',rCat,rorder,ri);
     if($('mov').classList.contains('show')) checkpoint('quiz',mCat,morder,Math.min(morder.length,mi+(manswered?1:0)),{right:mright,wrong:mwrong});
     if($('dov').classList.contains('show')) checkpoint('dict',dCat,dorder,Math.min(dorder.length,di+($('dans').readOnly?1:0)),{right:dright,wrong:dwrong,draft:$('dans').readOnly?'':$('dans').value});
@@ -734,7 +735,7 @@ button{-webkit-tap-highlight-color:transparent}
      口语 — 情境说句 (one spoken sentence using the word for an exam-style prompt) and 短句复述
      (hear a sentence, say it back, compare with your own recording): self-checked, so they
      count in the daily answer log but never move the review level. */
-  var XN=10, X=null, REC=null;
+  var XN=10, X=null, REC=null, recToken=0, xAudio=null;
   var XTITLE={wcloze:'📝 搭配填空',wprompt:'📝 看中文写',sprompt:'🗣️ 情境说句',srepeat:'🗣️ 短句复述'};
   var SPEAK_Q=['考官问：<i>What do you usually do at the weekend?</i> 回答里用上 {w}。',
     '考官问：<i>How has your hometown changed in recent years?</i> 用上 {w}。',
@@ -809,7 +810,7 @@ button{-webkit-tap-highlight-color:transparent}
     }
     $('xbody').innerHTML=body;
     $('xinrow').hidden=!w; $('xrec').hidden=w; $('xsubmit').hidden=!w; $('xok').hidden=w; $('xbad').hidden=w;
-    $('xans').value=''; $('xans').readOnly=false; $('xfb').innerHTML=''; $('xnext').textContent='跳过 ›';
+    $('xans').value=''; $('xans').readOnly=false; $('xfb').innerHTML=''; $('xnext').hidden=false; $('xnext').textContent='跳过 ›';
     $('xsubmit').dataset.base='提交'; $('xsubmit').textContent='提交'+submitHint();
     $('xrecnote').textContent=w?'':(recSupported()?'':'此环境不支持录音，可以直接开口说。');
     $('xrecbtn').disabled=!recSupported(); $('xrecbtn').textContent='🎙️ 录音'; $('xplay').disabled=true;
@@ -826,7 +827,7 @@ button{-webkit-tap-highlight-color:transparent}
     if(g.empty){ try{$('xans').focus();}catch(x){} return; }
     var res=!g.ok?'bad':(!g.clean||X.hint)?'soft':'ok';
     X.answered=true; $('xans').readOnly=true;
-    if(res==='bad') requeue(X.order,X.i); else X.right++;
+    if(res==='bad'){ IELTSMistakes.record(e,'notebook',X.kind,typed,{expected:X.want}); requeue(X.order,X.i); } else X.right++;
     var plan=planText(RV.answer(nbItem(e),'d',res));
     $('xfb').innerHTML=(res==='bad'?'<span style="color:var(--bad)">✗ 应为</span> ':res==='soft'?'<span style="color:var(--soft)">✓ 正确（'+(X.hint?'用了首字母提示':'写法有小误')+'，本次不计入掌握）</span> ':'<span style="color:var(--good)">✓ 正确</span> ')+
       '<span style="font-size:16px">'+X.reveal+'</span>'+(res==='bad'?'<div class="xref">你写的：'+esc(typed)+'</div>':'')+
@@ -860,26 +861,44 @@ button{-webkit-tap-highlight-color:transparent}
   }
   function recSupported(){ return !!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder); }
   function stopRec(discard){
-    if(!REC) return;
-    REC.discard=!!discard;
-    try{ if(REC.rec.state==='recording') REC.rec.stop(); else REC.stream.getTracks().forEach(function(t){t.stop();}); }catch(e){}
+    if(discard){
+      recToken++;                 // also invalidates permission / onstop callbacks still pending
+      if(xAudio){ xAudio.pause(); xAudio=null; }
+      if(X&&X.clip){ try{ URL.revokeObjectURL(X.clip); }catch(e){} X.clip=null; }
+    }
+    var me=REC;
     REC=null;
+    if(!me) return;
+    me.discard=!!discard||!me.rec;
+    try{ if(me.rec&&me.rec.state==='recording') me.rec.stop(); }catch(e){}
+    if(me.stream) me.stream.getTracks().forEach(function(t){t.stop();});
+    $('xrecbtn').disabled=!recSupported();
   }
   function toggleRec(){
     if(REC){ stopRec(false); return; }
+    if(!X||xWriting()||!recSupported()) return;
     try{ speechSynthesis.cancel(); }catch(e){}
+    var me={round:X,index:X.i,token:++recToken,stream:null,rec:null,discard:false};
+    REC=me; $('xrecbtn').disabled=true; $('xrecnote').textContent='正在请求麦克风…';
     navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
-      var r=new MediaRecorder(stream), chunks=[], me={stream:stream,rec:r,discard:false};
+      me.stream=stream;
+      if(REC!==me||me.discard||me.token!==recToken){ stream.getTracks().forEach(function(t){t.stop();}); return; }
+      var r=new MediaRecorder(stream), chunks=[]; me.rec=r;
       r.ondataavailable=function(ev){ if(ev.data&&ev.data.size) chunks.push(ev.data); };
       r.onstop=function(){
         stream.getTracks().forEach(function(t){t.stop();});
-        if(me.discard||!X) return;
+        if(REC===me) REC=null;
+        if(me.discard||X!==me.round||X.i!==me.index||me.token!==recToken) return;
         if(X.clip) try{ URL.revokeObjectURL(X.clip); }catch(e){}
         X.clip=URL.createObjectURL(new Blob(chunks,{type:r.mimeType||'audio/mp4'}));
-        $('xplay').disabled=false; $('xrecbtn').textContent='🎙️ 重录';
+        $('xplay').disabled=false; $('xrecbtn').disabled=false; $('xrecbtn').textContent='🎙️ 重录'; $('xrecnote').textContent='录音已就绪，可以回放或重录。';
       };
-      REC=me; r.start(); $('xrecbtn').textContent='⏹ 停止'; $('xrecnote').textContent='录音中…说完点「停止」';
-    }).catch(function(){ $('xrecnote').textContent='无法使用麦克风（未授权或设备不支持），可以直接开口说。'; });
+      r.onerror=function(){ if(REC===me){ stopRec(true); $('xrecnote').textContent='录音中断，请重试，也可以直接开口说。'; } };
+      r.start(); $('xrecbtn').disabled=false; $('xrecbtn').textContent='⏹ 停止'; $('xrecnote').textContent='录音中…说完点「停止」';
+    }).catch(function(){
+      if(REC!==me) return;
+      stopRec(false); $('xrecbtn').textContent='🎙️ 录音'; $('xrecnote').textContent='无法使用麦克风（未授权或设备不支持），可以直接开口说。';
+    });
   }
   $('xwcloze').onclick=function(){ openProd('wcloze'); };
   $('xwprompt').onclick=function(){ openProd('wprompt'); };
@@ -890,11 +909,12 @@ button{-webkit-tap-highlight-color:transparent}
   $('xbad').onclick=function(){ xSelf(false); };
   $('xnext').onclick=function(){ if(X&&xWriting()&&!X.answered) requeue(X.order,X.i); xNext(); };
   $('xrecbtn').onclick=function(){ if(!REC) $('xrecnote').textContent=''; toggleRec(); };
-  $('xplay').onclick=function(){ if(X&&X.clip){ try{ new Audio(X.clip).play(); }catch(e){} } };
+  $('xplay').onclick=function(){ if(X&&X.clip){ try{ if(xAudio) xAudio.pause(); xAudio=new Audio(X.clip); xAudio.play().catch(function(){}); }catch(e){} } };
   $('xsay').onclick=function(){ if(X) speak(X.say); };
   $('xans').addEventListener('keydown',function(ev){ if(window.__CUSTOM_SHORTCUTS__)return; if(ev.key==='Enter'&&!ev.isComposing&&ev.keyCode!==229&&!ev.repeat){ ev.preventDefault(); xSubmit(); } });
   $('xclose').onclick=function(){ stopRec(true); $('xov').classList.remove('show'); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} X=null; drainPull(); };
   $('xov').addEventListener('click',function(ev){ if(ev.target===$('xov')) $('xclose').click(); });
+  window.addEventListener('pagehide',function(){ stopRec(true); });
 
   /* live refresh after a sync pull — see the deck pages for why this is required.
      dorder indexes into NB, so defer while a review/dictation overlay is open. */

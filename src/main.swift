@@ -492,7 +492,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         corruptShown = false
         let cfg = (root["decks"] as? [String: Any])?["config"] as? [String: Any]
         zoom = CGFloat((cfg?["zoom"] as? NSNumber)?.doubleValue ?? 1)
-        loadResource("index")
+        webView.evaluateJavaScript("IELTSData.prepareRestore(localStorage)") { _, error in
+            if let error = error { self.dataError(error.localizedDescription) }
+            self.loadResource("index")
+        }
     }
     // One sheet per damaged state (not one per answer), offering the restore right away.
     var corruptShown = false

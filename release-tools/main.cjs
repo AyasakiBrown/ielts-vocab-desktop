@@ -62,6 +62,7 @@ else {
           const confirm=await dialog.showMessageBox(win,{type:'warning',message:'用此备份恢复学习数据？',detail:detail+Data.summary(restored)+(damaged?'\n当前数据文件无法读取，会原样保留为 data.json.corrupt-<时间>，不会删除。':'\n将替换当前记录；恢复前会自动备份当前数据。两种系统的快捷键分别保留。'),buttons:['取消','恢复'],defaultId:0,cancelId:0});
           if(confirm.response!==1)return;
           store.restore(restored);
+          await win.webContents.executeJavaScript('IELTSData.prepareRestore(localStorage)');
           await win.loadURL(urls[0]);
           await dialog.showMessageBox(win,{message:'恢复完成',detail:damaged?'损坏的原文件已保留在数据目录。':'原数据已保存到自动备份目录，可再次恢复。'});
           return;

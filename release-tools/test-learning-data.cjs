@@ -80,6 +80,19 @@ test('恢复水合清除旧缓存，保留无关存储',()=>{
   Data.hydrate({v:1,decks:{}},storage);
   assert.equal(map.get('ielts_nb'),'[]');assert(!map.has('ielts_shortcutsMac'));assert.equal(map.get('unrelated'),'keep');
 });
+test('恢复备份替换旧统计和今日复习断点，普通加载仍保留未保存的统计',()=>{
+  const old={days:{'2026-10-20':{devA:{n:8,ok:6,s:{notebook:[8,6]}}}}};
+  const root=Data.normalize({v:1,decks:{stats:{days:{'2026-10-20':{devA:{n:2,ok:1,s:{notebook:[2,1]}}}}}}});
+  const values=new Map([['ielts_stats',JSON.stringify(old)],['ielts_review_sess','old session']]);
+  const storage={getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
+  Data.hydrate(root,storage);assert.deepEqual(JSON.parse(values.get('ielts_stats')),old);
+  Data.prepareRestore(storage);Data.hydrate(root,storage);
+  assert.deepEqual(JSON.parse(values.get('ielts_stats')),root.decks.stats);
+  assert(!values.has('ielts_review_sess'));assert(!values.has('ielts_restore_pending'));
+  Data.hydrate(root,storage);assert.deepEqual(JSON.parse(values.get('ielts_stats')),root.decks.stats);
+  Data.prepareRestore(storage);Data.hydrate({v:1,decks:{}},storage);
+  assert.deepEqual(JSON.parse(values.get('ielts_stats')),{days:{}});
+});
 test('Windows 首次启动从旧版 localStorage 迁移，更新后以稳定文件为准',()=>{
   const store=new Store(path.join(temp,'legacy'));
   const map=new Map([['ielts_nb',JSON.stringify(fixture().decks.notebook.list)],['ielts_p1_prog',JSON.stringify(fixture().decks.p1.prog)],['ielts_shortcutsWindows',JSON.stringify(fixture().decks.config.shortcutsWindows)]]);

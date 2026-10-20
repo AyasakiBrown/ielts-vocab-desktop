@@ -67,7 +67,29 @@ const root=path.resolve(__dirname,'../src');
   // NB reorder/deletion must preserve the next surviving word, never a stale array offset.
   await page.evaluate(()=>{const s=sessions['review:rw'];const previous=s.words[0];NB=NB.filter(e=>e.w!==previous).reverse();save();});
   await page.reload();await page.locator('#reviewRW').click();assert.equal(await page.locator('#rw').textContent(),review);
+  // A confirmed restore leaves the current page. Its pagehide handler must not
+  // save the old progress/list back over the restored data; the new page then
+  // consumes the marker and clears the previous review session and stats.
+  for(const deck of ['p1','vj','scene','notebook','review']){
+   await page.goto(base+'/'+deck+'.html');
+   await page.addScriptTag({path:path.join(root,'learning-data.js')});
+   await page.evaluate(deck=>{
+    if(['p1','vj','scene'].includes(deck))enterMode('dict',true);
+    else if(deck==='notebook'){NB=[{id:'a',w:'apple',tr:'苹果',rw:true}];openDictate('rw');}
+    else {RV.answer({w:'restorecheck',tr:'恢复测试',src:'p1'},'d','bad');begin(RV.queue().filter(x=>x.track==='d'));}
+    window.__restorePosts=[];window.webkit={messageHandlers:{persist:{postMessage:s=>window.__restorePosts.push(s)}}};
+    window.__oldReviewSession=localStorage.getItem('ielts_review_sess');
+    IELTSData.prepareRestore(localStorage);
+    if(deck==='review')$('dans').value='draft after restoration';
+    window.dispatchEvent(new Event('pagehide'));
+   },deck);
+   assert.deepEqual(await page.evaluate(()=>window.__restorePosts),[],deck+' saved old state during restore');
+   if(deck==='review')assert.equal(await page.evaluate(()=>localStorage.getItem('ielts_review_sess')),await page.evaluate(()=>window.__oldReviewSession));
+   await page.goto(base+'/index.html');await page.addScriptTag({path:path.join(root,'learning-data.js')});
+   await page.evaluate(()=>IELTSData.hydrate({v:1,decks:{}},localStorage));
+   assert.deepEqual(await page.evaluate(()=>[localStorage.getItem('ielts_restore_pending'),localStorage.getItem('ielts_review_sess'),JSON.parse(localStorage.getItem('ielts_stats'))]),[null,null,{days:{}}]);
+  }
   assert.deepEqual(errors,[]);
-  console.log('PASS: 3 decks × 3 orders; flash, dictation drafts/answers, quiz scores; close/reopen, legacy and completed sessions; notebook categories, drafts, scores, reorder/deletion.');
+  console.log('PASS: 3 decks × 3 orders; flash, dictation drafts/answers, quiz scores; close/reopen, legacy and completed sessions; notebook categories, drafts, scores, reorder/deletion; backup restore blocks departing-page saves and replaces stale stats/session caches.');
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

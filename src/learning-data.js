@@ -112,6 +112,10 @@
     const d = normalize(root).decks;
     return `生词 ${d.notebook.list.length} 个，错词 ${d.wrong.list.length} 个；三个词库进度 ${['p1','vj','scene'].map(k=>Object.keys(d[k].prog).length).join(' / ')} 条。包含设置、分类、收藏和已有每日统计。`;
   }
+  function prepareRestore(storage) {
+    storage.setItem('ielts_restore_pending', '1');
+    scope.__RESTORING__ = true;  // the departing page must not save its old session over the backup
+  }
   function hydrate(root, storage) {
     const d = normalize(root).decks;
     for (const n of ['p1','vj','scene']) for (const f of ['prog','daily','settings']) {
@@ -125,9 +129,16 @@
     storage.setItem('ielts_nb_sessions',JSON.stringify(d.notebook.sessions||{}));
     storage.setItem('ielts_srs',JSON.stringify(d.srs.items));
     storage.setItem('ielts_srs_meta',JSON.stringify(d.srs.meta));
-    // merged, not replaced: answers this device logged but has not saved yet stay counted
+    // Ordinary page loads retain answers not yet saved. A confirmed backup restore
+    // replaces the cache too, or a larger old count would undo the restored stats.
     let local = {}; try { local = JSON.parse(storage.getItem?.('ielts_stats')) || {}; } catch (e) {}
-    storage.setItem('ielts_stats', JSON.stringify(mergeStats(object(local) ? local : {}, d.stats)));
+    const restoring = storage.getItem?.('ielts_restore_pending') === '1';
+    storage.setItem('ielts_stats', JSON.stringify(restoring ? d.stats : mergeStats(object(local) ? local : {}, d.stats)));
+    if (restoring) {
+      storage.removeItem('ielts_review_sess');
+      storage.removeItem('ielts_restore_pending');
+      scope.__RESTORING__ = false;
+    }
     storage.setItem('ielts_desktop_config',JSON.stringify(d.config));
     for (const f of ['shortcutsMac','shortcutsWindows']) {
       if (d.config[f]) storage.setItem('ielts_'+f,JSON.stringify(d.config[f])); else storage.removeItem('ielts_'+f);
@@ -184,7 +195,7 @@
   const localDay = (now = new Date()) => now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
   // Day number for "today minus n days" in local time.
   function daysAgo(n, now = new Date()) { const x = new Date(now.getFullYear(), now.getMonth(), now.getDate() - n); return localDay(x); }
-  const api = {normalize, parse, pack, summary, hydrate, remember, mergeReview, mergeStats, dailyRows, sourceText, dayNumber, daysAgo};
+  const api = {normalize, parse, pack, summary, prepareRestore, hydrate, remember, mergeReview, mergeStats, dailyRows, sourceText, dayNumber, daysAgo};
   if (typeof module !== 'undefined') module.exports = api;
   else {
     scope.IELTSData = api;

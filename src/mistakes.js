@@ -4,7 +4,7 @@
   if(scope.IELTSMistakes) return;
   const KEY='ielts_wrong_events';
   const sources={p1:'Part 1',vj:'词汇真经',scene:'听力场景',notebook:'生词本',wrong:'错词本'};
-  const modes={dict:'听写',quiz:'选择题'};
+  const modes={dict:'听写',quiz:'选择题',wcloze:'搭配填空',wprompt:'看中文写'};
   const pad=n=>String(n).padStart(2,'0');
   const dateKey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   function read(){
@@ -21,6 +21,7 @@
     events[id]={word,date:dateKey(now),time:`${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
       ts:now.getTime(),source,mode,answer:String(answer??''),meaning:item.zh||item.tr||''};
     if(extra&&extra.alt&&(extra.alt.w||extra.alt.zh)) events[id].alt={w:String(extra.alt.w||''),zh:String(extra.alt.zh||'')};
+    if(extra&&Array.isArray(extra.expected)) events[id].expected=extra.expected.map(String).filter(w=>w.trim());
     try{localStorage.setItem(KEY,JSON.stringify(events));}
     catch(e){alert('本次错词记录未能保存，请检查设备存储空间。');return;}
     scope.webkit?.messageHandlers?.persist?.postMessage(JSON.stringify({deck:'wrong',payload:{events}}));
