@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = '1.1.3'
+VERSION = '1.1.4'
 OUT = ROOT / 'GitHub-Release' / ('v' + VERSION)
 ELECTRON = '44.3.0'
 ASSETS = ['index.html', 'p1.html', 'vj.html', 'scene.html', 'notebook.html',
