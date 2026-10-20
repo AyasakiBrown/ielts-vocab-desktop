@@ -1,6 +1,8 @@
 /* Shared answer grading + spaced-review ledger.
    One record per word (folded to lower case), shared by the three decks, 生词本 and
-   错词本, with separate tracks for spelling (d: 听到能拼) and meaning (m: 看见能懂).
+   错词本, with separate tracks for spelling (d: 听到能拼), meaning (m: 看见能懂) and
+   writing recall (p: 看到中文能写, 生词本写作练习). 口语 self-checks live in track o:
+   they only schedule speaking practice and never enter the graded queue.
    A level only rises on a clean answer given on a later day than the last mistake or
    hint, so "全对 within one sitting" never counts as remembered. */
 (function (scope) {
@@ -9,7 +11,9 @@
   const KEY = 'ielts_srs', META = 'ielts_srs_meta';
   const STEPS = [0, 1, 3, 7, 14, 30];        // days until the next test, by level
   const MAXLV = STEPS.length - 1, STABLE = 4; // lv>=4: passed a test after a 7-day gap
-  const TRACKS = ['d', 'm'];
+  const TRACKS = ['d', 'm', 'p'];             // graded: queue, levels, metrics
+  const ALL_TRACKS = TRACKS.concat('o');       // + speaking self-checks: merged and reset alike
+  const BASIC = ['d', 'm'];                    // what a lookup without a track name means (decks, badges)
   const LABEL = {new: '未学', learning: '学习中', relearn: '遗忘重学', fresh: '刚学会', firming: '待巩固', stable: '较稳定', recheck: '待复核'};
   const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);  // "constructor" is a real word
   const api = {STEPS, LABEL, STABLE, live: true};
@@ -133,7 +137,7 @@
     if (!b || typeof b !== 'object') return a;
     const hi = (b.t || 0) > (a.t || 0) ? b : a, lo = hi === a ? b : a, out = Object.assign({}, lo, hi);
     out.src = [...new Set([...(Array.isArray(a.src) ? a.src : []), ...(Array.isArray(b.src) ? b.src : [])])];
-    for (const name of TRACKS) {
+    for (const name of ALL_TRACKS) {
       const x = a[name], y = b[name];
       if (x && y) out[name] = (y.t || 0) > (x.t || 0) ? y : x; else if (x || y) out[name] = x || y;
     }
@@ -276,29 +280,52 @@
     const keys = [];
     for (const w of words || []) {
       const k = fold(w); if (!k || !own(L, k)) continue;
-      for (const name of TRACKS) if (L[k][name]) L[k][name] = {lv: 0, n: 0, h: [], t: now};
+      for (const name of ALL_TRACKS) if (L[k][name]) L[k][name] = {lv: 0, n: 0, h: [], t: now};
       L[k].t = now; keys.push(k);
     }
     if (keys.length) persist(keys);
   }
-  Object.assign(api, {answer, flag, confirm, reset});
+  // 口语 self-check (情境说句 / 短句复述). Self-marked, so it never touches d/m/p levels:
+  // 卡住了 brings the word back first in the next speaking round, 说出来了 spaces it out.
+  const SPEAK_STEPS = [0, 1, 3, 7, 14];
+  function spoke(item, ok, now) {
+    const k = record(item); if (!k) return null;
+    now = now == null ? api.clock() : now;
+    const today = dayNo(now), r = L[k], tr = track(r, 'o') || (r.o = {n: 0, ok: 0, bad: 0, st: 0});
+    tr.n = (tr.n || 0) + 1;
+    if (ok) { tr.ok = (tr.ok || 0) + 1; tr.st = Math.min(SPEAK_STEPS.length - 1, (tr.st || 0) + 1); tr.due = today + SPEAK_STEPS[tr.st]; }
+    else { tr.bad = (tr.bad || 0) + 1; tr.st = 0; tr.stuck = today; tr.due = today; }
+    tr.last = today; tr.t = now; r.t = now;
+    persist([k]);
+    return {key: k, due: tr.due, stuck: !ok, text: ok ? '口语下次练习：' + dueText(tr.due, today) : '卡住的词会排在下一组口语练习的最前面'};
+  }
+  // Order words for a speaking round: stuck (due) first, then never practised, then by due day.
+  function speakOrder(words) {
+    const today = dayNo();
+    const rank = w => { const k = fold(w), tr = own(L, k) ? track(L[k], 'o') : null;
+      if (!tr) return [1, 0];
+      return [(tr.due || 0) <= today ? 0 : 2, tr.due || 0]; };
+    return words.map((w, i) => ({w, i, r: rank(w)}))
+      .sort((a, b) => a.r[0] - b.r[0] || a.r[1] - b.r[1] || a.i - b.i).map(x => x.w);
+  }
+  Object.assign(api, {answer, flag, confirm, reset, spoke, speakOrder});
 
   /* ---------- lookups ---------- */
   function info(word, name) {
     const k = fold(word), r = own(L, k) ? L[k] : null, today = dayNo();
     let tr = name ? track(r, name) : null;
-    if (!name) tr = [track(r, 'd'), track(r, 'm')].filter(active).sort((a, b) => (a.due || 0) - (b.due || 0))[0] || null;
+    if (!name) tr = BASIC.map(n => track(r, n)).filter(active).sort((a, b) => (a.due || 0) - (b.due || 0))[0] || null;
     const st = stageOf(tr), on = active(tr);
     return {key: k, stage: st, label: LABEL[st], lv: on ? tr.lv || 0 : 0, due: on ? tr.due : null,
       isDue: on && (tr.due || 0) <= today, dueText: on ? dueText(tr.due, today) : '', rec: r, track: tr};
   }
   function isDue(word, name) {
     const k = fold(word), r = own(L, k) ? L[k] : null, today = dayNo();
-    return (name ? [name] : TRACKS).some(n => { const tr = track(r, n); return active(tr) && (tr.due || 0) <= today; });
+    return (name ? [name] : BASIC).some(n => { const tr = track(r, n); return active(tr) && (tr.due || 0) <= today; });
   }
   function stable(word) {
     const k = fold(word), r = own(L, k) ? L[k] : null;
-    return TRACKS.some(n => { const tr = track(r, n); return active(tr) && !tr.rc && (tr.lv || 0) >= STABLE; });
+    return BASIC.some(n => { const tr = track(r, n); return active(tr) && !tr.rc && (tr.lv || 0) >= STABLE; });
   }
   function badge(word, name) {
     const i = info(word, name);
@@ -375,6 +402,72 @@
     return m;
   }
   Object.assign(api, {queue, summary, metrics, cap, setCap});
+
+  /* ---------- word forms (搭配填空 finds the word inside the learner's own example) ----------
+     Regular endings plus a checked list of irregular verbs, plurals and comparatives.
+     inflections('stop') → stop, stops, stopped, stopping; phrases inflect their first word
+     (take part in → took part in). Only used to FIND the word, never to grade spelling. */
+  const IRREG = ('arise arose arisen,awake awoke awoken,be was were been being is am are,bear bore borne born,beat beat beaten,' +
+    'become became become,begin began begun,bend bent,bet bet,bind bound,bite bit bitten,bleed bled,blow blew blown,break broke broken,' +
+    'breed bred,bring brought,broadcast broadcast,build built,burn burnt burned,burst burst,buy bought,catch caught,choose chose chosen,' +
+    'cling clung,come came come,cost cost,creep crept,cut cut,deal dealt,dig dug,do did done does,draw drew drawn,dream dreamt dreamed,' +
+    'drink drank drunk,drive drove driven,eat ate eaten,fall fell fallen,feed fed,feel felt,fight fought,find found,flee fled,fly flew flown flies,' +
+    'forbid forbade forbidden,forecast forecast,foresee foresaw foreseen,forget forgot forgotten,forgive forgave forgiven,freeze froze frozen,' +
+    'get got gotten,give gave given,go went gone goes,grind ground,grow grew grown,hang hung,have has had,hear heard,hide hid hidden,hit hit,' +
+    'hold held,hurt hurt,keep kept,kneel knelt,know knew known,lay laid,lead led,lean leant leaned,leap leapt leaped,learn learnt learned,' +
+    'leave left,lend lent,let let,lie lay lain lying lied,light lit lighted,lose lost,make made,mean meant,meet met,mislead misled,mistake mistook mistaken,' +
+    'misunderstand misunderstood,overcome overcame overcome,overtake overtook overtaken,pay paid,prove proved proven,put put,quit quit,read read,' +
+    'rid rid,ride rode ridden,ring rang rung,rise rose risen,run ran run,say said,see saw seen,seek sought,sell sold,send sent,set set,' +
+    'sew sewed sewn,shake shook shaken,shed shed,shine shone,shoot shot,show showed shown,shrink shrank shrunk,shut shut,sing sang sung,' +
+    'sink sank sunk,sit sat,sleep slept,slide slid,speak spoke spoken,speed sped,spell spelt spelled,spend spent,spill spilt spilled,spin spun,' +
+    'split split,spoil spoilt spoiled,spread spread,spring sprang sprung,stand stood,steal stole stolen,stick stuck,sting stung,stink stank stunk,' +
+    'strike struck,strive strove striven,swear swore sworn,sweep swept,swell swelled swollen,swim swam swum,swing swung,take took taken,' +
+    'teach taught,tear tore torn,tell told,think thought,throw threw thrown,undergo underwent undergone,understand understood,undertake undertook undertaken,' +
+    'upset upset,wake woke woken,wear wore worn,weave wove woven,weep wept,win won,wind wound,withdraw withdrew withdrawn,write wrote written')
+    .split(',').reduce((m, line) => { const [base, ...forms] = line.split(' '); m[base] = forms; return m; }, {});
+  const IRREG_NA = ('child children,man men,woman women,person people,foot feet,tooth teeth,goose geese,mouse mice,ox oxen,analysis analyses,basis bases,' +
+    'crisis crises,diagnosis diagnoses,hypothesis hypotheses,thesis theses,phenomenon phenomena,criterion criteria,datum data,medium media,' +
+    'curriculum curricula,bacterium bacteria,stimulus stimuli,nucleus nuclei,cactus cacti,fungus fungi,appendix appendices,index indices indexes,' +
+    'good better best,well better best,bad worse worst,badly worse worst,far farther further farthest furthest,little less least,many more most,much more most')
+    .split(',').reduce((m, line) => { const [base, ...forms] = line.split(' '); m[base] = forms; return m; }, {});
+    function wordForms(w) {
+    w = String(w || '').toLowerCase();
+    const out = new Set([w]);
+    if (w.length < 2 || !/^[a-z]+$/.test(w)) return [...out];
+    const add = (stem, ends) => ends.forEach(e => out.add(stem + e));
+    if (IRREG_NA[w]) { IRREG_NA[w].forEach(f => out.add(f)); return [...out]; }    // children, analyses, better…
+    if (IRREG[w]) {                       // listed forms plus -s / -ing only: no "seed" from see
+      for (const f of IRREG[w]) out.add(f);
+      add(w, /(s|x|z|ch|sh)$/.test(w) ? ['es'] : ['s']);
+      if (/ie$/.test(w)) add(w.slice(0, -2), ['ying']);
+      else if (/[^e]e$/.test(w)) add(w.slice(0, -1), ['ing']);
+      else if (/[^aeiou][aeiou][bdgklmnprtvz]$/.test(w)) add(w + w.slice(-1), ['ing']);
+      else add(w, ['ing']);
+      return [...out];
+    }
+    add(w, /(s|x|z|ch|sh)$/.test(w) ? ['es'] : ['s']);
+    if (/ie$/.test(w)) { add(w.slice(0, -2), ['ying']); add(w, ['d']); }
+    else if (/[^aeiou]y$/.test(w)) { add(w.slice(0, -1), ['ies', 'ied', 'ier', 'iest', 'ily']); add(w, ['ing']); }
+    else if (/e$/.test(w)) { add(w, ['d', 'r', 'st']); if (!/(ee|ye|oe)$/.test(w)) add(w.slice(0, -1), ['ing']); else add(w, ['ing']); }
+    else {
+      add(w, ['ed', 'ing', 'er', 'est']);
+      // short vowel + one consonant: stop → stopped, run → running, big → bigger, travel → travelled.
+      // Whether the consonant doubles depends on stress, so both spellings are listed: this
+      // only locates the word in a sentence, and the unused form never occurs in real text.
+      if (/[^aeiou][aeiou][bdgklmnprtvz]$/.test(w)) add(w + w.slice(-1), ['ed', 'ing', 'er', 'est']);
+      if (/(?:ic)$/.test(w)) add(w + 'k', ['ed', 'ing']);   // panic → panicked
+    }
+    if (/fe?$/.test(w) && !/ff$/.test(w)) out.add(w.replace(/fe?$/, 'ves'));
+    if (/(?:is)$/.test(w)) out.add(w.slice(0, -2) + 'es');
+    return [...out];
+  }
+  function inflections(phrase) {
+    const words = String(phrase || '').trim().split(/\s+/);
+    if (!words[0]) return [];
+    const head = words[0], rest = words.slice(1).join(' ');
+    return wordForms(head).map(f => rest ? f + ' ' + rest : f);
+  }
+  Object.assign(api, {inflections});
 
   /* ---------- why was it wrong? ----------
      Repeating a missed word more often does not help when the cause is always the same
@@ -759,7 +852,7 @@
     const events = Object.assign({}, boot.events && typeof boot.events === 'object' ? boot.events : {}, readJSON('ielts_wrong_events', {}));
     for (const e of Object.values(events)) {
       if (!e || !e.word) continue;
-      plant({en: e.word, zh: e.meaning, src: e.source || 'wrong'}, e.mode === 'quiz' ? 'm' : 'd', e.ts);
+      plant({en: e.word, zh: e.meaning, src: e.source || 'wrong'}, e.mode === 'quiz' ? 'm' : e.mode === 'wcloze' || e.mode === 'wprompt' ? 'p' : 'd', e.ts);
     }
     M.seed = 1;
     persist(keys);

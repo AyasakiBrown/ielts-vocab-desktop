@@ -122,7 +122,7 @@ button{-webkit-tap-highlight-color:transparent}
       <div class="old" id="pold" hidden></div>
       <textarea id="ptr" placeholder="中文释义（自动填入，可改）"></textarea>
       <div class="en" id="pen" hidden></div>
-      <div class="row" style="margin-top:7px"><input id="pex" placeholder="例句 / 语境（可选）"></div>
+      <div class="row" style="margin-top:7px"><input id="pex" placeholder="例句 / 语境（可选）" title="搭配填空会挖掉句中的这个词（含 stopped、went 等变形）；想指定挖哪里，用方括号括起来，如 He [went] abroad."></div>
       <div class="row" style="margin-top:7px"><input id="ptag" placeholder="来源 / 标签，如 C18T2 听力（可选）"></div>
     </div>
     <div class="hint" id="hint">提示：直接回车＝查词典并加入；词典没有的词也会加入，自己补释义即可。</div>
@@ -399,7 +399,7 @@ button{-webkit-tap-highlight-color:transparent}
     box.innerHTML='<div class="oh">✓ 已记录'+(m.how==='lemma'?'原形「'+esc(e.w)+'」':'')+'　<span style="font-weight:400;color:var(--soft)">'+(e.ts?fmtd(e.ts)+' 添加':'')+'</span>'+
       ' <button class="btn alt sm" id="pgo" data-id="'+e.id+'">在列表中查看</button></div>'+
       '<div class="otr">'+(esc(e.tr)||'<span class="need">还没有释义</span>')+'</div>'+
-      (e.ex?'<div class="oex">例句：'+esc(e.ex)+'</div>':'')+
+      (e.ex?'<div class="oex">例句：'+esc(plainEx(e.ex))+'</div>':'')+
       (tagChips(e)?'<div style="margin-top:5px">'+tagChips(e)+'</div>':'');
     box.hidden=false;
   }
@@ -541,7 +541,7 @@ button{-webkit-tap-highlight-color:transparent}
     var s=sessions[kind+':'+cat];
     if(!s||!Array.isArray(s.words)||!Number.isInteger(s.idx)||s.idx<0||s.idx>s.words.length||(s.idx===s.words.length&&kind!=='quiz')) return null;
     var byWord=new Map(NB.map(function(e,i){return [e.w.toLowerCase(),i];}));
-    var valid=function(w){var i=byWord.get(w);return i!==undefined&&(!cat||NB[i][cat])&&(kind!=='quiz'||(NB[i].tr||'').trim());};
+    var valid=function(w){var i=byWord.get(w);return i!==undefined&&(!cat||NB[i][cat])&&(kind!=='quiz'||(NB[i].tr||'').trim())&&(kind.charAt(0)!=='x'||prodOk(kind.slice(1),NB[i]));};
     var words=s.words.filter(valid), idx=s.words.slice(0,s.idx).filter(valid).length;
     if(!words.length||(idx>=words.length&&kind!=='quiz')) return null;
     return Object.assign({},s,{order:words.map(function(w){return byWord.get(w);}),idx:idx});
@@ -550,6 +550,7 @@ button{-webkit-tap-highlight-color:transparent}
     if(window.__RESTORING__) return;
     if($('ov').classList.contains('show')) checkpoint('review',rCat,rorder,ri);
     if($('mov').classList.contains('show')) checkpoint('quiz',mCat,morder,Math.min(morder.length,mi+(manswered?1:0)),{right:mright,wrong:mwrong});
+    if($('xov').classList.contains('show')) xSave();
     if($('dov').classList.contains('show')) checkpoint('dict',dCat,dorder,Math.min(dorder.length,di+($('dans').readOnly?1:0)),{right:dright,wrong:dwrong,draft:$('dans').readOnly?'':$('dans').value});
   }
   window.addEventListener('pagehide',savePractice);
@@ -734,59 +735,126 @@ button{-webkit-tap-highlight-color:transparent}
      (Chinese meaning → the English expression): graded and scheduled like dictation.
      口语 — 情境说句 (one spoken sentence using the word for an exam-style prompt) and 短句复述
      (hear a sentence, say it back, compare with your own recording): self-checked, so they
-     count in the daily answer log but never move the review level. */
+     count in the daily answer log and only schedule speaking practice (srs.js track o).
+     Writing answers go to their own review track p (看到中文能写), not to dictation (d).
+     Every round is checkpointed like the other drills (sessions['x<kind>:ww|sw']). */
   var XN=10, X=null, REC=null, recToken=0, xAudio=null;
   var XTITLE={wcloze:'📝 搭配填空',wprompt:'📝 看中文写',sprompt:'🗣️ 情境说句',srepeat:'🗣️ 短句复述'};
-  var SPEAK_Q=['考官问：<i>What do you usually do at the weekend?</i> 回答里用上 {w}。',
-    '考官问：<i>How has your hometown changed in recent years?</i> 用上 {w}。',
-    '考官问：<i>Is there anything you would like to change about where you live?</i> 用上 {w}。',
-    '考官问：<i>Do you prefer studying alone or with other people? Why?</i> 用上 {w}。',
-    'Part 2：描述一个对你影响很大的人。用 {w} 说出开头的一两句。',
-    'Part 2：描述一次让你印象深刻的旅行。用 {w} 说一句细节。',
-    'Part 3：<i>What are the pros and cons of using technology in education?</i> 用 {w} 给出一个观点。',
-    'Part 3：<i>Should governments spend more money on public transport?</i> 用 {w} 表明立场并说明理由。',
-    '用 {w} 比较过去和现在的一个变化。',
-    '用 {w} 说一句你最近真实经历过的事。'];
+  // Exam questions grouped by topic; a word gets a question from the topic its meaning,
+  // tag or example points to, otherwise one that fits its part of speech.
+  var SPEAK_T=[
+    {k:/工作|职业|职位|公司|员工|雇|薪|经理|办公|同事|求职|面试|\b(job|work|career|employ|salary|office|business|colleague|manager)/i,
+     q:['考官问：<i>Do you work or are you a student?</i> 回答里用上 {w}。','Part 3：<i>What makes a job satisfying?</i> 用 {w} 给出一个观点。']},
+    {k:/学|教育|考试|课程|学校|老师|大学|知识|研究|\b(study|school|universit|exam|course|teach|student|learn|research|educat)/i,
+     q:['考官问：<i>What do you like most about your studies?</i> 用上 {w}。','Part 3：<i>What are the pros and cons of using technology in education?</i> 用 {w} 给出一个观点。']},
+    {k:/科技|技术|电脑|网络|互联网|手机|数字|软件|设备|\b(technolog|computer|internet|online|digital|device|software|phone)/i,
+     q:['考官问：<i>How often do you use your phone or computer?</i> 回答里用上 {w}。','Part 3：<i>Has technology made people\'s lives better?</i> 用 {w} 说明理由。']},
+    {k:/环境|污染|气候|能源|自然|环保|资源|天气|动物|植物|\b(environment|pollut|climate|energy|nature|weather|recycl|animal|plant)/i,
+     q:['考官问：<i>What kind of weather do you like?</i> 用上 {w}。','Part 3：<i>What can individuals do to protect the environment?</i> 用 {w} 给出一个建议。']},
+    {k:/城市|住房|房|建筑|社区|街|乡村|家乡|公寓|\b(city|town|home|house|building|neighbou?rhood|village|flat|apartment|urban)/i,
+     q:['考官问：<i>How has your hometown changed in recent years?</i> 用上 {w}。','考官问：<i>Is there anything you would like to change about where you live?</i> 用上 {w}。']},
+    {k:/旅|度假|景点|出行|交通|车|飞机|\b(travel|trip|tour|holiday|journey|transport|traffic|flight)/i,
+     q:['Part 2：描述一次让你印象深刻的旅行。用 {w} 说一句细节。','Part 3：<i>Should governments spend more money on public transport?</i> 用 {w} 表明立场并说明理由。']},
+    {k:/健康|疾病|医|运动|锻炼|身体|压力|睡眠|\b(health|disease|exercise|medic|sport|fitness|stress|sleep|doctor)/i,
+     q:['考官问：<i>What do you usually do to stay healthy?</i> 回答里用上 {w}。','Part 3：<i>Why do some people find it hard to live a healthy life?</i> 用 {w} 说明原因。']},
+    {k:/食|菜|餐|饮|厨|吃|喝|\b(food|meal|cook|eat|drink|restaurant|diet|dish)/i,
+     q:['考官问：<i>What is your favourite food?</i> 回答里用上 {w}。','Part 3：<i>How have people\'s eating habits changed?</i> 用 {w} 比较过去和现在。']},
+    {k:/购物|消费|钱|价格|广告|商品|买|卖|经济|\b(shop|buy|price|money|advertis|spend|cost|consum|econom)/i,
+     q:['考官问：<i>Do you enjoy shopping?</i> 回答里用上 {w}。','Part 3：<i>Do advertisements make people buy things they don\'t need?</i> 用 {w} 表明观点。']},
+    {k:/家庭|父母|孩子|朋友|关系|邻居|婚|人际|\b(family|parent|child|friend|relationship|neighbou?r|marri)/i,
+     q:['Part 2：描述一个对你影响很大的人。用 {w} 说出开头的一两句。','考官问：<i>Do you prefer spending time with family or friends?</i> 用上 {w}。']},
+    {k:/媒体|新闻|电影|艺术|文化|传统|节日|音乐|书|历史|\b(news|media|film|movie|art|culture|tradition|festival|music|book|history)/i,
+     q:['考官问：<i>What kind of films or music do you enjoy?</i> 用上 {w}。','Part 3：<i>Why is it important to keep traditional culture?</i> 用 {w} 说明理由。']},
+    {k:/政府|社会|法律|政策|犯罪|公共|规则|\b(government|society|law|policy|crime|public|rule|social)/i,
+     q:['Part 3：<i>What should governments do to make cities safer?</i> 用 {w} 给出一个建议。','Part 3：<i>Should there be stricter rules for young people?</i> 用 {w} 表明立场。']}];
+  var SPEAK_POS={
+    'adj.':['用 {w} 描述一个你熟悉的人、地方或东西，再说为什么。','用 {w} 说说你最近的一次心情或感受。'],
+    'adv.':['用 {w} 描述你做某件日常小事的方式。'],
+    'v.':['用 {w} 说一件你最近做过、或打算去做的事。','用 {w} 比较过去和现在你做某件事的方式。'],
+    'n.':['用 {w} 说一说它在你生活里的一个例子。','用 {w} 比较过去和现在的一个变化。']};
+  var SPEAK_ANY=['用 {w} 说一句你最近真实经历过的事。','用 {w} 比较过去和现在的一个变化。'];
+  function pickOf(list,seed){ var h=0; for(var i=0;i<seed.length;i++) h=(h*31+seed.charCodeAt(i))|0; return list[Math.abs(h)%list.length]; }
+  // Same question for a word all day (so a resumed round shows it again), a new one tomorrow.
+  function speakPrompt(e){
+    var seed=e.w.toLowerCase()+'|'+(RV.dayNo?RV.dayNo():0), text=[e.tr,e.tag,plainEx(e.ex),defsOf(e.w).slice(0,2).map(function(d){return d.t;}).join(' ')].join(' ');
+    var hits=SPEAK_T.filter(function(t){ return t.k.test(text); });
+    if(hits.length) return pickOf(pickOf(hits,seed).q,seed+'q');
+    var own=plainEx(e.ex), latin=/[A-Za-z][A-Za-z ,'’\-]{12,}[A-Za-z.!?]/.exec(own);
+    if(latin) return '你记下的例句：<i>'+esc(latin[0])+'</i><br>换一个和你自己有关的情境，用 {w} 说一句新的。';
+    var p=(posOf(e).split('/')[0]||'').replace(/^v[ti]\.$/,'v.');
+    return pickOf(SPEAK_POS[p]||SPEAK_ANY,seed);
+  }
   function short(tr){ tr=String(tr||'').split('\n')[0].trim(); return tr.length>60?tr.slice(0,59)+'…':tr; }
   function reEsc(x){ return String(x).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
-  // The word (or a regular inflection of it) inside one clause of the learner's example.
+  // The word (or an inflection of it: stopped, ran, went, took part in) inside one clause of
+  // the learner's example. A part written in [square brackets] is the blank, whatever it is.
   function clozeIn(text,word){
     var clauses=String(text||'').split(/[;；\n]|\s\/\s/).map(function(x){return x.trim();}).filter(Boolean);
+    for(var i=0;i<clauses.length;i++){
+      var b=/\[([^\[\]]*[A-Za-z][^\[\]]*)\]/.exec(clauses[i]);
+      if(!b) continue;
+      var bp=plainEx(clauses[i].slice(0,b.index)), bq=plainEx(clauses[i].slice(b.index+b[0].length));
+      if(/[A-Za-z]{2,}/.test(bp+bq)) return {pre:bp,form:b[1].trim(),post:bq};
+    }
     var alts=String(word||'').split(/\s*\/\s*/).filter(function(a){return a.trim().length>=2;});
-    for(var i=0;i<clauses.length;i++) for(var j=0;j<alts.length;j++){
-      var a=alts[j].trim(), forms=[reEsc(a)+'(?:s|es|d|ed|ing)?'];
-      if(/e$/i.test(a)) forms.push(reEsc(a.slice(0,-1))+'(?:ing|ed)');
-      if(/[^aeiou]y$/i.test(a)) forms.push(reEsc(a.slice(0,-1))+'(?:ies|ied)');
-      var m=new RegExp('(^|[^A-Za-z])('+forms.join('|')+')(?![A-Za-z])','i').exec(clauses[i]);
+    for(i=0;i<clauses.length;i++) for(var j=0;j<alts.length;j++){
+      var forms=(RV.inflections?RV.inflections(alts[j]):[alts[j].trim()]).sort(function(x,y){return y.length-x.length;})
+        .map(function(f){ return f.split(/\s+/).map(reEsc).join('\\s+'); });
+      var line=plainEx(clauses[i]), m=new RegExp('(^|[^A-Za-z])('+forms.join('|')+')(?![A-Za-z])','i').exec(line);
       if(!m) continue;
-      var at=m.index+m[1].length, pre=clauses[i].slice(0,at), post=clauses[i].slice(at+m[2].length);
+      var at=m.index+m[1].length, pre=line.slice(0,at), post=line.slice(at+m[2].length);
       if(/[A-Za-z]{2,}/.test(pre+post)) return {pre:pre,form:m[2],post:post};
     }
     return null;
   }
+  // The example as text: the [blank] markers removed.
+  function plainEx(x){ return String(x||'').replace(/\[([^\[\]]*)\]/g,'$1'); }
   function sentenceFor(e){
-    var ex=String(e.ex||''), c=clozeIn(ex,e.w);
+    var ex=plainEx(e.ex), c=clozeIn(ex,e.w);
     if(c){ var line=(c.pre+c.form+c.post).trim(); if(line.split(/\s+/).length>=3) return line; }
     var latin=/[A-Za-z][A-Za-z ,'’\-]{10,}[A-Za-z.!?]/.exec(ex); if(latin) return latin[0];
     var d=defsOf(e.w)[0]; return d?e.w+' means '+d.t+'.':e.w;
   }
-  function openProd(kind){
+  function prodOk(kind,e){
+    if(!e||!e[kind.charAt(0)==='w'?'ww':'sw']) return false;
+    if(kind==='wcloze') return !!clozeIn(e.ex,e.w);
+    if(kind==='wprompt'||kind==='sprompt') return !!(e.tr||'').trim();
+    return true;
+  }
+  // only: limit the round to these NB indices (再练卡住的词); fresh: skip the saved round
+  function openProd(kind,fresh,only){
     var cat=kind.charAt(0)==='w'?'ww':'sw', list=[];
-    for(var i=0;i<NB.length;i++){
-      var e=NB[i]; if(!e[cat]) continue;
-      if(kind==='wcloze'&&!clozeIn(e.ex,e.w)) continue;
-      if((kind==='wprompt'||kind==='sprompt')&&!(e.tr||'').trim()) continue;
-      list.push(i);
+    if(!fresh&&!only){
+      var saved=resumePractice('x'+kind,cat);
+      if(saved){
+        X={kind:kind,order:saved.order,i:saved.idx,right:saved.right||0,answered:false,stuck:saved.stuck||[]};
+        $('xov').classList.add('show'); keepAwake(true); xShow();
+        if(saved.draft&&xWriting()) $('xans').value=saved.draft;
+        if(saved.hint&&$('xhint')) $('xhint').click();
+        xSave();
+        $('xfb').innerHTML='<span style="color:var(--soft)">已接着上次继续（✓ '+X.right+'）。想换一组，结束后点「再来一组」。</span>';
+        return;
+      }
     }
+    for(var i=0;i<NB.length;i++){ if(prodOk(kind,NB[i])&&(!only||only.indexOf(i)>=0)) list.push(i); }
     if(!list.length){
-      alert({wcloze:'还没有可以挖空的写作生词。\n在写作生词的「例句 / 语境」里写一句含这个词的英文搭配或句子，就能做搭配填空。',
+      alert({wcloze:'还没有可以挖空的写作生词。\n在写作生词的「例句 / 语境」里写一句含这个词的英文搭配或句子，就能做搭配填空。\n想指定挖空的部分，用方括号括起来，例如 He [went] abroad.',
         wprompt:'还没有带中文释义的「写作生词」。',sprompt:'还没有带中文释义的「口语生词」。',srepeat:'还没有标记「口语生词」的词。'}[kind]); return;
     }
-    list=(cat==='ww'?reviewOrder(list,'d'):shuffleArray(list)).slice(0,XN);
-    X={kind:kind,order:list,i:0,right:0,answered:false};
+    if(cat==='ww') list=reviewOrder(list,'p');
+    else{                                       // stuck words first, then never practised, then by due day
+      var byW={}; list=shuffleArray(list); list.forEach(function(i){ byW[NB[i].w]=i; });
+      list=(RV.speakOrder?RV.speakOrder(list.map(function(i){return NB[i].w;})):list.map(function(i){return NB[i].w;})).map(function(w){return byW[w];});
+    }
+    X={kind:kind,order:list.slice(0,XN),i:0,right:0,answered:false,stuck:[]};
     $('xov').classList.add('show'); keepAwake(true); xShow();
   }
   function xWriting(){ return X&&X.kind.charAt(0)==='w'; }
+  function xSave(){
+    if(!X||window.__RESTORING__) return;
+    var at=Math.min(X.order.length,X.i+(X.answered?1:0)), live=!X.answered&&at<X.order.length;
+    checkpoint('x'+X.kind,xWriting()?'ww':'sw',X.order,at,{right:X.right,stuck:X.stuck,draft:live&&xWriting()?$('xans').value:'',hint:live&&!!X.hint});
+  }
   function xShow(){
     stopRec(true);
     var e=X&&NB[X.order[X.i]]; if(!e){ xEnd(); return; }
@@ -800,7 +868,7 @@ button{-webkit-tap-highlight-color:transparent}
       X.want=nbItem(e).alts; X.reveal='<b>'+esc(e.w)+'</b>';
       body='<div class="xmean big">'+posBadge(e)+esc(e.tr||'')+'</div><div class="xtip">写出对应的英文单词或表达　<button class="ghosti" id="xhint" style="font-size:13px">🔤 首字母</button><span id="xhinttext"></span></div>';
     }else if(X.kind==='sprompt'){
-      var q=SPEAK_Q[Math.floor(Math.random()*SPEAK_Q.length)];
+      var q=speakPrompt(e);
       body='<div class="rw">'+esc(e.w)+'</div><div class="rph">'+(e.ph?'['+esc(e.ph)+']':'')+'</div><div class="xmean">'+posBadge(e)+esc(short(e.tr))+'</div>'+
         '<div class="xq">'+q.replace('{w}','<b>'+esc(e.w)+'</b>')+'</div><div class="xtip">先想 5 秒，再完整说一句。可以录音，回放听听自己说得是否流畅。</div>';
     }else{
@@ -815,10 +883,11 @@ button{-webkit-tap-highlight-color:transparent}
     $('xrecnote').textContent=w?'':(recSupported()?'':'此环境不支持录音，可以直接开口说。');
     $('xrecbtn').disabled=!recSupported(); $('xrecbtn').textContent='🎙️ 录音'; $('xplay').disabled=true;
     $('xscore').textContent=(w?'✓ ':'说出 ')+X.right+'　/ 已做 '+X.i;
-    if($('xhint')) $('xhint').onclick=function(){ X.hint=true; var t=X.want[0]||'', n=t.replace(/\s/g,'').length; $('xhinttext').textContent=t.charAt(0)+' _'.repeat(Math.max(0,n-1))+'（'+n+' 字母）'; try{$('xans').focus();}catch(x){} };
+    if($('xhint')) $('xhint').onclick=function(){ X.hint=true; xSave(); var t=X.want[0]||'', n=t.replace(/\s/g,'').length; $('xhinttext').textContent=t.charAt(0)+' _'.repeat(Math.max(0,n-1))+'（'+n+' 字母）'; try{$('xans').focus();}catch(x){} };
     if($('xshow')) $('xshow').onclick=function(){ $('xsent').classList.remove('hidden'); this.remove(); };
     if(w) setTimeout(function(){ try{$('xans').focus();}catch(x){} },60);
     if(X.kind==='srepeat'||X.kind==='sprompt') speak(X.say);
+    xSave();
   }
   function xSubmit(){
     if(!xWriting()) return;
@@ -828,24 +897,27 @@ button{-webkit-tap-highlight-color:transparent}
     var res=!g.ok?'bad':(!g.clean||X.hint)?'soft':'ok';
     X.answered=true; $('xans').readOnly=true;
     if(res==='bad'){ IELTSMistakes.record(e,'notebook',X.kind,typed,{expected:X.want}); requeue(X.order,X.i); } else X.right++;
-    var plan=planText(RV.answer(nbItem(e),'d',res));
+    var plan=planText(RV.answer(nbItem(e),'p',res));     // 看到中文能写: its own track, not dictation
     $('xfb').innerHTML=(res==='bad'?'<span style="color:var(--bad)">✗ 应为</span> ':res==='soft'?'<span style="color:var(--soft)">✓ 正确（'+(X.hint?'用了首字母提示':'写法有小误')+'，本次不计入掌握）</span> ':'<span style="color:var(--good)">✓ 正确</span> ')+
       '<span style="font-size:16px">'+X.reveal+'</span>'+(res==='bad'?'<div class="xref">你写的：'+esc(typed)+'</div>':'')+
-      (e.ex&&X.kind==='wprompt'?'<div class="xref">你的例句：'+esc(e.ex)+'</div>':'')+plan;
+      (e.ex&&X.kind==='wprompt'?'<div class="xref">你的例句：'+esc(plainEx(e.ex))+'</div>':'')+plan;
     $('xsubmit').dataset.base='下一个'; $('xsubmit').textContent='下一个'+submitHint(); $('xnext').hidden=true;
     $('xscore').textContent='✓ '+X.right+'　/ 已做 '+(X.i+1);
+    xSave();
     speak(e.w);
   }
   function xSelf(ok){
     if(xWriting()||X.answered) return;
     var e=NB[X.order[X.i]]; X.answered=true; stopRec(false);
-    if(ok) X.right++;
+    if(ok) X.right++; else if(X.stuck.indexOf(e.w)<0) X.stuck.push(e.w);
     if(window.IELTSStats) IELTSStats.tally('notebook',e.w,ok?'ok':'bad');
+    var sp=RV.spoke?RV.spoke(nbItem(e),ok):null;
     $('xok').hidden=true; $('xbad').hidden=true; $('xnext').hidden=false; $('xnext').textContent=X.i+1>=X.order.length?'查看结果 ›':'下一个 ›';
     if($('xsent')) $('xsent').classList.remove('hidden');
     $('xfb').innerHTML=(ok?'<span style="color:var(--good)">✓ 记为说出来了</span>':'<span style="color:var(--bad)">✗ 记为卡住了，下次再练</span>')+
-      (e.ex?'<div class="xref">你记下的例句：'+esc(e.ex)+'</div>':'')+'<div class="xref">口语练习靠自评，只计入每日答题记录，不改变复习安排。</div>';
+      (e.ex?'<div class="xref">你记下的例句：'+esc(e.ex)+'</div>':'')+(sp?'<div class="xref">📅 '+esc(sp.text)+'</div>':'')+'<div class="xref">口语练习靠自评，只安排口语复练，不改变听写、词义的复习安排。</div>';
     $('xscore').textContent='说出 '+X.right+'　/ 已做 '+(X.i+1);
+    xSave();
     setTimeout(function(){ try{$('xnext').focus();}catch(x){} },30);
   }
   function xNext(){ X.i++; $('xnext').hidden=false; xShow(); }
@@ -855,9 +927,14 @@ button{-webkit-tap-highlight-color:transparent}
     $('xprog').textContent=XTITLE[X.kind]+'　完成';
     $('xbody').innerHTML='<div style="font-size:40px;margin-top:10px">'+(X.right===total?'🎉':'💪')+'</div>';
     $('xinrow').hidden=true; $('xrec').hidden=true; $('xsubmit').hidden=true; $('xok').hidden=true; $('xbad').hidden=true; $('xnext').hidden=true; $('xrecnote').textContent='';
-    $('xfb').innerHTML=(w?'答对 ':'说出 ')+'<b>'+X.right+' / '+total+'</b>'+(w?'（含重测）':'')+' <button class="btn sm" id="xagain">再来一组</button>';
+    var stuck=(X.stuck||[]).map(function(w){ for(var i=0;i<NB.length;i++) if(NB[i].w===w) return i; return -1; }).filter(function(i){return i>=0;});
+    $('xfb').innerHTML=(w?'答对 ':'说出 ')+'<b>'+X.right+' / '+total+'</b>'+(w?'（含重测）':'')+' <button class="btn sm" id="xagain">再来一组</button>'+
+      (stuck.length?'<div class="xref">卡住了：'+stuck.map(function(i){return esc(NB[i].w);}).join('、')+'。下一组口语会先练这些词。 <button class="btn alt sm" id="xstuck">现在再练一遍</button></div>':'');
     $('xscore').textContent='';
-    $('xagain').onclick=function(){ openProd(X.kind); };
+    checkpoint('x'+X.kind,w?'ww':'sw',X.order,X.order.length,{right:X.right});   // finished: the next open starts a new round
+    var kind=X.kind;
+    $('xagain').onclick=function(){ openProd(kind,true); };
+    if($('xstuck')) $('xstuck').onclick=function(){ openProd(kind,true,stuck); };
   }
   function recSupported(){ return !!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder); }
   function stopRec(discard){
@@ -912,7 +989,8 @@ button{-webkit-tap-highlight-color:transparent}
   $('xplay').onclick=function(){ if(X&&X.clip){ try{ if(xAudio) xAudio.pause(); xAudio=new Audio(X.clip); xAudio.play().catch(function(){}); }catch(e){} } };
   $('xsay').onclick=function(){ if(X) speak(X.say); };
   $('xans').addEventListener('keydown',function(ev){ if(window.__CUSTOM_SHORTCUTS__)return; if(ev.key==='Enter'&&!ev.isComposing&&ev.keyCode!==229&&!ev.repeat){ ev.preventDefault(); xSubmit(); } });
-  $('xclose').onclick=function(){ stopRec(true); $('xov').classList.remove('show'); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} X=null; drainPull(); };
+  $('xans').addEventListener('input',xSave);
+  $('xclose').onclick=function(){ xSave(); stopRec(true); $('xov').classList.remove('show'); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} X=null; drainPull(); };
   $('xov').addEventListener('click',function(ev){ if(ev.target===$('xov')) $('xclose').click(); });
   window.addEventListener('pagehide',function(){ stopRec(true); });
 

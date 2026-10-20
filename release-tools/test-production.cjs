@@ -31,15 +31,16 @@ const root=path.resolve(__dirname,'../src');
    await page.evaluate(()=>{NB=[{id:'a',w:'apple',tr:'苹果',ex:'I ate apples yesterday.',ww:true,sw:true},{id:'p',w:'pear',tr:'梨',ww:true,sw:true}];render();});
   };
   const check=async(name,fn)=>{try{await fresh();await fn();console.log('PASS: '+name);}catch(e){failures.push(name+': '+e.message);}};
-  await check('writing restart restores skip, and wrong answers enter history once',async()=>{
+  await check('writing reopen resumes with skip, and wrong answers enter history once',async()=>{
    await page.locator('#xwprompt').click();
    const before=await page.evaluate(()=>Object.keys(IELTSMistakes.read()).length);
    await page.locator('#xans').fill('wronganswer');await page.locator('#xsubmit').click();
    assert.equal(await page.evaluate(()=>Object.keys(IELTSMistakes.read()).length),before+1);
    await page.locator('#xclose').click();await page.locator('#xwprompt').click();
    assert.equal(await page.locator('#xnext').isVisible(),true);
+   assert.equal(await page.evaluate(()=>X.i),1,'reopening resumes after the answered question');
    assert.equal(await page.evaluate(()=>Object.keys(IELTSMistakes.read()).length),before+1);
-   await page.evaluate(()=>{X.order=[X.order[0]];$('xans').value=X.want[0];xSubmit();xSubmit();});
+   await page.evaluate(()=>{X.order=[X.order[X.i]];X.i=0;$('xans').value=X.want[0];xSubmit();xSubmit();});
    await page.locator('#xagain').click();assert.equal(await page.locator('#xnext').isVisible(),true);
   });
   await check('cloze records the submitted spelling; correct answers and skips add no mistakes',async()=>{
@@ -54,6 +55,43 @@ const root=path.resolve(__dirname,'../src');
    assert.equal(await page.evaluate(()=>Object.keys(IELTSMistakes.read()).length),before+1);
    await page.locator('#xclose').click();await page.locator('#xsprompt').click();await page.locator('#xnext').click();
    assert.equal(await page.evaluate(()=>Object.keys(IELTSMistakes.read()).length),before+1);
+  });
+  await check('writing and speaking rounds resume with the typed draft, score and position',async()=>{
+   await page.evaluate(()=>{sessions={};localStorage.removeItem('ielts_nb_sessions');});
+   await page.locator('#xwprompt').click();
+   const first=await page.evaluate(()=>NB[X.order[0]].w);
+   await page.locator('#xans').fill('ap');await page.locator('#xclose').click();
+   await page.reload();await page.evaluate(()=>{NB=[{id:'a',w:'apple',tr:'苹果',ex:'I ate apples yesterday.',ww:true,sw:true},{id:'p',w:'pear',tr:'梨',ww:true,sw:true}];render();});
+   await page.locator('#xwprompt').click();
+   assert.deepEqual(await page.evaluate(()=>[NB[X.order[X.i]].w,$('xans').value]),[first,'ap']);
+   await page.locator('#xclose').click();
+   await page.locator('#xsprompt').click();await page.locator('#xok').click();await page.locator('#xclose').click();
+   await page.locator('#xsprompt').click();
+   assert.deepEqual(await page.evaluate(()=>[X.i,X.right]),[1,1]);
+  });
+  await check('writing answers use their own review track; stuck words lead the next speaking round',async()=>{
+   await page.locator('#xwprompt').click();
+   await page.evaluate(()=>{$('xans').value=X.want[0];xSubmit();});
+   const w=await page.evaluate(()=>NB[X.order[X.i]].w.toLowerCase());
+   assert.deepEqual(await page.evaluate(k=>{const r=RV.all()[k];return [!!r.p,!!r.d];},w),[true,false]);
+   await page.locator('#xclose').click();
+   await page.locator('#xsrepeat').click();
+   const order=await page.evaluate(()=>X.order.map(i=>NB[i].w));
+   await page.locator('#xok').click();await page.locator('#xnext').click();await page.locator('#xbad').click();await page.locator('#xnext').click();
+   assert.equal(await page.locator('#xstuck').isVisible(),true);
+   await page.locator('#xagain').click();
+   assert.equal(await page.evaluate(()=>NB[X.order[0]].w),order[1],'the word marked 卡住了 comes first');
+   assert.equal(await page.evaluate(k=>!!RV.all()[k].d,order[1].toLowerCase()),false,'speaking never touches dictation');
+  });
+  await check('cloze finds irregular and doubled forms, and honours [bracketed] blanks',async()=>{
+   const got=await page.evaluate(()=>[clozeIn('The bus stopped suddenly.','stop'),clozeIn('He is running late.','run'),clozeIn('We went abroad last year.','go'),
+     clozeIn('She took part in the debate.','take part in'),clozeIn('Prices [rose sharply] last year.','increase')].map(c=>c&&c.form));
+   assert.deepEqual(got,['stopped','running','went','took part in','rose sharply']);
+   assert.equal(await page.evaluate(()=>plainEx('Prices [rose] fast')),'Prices rose fast');
+  });
+  await check('speaking questions follow the word\'s topic or part of speech',async()=>{
+   const q=await page.evaluate(()=>[speakPrompt({w:'salary',tr:'n. 薪水，工资'}),speakPrompt({w:'pollution',tr:'n. 污染'}),speakPrompt({w:'vivid',tr:'adj. 生动的'})]);
+   assert.match(q[0],/work|job/i);assert.match(q[1],/environment|weather/i);assert.match(q[2],/描述|心情/);
   });
   await check('permission arriving after close never starts the microphone',async()=>{
    await page.locator('#xsprompt').click();await page.locator('#xrecbtn').click();await page.locator('#xclose').click();

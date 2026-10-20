@@ -167,3 +167,8 @@ test('Windows 保存答题记录按设备合并',()=>{
   store.save('stats',{days:{'2026-10-19':{devA:{n:2,ok:2,s:{p1:[2,2]}}}}});
   const day=store.read().decks.stats.days['2026-10-19'];assert.equal(day.devA.n,3);assert.equal(day.devB.n,1);
 });
+test('复习记录的看中文写 (p) 和口语 (o) 按轨道分别合并',()=>{
+  const a={items:{vivid:{t:300,d:{t:300,lv:1},p:{t:100,lv:0}}}};
+  const out=Data.mergeReview(a,{items:{vivid:{t:200,p:{t:200,lv:2},o:{t:150,n:1}}}});
+  assert.equal(out.items.vivid.p.lv,2);assert.equal(out.items.vivid.o.n,1);assert.equal(out.items.vivid.d.lv,1);
+});

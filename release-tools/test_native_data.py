@@ -58,6 +58,10 @@ assert((apple["zh"] as! String) == "苹果"); assert((apple["src"] as! [String])
 assert((ledgerC["items"] as! [String: Any]).count == 2)
 let ledgerMeta = ledgerC["meta"] as! [String: Any]
 assert((ledgerMeta["cap"] as! NSNumber).intValue == 30); assert((ledgerMeta["seed"] as! NSNumber).intValue == 1)
+let tp1 = mergeDeckPayload(existing:nil, deck:"srs", payload:["items":["vivid":["t":300,"d":["t":300,"lv":1],"p":["t":100,"lv":0]]]])
+let tp2 = mergeDeckPayload(existing:tp1, deck:"srs", payload:["items":["vivid":["t":200,"p":["t":200,"lv":2],"o":["t":150,"n":1]]]])
+let vv = (tp2["items"] as! [String: Any])["vivid"] as! [String: Any]
+assert(((vv["p"] as! [String: Any])["lv"] as! NSNumber).intValue == 2 && ((vv["o"] as! [String: Any])["n"] as! NSNumber).intValue == 1 && ((vv["d"] as! [String: Any])["lv"] as! NSNumber).intValue == 1)
 try backupRoot(root, reason:"before-restore")
 try writeRoot(["v":1,"decks":[:]])
 assert((loadRoot().0["decks"] as! [String: Any]).isEmpty)
@@ -75,13 +79,32 @@ assert(loadRoot().1)
 let leftovers = try FileManager.default.contentsOfDirectory(atPath: dataFileURL().deletingLastPathComponent().path).filter { $0.hasPrefix("data.json.corrupt-") }
 assert(leftovers.count == 1)
 let keptText = try String(contentsOf: dataFileURL().deletingLastPathComponent().appendingPathComponent(leftovers[0]), encoding:.utf8); assert(keptText == "damaged")
+// valid JSON, wrong shape: treated as damaged (no write), and such backups are skipped
+for bad in ["[]", "{\"v\":1,\"decks\":[]}", "{\"v\":1,\"decks\":{\"notebook\":{\"list\":{}}}}", "{\"v\":1,\"decks\":{\"p1\":\"x\"}}",
+            "{\"v\":1,\"decks\":{\"wrong\":{\"list\":[{\"en\":\" \"}]}}}", "{\"v\":1,\"decks\":{\"p1\":{\"prog\":{\"a\":3}}}}", "{\"v\":1,\"decks\":{\"odd\":{}}}",
+            "{\"v\":1,\"decks\":{\"vj\":{\"daily\":{\"date\":\"2026-10-20\",\"done\":1,\"ok\":2}}}}", "{\"decks\":{}}", "   "] {
+    reported = false
+    try bad.write(to: dataFileURL(), atomically:true, encoding:.utf8)
+    assert(!loadRoot().1, "must reject " + bad)
+    persistDeck("{\"deck\":\"config\",\"payload\":{\"zoom\":1.2}}")
+    let still = try String(contentsOf: dataFileURL(), encoding:.utf8); assert(still == bad && reported)
+}
+try "{}".write(to: dataFileURL(), atomically:true, encoding:.utf8); assert(loadRoot().1)
+try writeRoot(latest[0].2)
+let bdir = try backupDirectory()
+let future = Date().addingTimeInterval(3600)
+for (i, bad) in ["{\"v\":1,\"decks\":{\"notebook\":{\"list\":\"x\"}}}", "{\"format\":\"IELTSVocabBackup\",\"version\":1,\"data\":{\"v\":1,\"decks\":{\"srs\":{\"items\":[]}}}}"].enumerated() {
+    let u = bdir.appendingPathComponent("daily-2099-01-0\(i).json"); try bad.write(to: u, atomically:true, encoding:.utf8)
+    try FileManager.default.setAttributes([.modificationDate: future], ofItemAtPath: u.path)
+}
+assert(!backupCandidates().contains { $0.0.lastPathComponent.hasPrefix("daily-2099") }, "structurally invalid backups must be skipped")
 // daily answer log: devices add up, a resent or smaller copy never counts twice
 let s1 = mergeDeckPayload(existing:nil, deck:"stats", payload:["days":["2026-10-19":["devA":["n":10,"ok":8]]]])
 let s2 = mergeDeckPayload(existing:s1, deck:"stats", payload:["days":["2026-10-19":["devB":["n":10,"ok":9],"devA":["n":4,"ok":4]]]])
 let s3 = mergeDeckPayload(existing:s2, deck:"stats", payload:["days":["2026-10-19":["devA":["n":10,"ok":8]]]])
 let sday = (s3["days"] as! [String: Any])["2026-10-19"] as! [String: Any]
 assert(sday.count == 2 && (((sday["devA"] as! [String: Any])["n"]) as! NSNumber).intValue == 10)
-print("Swift: history, category preservation, notebook edits (newer ut wins), newer-answer-wins progress, review ledger merge, pre-restore backup, exact replacement and corruption protection, restore from the latest valid backup and per-device daily answer log passed")
+print("Swift: history, category preservation, notebook edits (newer ut wins), newer-answer-wins progress, review ledger merge, pre-restore backup, exact replacement and corruption protection (incl. valid-JSON-wrong-shape files and backups), restore from the latest valid backup and per-device daily answer log passed")
 '''.replace('assert(try String(contentsOf: dataFileURL(), encoding:.utf8) == "damaged")', 'let unchanged = try String(contentsOf: dataFileURL(), encoding:.utf8); assert(unchanged == "damaged")')
 with tempfile.TemporaryDirectory(prefix='ielts-native-data-test-') as folder:
     folder = Path(folder)

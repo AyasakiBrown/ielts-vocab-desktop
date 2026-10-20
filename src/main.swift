@@ -100,7 +100,7 @@ func mergeReview(existing: [String: Any]?, payload: [String: Any]) -> [String: A
             if let name = s as? String, !src.contains(name) { src.append(name) }
         }
         rec["src"] = src
-        for name in ["d", "m"] {
+        for name in ["d", "m", "p", "o"] {                  // spelling, meaning, writing recall, speaking
             let a = old[name] as? [String: Any], b = inc[name] as? [String: Any]
             if let a = a, let b = b { rec[name] = stampOf(b) > stampOf(a) ? b : a }
             else if let one = a ?? b { rec[name] = one }
@@ -247,30 +247,90 @@ func withDataLock(_ body: () -> Void) {
     body()
 }
 
-// Returns (root, safeToWrite). A file that exists but cannot be parsed must NOT be
-// overwritten — a rewrite from an empty root would silently wipe every deck.
+// MARK: validate-begin — the same structural rules as learning-data.js normalize() and
+// server.py _usable(). Valid JSON with the wrong shape (decks as a list, a word list that
+// is not a list, a deck that is a string…) counts as damaged: merging into it would either
+// crash a page or quietly replace the broken part with an empty one.
+let DECK_NAMES: Set<String> = ["p1", "vj", "scene", "notebook", "wrong", "srs", "stats", "config"]
+func isCount(_ v: Any?) -> Bool {
+    guard let n = v as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return false }
+    let d = n.doubleValue
+    return d >= 0 && d == d.rounded() && d <= 9007199254740991
+}
+func dailyProblem(_ v: Any?) -> String? {
+    guard let d = v as? [String: Any] else { return "每日统计格式错误" }
+    guard let date = d["date"] as? String,
+          date.isEmpty || date.range(of: "^\\d{4}-\\d{1,2}-\\d{1,2}$", options: .regularExpression) != nil else { return "统计日期格式错误" }
+    guard isCount(d["done"]), isCount(d["ok"]),
+          (d["ok"] as! NSNumber).doubleValue <= (d["done"] as! NSNumber).doubleValue else { return "统计数量无效" }
+    return nil
+}
+func deckProblem(_ name: String, _ value: Any) -> String? {
+    guard let d = (value as? [String: Any])?.filter({ !($0.value is NSNull) }) else { return "词库格式错误：" + name }
+    switch name {
+    case "config": return nil
+    case "stats":
+        guard let days = (d["days"] ?? [String: Any]()) as? [String: Any],
+              days.values.allSatisfy({ day in
+                  guard let devs = day as? [String: Any] else { return false }
+                  return devs.values.allSatisfy { (($0 as? [String: Any]).map { isCount($0["n"]) }) ?? false }
+              }) else { return "每日答题记录格式错误" }
+    case "srs":
+        guard let items = (d["items"] ?? [String: Any]()) as? [String: Any], (d["meta"] ?? [String: Any]()) is [String: Any],
+              items.values.allSatisfy({ $0 is [String: Any] }) else { return "复习记录格式错误" }
+    case "notebook", "wrong":
+        guard let list = (d["list"] ?? [Any]()) as? [Any], let del = (d["del"] ?? [String: Any]()) as? [String: Any] else { return "词表格式错误" }
+        let key = name == "notebook" ? "w" : "en"
+        guard list.allSatisfy({ (($0 as? [String: Any])?[key] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false }) else { return "单词条目无效" }
+        guard del.values.allSatisfy({ ($0 as? NSNumber).map { CFGetTypeID($0) != CFBooleanGetTypeID() && $0.doubleValue.isFinite } ?? false }) else { return "删除记录无效" }
+    default:
+        for f in ["prog", "settings", "history"] where !((d[f] ?? [String: Any]()) is [String: Any]) { return f + " 格式错误" }
+        guard ((d["prog"] as? [String: Any]) ?? [:]).values.allSatisfy({ $0 is [String: Any] }) else { return "学习进度格式错误" }
+        if let daily = d["daily"], let p = dailyProblem(daily) { return p }
+        for h in ((d["history"] as? [String: Any]) ?? [:]).values { if let p = dailyProblem(h) { return p } }
+    }
+    return nil
+}
+// The unwrapped data root of a data file or backup, or the reason it is not one.
+// `allowEmpty` accepts a bare {} (a fresh install's data.json); backups never qualify.
+func checkRoot(_ raw: Any?, allowEmpty: Bool = false) -> ([String: Any]?, String?) {
+    guard var o = raw as? [String: Any] else { return (nil, "顶层结构不是学习数据") }
+    if o["format"] as? String == "IELTSVocabBackup" {
+        guard (o["version"] as? NSNumber)?.intValue == 1 else { return (nil, "备份版本不受支持") }
+        guard let inner = o["data"] as? [String: Any] else { return (nil, "顶层结构不是学习数据") }
+        o = inner
+    }
+    if allowEmpty && o.isEmpty { return (o, nil) }
+    guard (o["v"] as? NSNumber)?.intValue == 1, let decks = o["decks"] as? [String: Any] else { return (nil, "不是完整学习数据") }
+    for (name, deck) in decks {
+        guard DECK_NAMES.contains(name) else { return (nil, "包含不支持的词库：" + name) }
+        if let p = deckProblem(name, deck) { return (nil, p) }
+    }
+    return (o, nil)
+}
+// MARK: validate-end
+
+// Returns (root, safeToWrite). A file that exists but cannot be parsed — or parses but
+// fails checkRoot — must NOT be written to: a rewrite would silently wipe or truncate decks.
 func loadRoot() -> ([String: Any], Bool) {
     let url = dataFileURL()
-    guard let s = try? String(contentsOf: url, encoding: .utf8) else {
+    guard let d = try? Data(contentsOf: url) else {
         return ([:], !FileManager.default.fileExists(atPath: url.path))
     }
-    if let d = s.data(using: .utf8),
-       let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] {
-        return (o, true)
-    }
-    return ([:], false)                           // exists but unreadable — refuse to clobber
+    if d.allSatisfy({ $0 == 0x20 || $0 == 0x0A || $0 == 0x0D || $0 == 0x09 }) { return ([:], false) }
+    let (root, _) = checkRoot(try? JSONSerialization.jsonObject(with: d), allowEmpty: true)
+    return root.map { ($0, true) } ?? ([:], false)   // exists but unusable — refuse to clobber
 }
 
 // Valid backups, newest first: the app's daily-/before-restore-/migration- files and the
-// sync server's data-*.json copies. Each must unwrap to {v:1, decks:{…}}.
+// sync server's data-*.json copies. Each must pass checkRoot; damaged ones are skipped.
 func backupCandidates() -> [(URL, Date, [String: Any])] {
     guard let dir = try? backupDirectory(),
           let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey]) else { return [] }
     var out: [(URL, Date, [String: Any])] = []
     for url in files where url.pathExtension == "json" {
-        guard let d = try? Data(contentsOf: url), var o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { continue }
-        if o["format"] as? String == "IELTSVocabBackup" { guard let inner = o["data"] as? [String: Any] else { continue }; o = inner }
-        guard (o["v"] as? NSNumber)?.intValue == 1, o["decks"] is [String: Any] else { continue }
+        guard let d = try? Data(contentsOf: url), d.count <= 32 * 1024 * 1024,
+              let o = checkRoot(try? JSONSerialization.jsonObject(with: d)).0 else { continue }
         let date = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
         out.append((url, date, o))
     }
@@ -455,19 +515,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
                 } catch { self.dataBusy = false; self.dataError(error.localizedDescription) }
             }
         } else if action == "latest" {
-            guard let (url, date, root) = backupCandidates().first,
-                  let bytes = try? JSONSerialization.data(withJSONObject: root), let text = String(data: bytes, encoding: .utf8) else {
-                dataBusy = false; dataError("备份目录里没有可用的备份。可用「从备份恢复…」选择自己导出的备份文件。"); return
-            }
-            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm"
-            confirmRestore(text, note: "最近的有效备份：\(url.lastPathComponent)（\(f.string(from: date))）\n")
+            confirmLatest(backupCandidates(), skipped: 0)
         } else { dataBusy = false }
     }
+    // Newest backup first; one that still fails IELTSData.parse is skipped, not offered.
+    func confirmLatest(_ candidates: [(URL, Date, [String: Any])], skipped: Int) {
+        guard let (url, date, root) = candidates.first,
+              let bytes = try? JSONSerialization.data(withJSONObject: root), let text = String(data: bytes, encoding: .utf8) else {
+            dataBusy = false; dataError("备份目录里没有可用的备份。可用「从备份恢复…」选择自己导出的备份文件。"); return
+        }
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd HH:mm"
+        let skip = skipped > 0 ? "已跳过 \(skipped) 个无效备份。\n" : ""
+        confirmRestore(text, note: "最近的有效备份：\(url.lastPathComponent)（\(f.string(from: date))）\n" + skip) { [weak self] in
+            self?.confirmLatest(Array(candidates.dropFirst()), skipped: skipped + 1)
+        }
+    }
     // Validate with IELTSData.parse (the same rules as every other import), confirm, restore.
-    func confirmRestore(_ text: String, note: String) {
+    // `onInvalid` lets the caller move on to another candidate instead of reporting an error.
+    func confirmRestore(_ text: String, note: String, onInvalid: (() -> Void)? = nil) {
         guard let encoded = try? JSONSerialization.data(withJSONObject: [text]), let argument = String(data: encoded, encoding: .utf8) else { dataBusy = false; return }
         webView.evaluateJavaScript("JSON.stringify(IELTSData.parse((\(argument))[0]))") { value, error in
             guard error == nil, let validated = value as? String, let bytes = validated.data(using: .utf8), let root = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any] else {
+                if let next = onInvalid { next(); return }
                 self.dataBusy = false; self.dataError("备份格式无效或版本不受支持。未修改当前记录。"); return
             }
             self.webView.evaluateJavaScript("IELTSData.summary(\(validated))") { value, _ in

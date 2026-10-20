@@ -74,7 +74,7 @@
       if (!object(cur)) { out.items[k] = inc; continue; }
       const hi = time(inc) > time(cur) ? inc : cur, lo = hi === cur ? inc : cur, rec = Object.assign({}, lo, hi);
       rec.src = [...new Set([...(Array.isArray(cur.src) ? cur.src : []), ...(Array.isArray(inc.src) ? inc.src : [])])];
-      for (const name of ['d', 'm']) {
+      for (const name of ['d', 'm', 'p', 'o']) {
         const a = cur[name], b = inc[name];
         if (object(a) && object(b)) rec[name] = time(b) > time(a) ? b : a; else if (object(a) || object(b)) rec[name] = object(a) ? a : b;
       }

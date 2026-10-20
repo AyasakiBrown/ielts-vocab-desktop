@@ -69,7 +69,7 @@
 <body>
 <div class="wrap">
   <h1>📅 今日复习</h1>
-  <p class="sub">三个词库、生词本、错词本里到期的词都汇总在这里。听到能拼（听写）和看见能懂（词义）分开记录；隔天、无提示答对才会延长复习间隔。<a href="index.html">返回主页</a></p>
+  <p class="sub">三个词库、生词本、错词本里到期的词都汇总在这里。听到能拼（听写）、看见能懂（词义）和看到中文能写（生词本写作练习）分开记录；隔天、无提示答对才会延长复习间隔。<a href="index.html">返回主页</a></p>
 
   <div class="panel">
     <div class="grid" id="stats"></div>
@@ -164,7 +164,7 @@
   var RV=window.IELTSReview;
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   var SRCN={p1:'Part 1',vj:'词汇真经',scene:'听力场景',notebook:'生词本',wrong:'错词本',other:'其他'};
-  var TRN={d:'听写',m:'词义'};
+  var TRN={d:'听写',m:'词义',p:'看中文写'};
 
   /* ---------- TTS + wake lock (same behaviour as the other pages) ---------- */
   var VOICES=[];
@@ -190,17 +190,18 @@
   document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _acqWake(); });
 
   /* ---------- overview ---------- */
-  function usable(x){ return x.track==='d' || !!(x.rec.zh&&String(x.rec.zh).trim()); }   // a meaning test needs a meaning
+  function usable(x){ return x.track==='d' || !!(x.rec.zh&&String(x.rec.zh).trim()); }   // meaning and 看中文写 tests need a meaning
+  function byTyping(x){ return !!x&&x.track!=='m'; }     // d (听写) and p (看中文写) are answered by typing
   function stat(v,l,color){ return '<div class="stat"><div class="v"'+(color?' style="color:var('+color+')"':'')+'>'+v+'</div><div class="l">'+l+'</div></div>'; }
   function pct(a){ return a[1]?Math.round(a[0]/a[1]*100)+'%':'—'; }
   function paint(){
     if(!RV){ $('stats').innerHTML=''; $('detail').textContent='复习模块未能加载（srs.js）。请联网刷新一次，或重新打开软件。'; ['start','startD','startM'].forEach(function(id){$(id).disabled=true;}); return; }
-    var s=RV.summary(), q=RV.queue().filter(usable), nd=0, nm=0, by={};
-    q.forEach(function(x){ if(x.track==='d')nd++; else nm++; (x.rec.src&&x.rec.src.length?x.rec.src:['other']).forEach(function(k){ by[k]=(by[k]||0)+1; }); });
+    var s=RV.summary(), q=RV.queue().filter(usable), nd=0, nm=0, np=0, by={};
+    q.forEach(function(x){ if(x.track==='d')nd++; else if(x.track==='p')np++; else nm++; (x.rec.src&&x.rec.src.length?x.rec.src:['other']).forEach(function(k){ by[k]=(by[k]||0)+1; }); });
     $('stats').innerHTML=stat(q.length,'今日待复习',q.length?'--bad':'--good')+stat(s.done,'今日已复习')+stat(s.waiting,'排队中')+stat(s.tomorrow,'明天到期')+stat(s.stable,'较稳定','--good');
     var parts=[];
     if(q.length){
-      parts.push('听写 '+nd+' · 词义 '+nm);
+      parts.push('听写 '+nd+' · 词义 '+nm+(np?' · 看中文写 '+np:''));
       if(s.again) parts.push('其中 '+s.again+' 个是今天答错、等待重测的词');
       parts.push('来源：'+Object.keys(by).map(function(k){return (SRCN[k]||k)+' '+by[k];}).join('、'));
     }else parts.push(s.tracked?'今天到期的词已全部复习完 🎉':'还没有复习记录。去词库或生词本做一次听写 / 选择题，答过的词会自动排进复习。');
@@ -216,7 +217,7 @@
     $('cap').value=String(s.cap); if($('cap').value!==String(s.cap)){ var o=document.createElement('option'); o.textContent=String(s.cap); $('cap').appendChild(o); $('cap').value=String(s.cap); }
 
     var today=RV.dayNo(), days=[0,0,0,0,0,0,0], all=RV.all();
-    Object.keys(all).forEach(function(k){ ['d','m'].forEach(function(t){ var tr=all[k]&&all[k][t]; if(!tr||!((tr.n||0)>0||tr.mk)) return; var n=(tr.due||0)-today; if(n>=1&&n<=7) days[n-1]++; }); });
+    Object.keys(all).forEach(function(k){ ['d','m','p'].forEach(function(t){ var tr=all[k]&&all[k][t]; if(!tr||!((tr.n||0)>0||tr.mk)) return; var n=(tr.due||0)-today; if(n>=1&&n<=7) days[n-1]++; }); });
     var max=Math.max.apply(null,days.concat([1]));
     $('ahead').innerHTML=days.map(function(n,i){ var d=new Date(Date.now()+(i+1)*864e5); return '<div class="bar"><span>'+(i===0?'明天':(d.getMonth()+1)+'/'+d.getDate())+'</span><i><b style="width:'+Math.round(n/max*100)+'%"></b></i><span>'+n+' 词</span></div>'; }).join('');
 
@@ -249,7 +250,7 @@
     var at=Math.min(Q.length,qi+(answered?1:0));
     if(at>=Q.length){ clearSess(); return; }
     var s={v:1,day:RV.dayNo(),ts:Date.now(),items:Q.map(function(x){return [x.key,x.track];}),qi:at,right:right,softN:softN,missed:missed,
-      draft:(!answered&&cur&&cur.track==='d')?$('dans').value:'',hinted:!answered&&hinted};
+      draft:(!answered&&byTyping(cur))?$('dans').value:'',hinted:!answered&&hinted};
     try{ localStorage.setItem(SESS,JSON.stringify(s)); }catch(e){}
   }
   function clearSess(){ try{ localStorage.removeItem(SESS); }catch(e){} }
@@ -270,24 +271,26 @@
     Q=r.Q; qi=r.qi; right=r.right; softN=r.softN; missed=r.missed;
     mode='review'; OWN=ownWords();
     $('ov').classList.add('show'); keepAwake(true); show();
-    if(cur&&cur.track==='d'){ if(r.draft) $('dans').value=r.draft; if(r.hinted) $('dletter').click(); }
+    if(byTyping(cur)){ if(r.draft) $('dans').value=r.draft; if(r.hinted) $('dletter').click(); }
     saveSess();
   }
   function toggle(ids,on){ ids.forEach(function(id){ $(id).style.display=on?'':'none'; }); }
   function show(){
     cur=Q[qi]; if(!cur){ finish(); return; }
     answered=false; hinted=false; selfCheck=false;
-    var isD=cur.track==='d';
+    var isD=byTyping(cur), isP=cur.track==='p';
     $('dictBox').style.display=isD?'':'none'; $('choiceBox').style.display=isD?'none':''; $('cardBox').style.display='none';
     toggle(['dzh','dletter','msay','dsay','dslow'],true); $('mnext').textContent='下一题 ›';
+    if(isP) toggle(['dzh','dsay','dslow'],false);        // the sound would give the answer away
+    $('dans').placeholder=isP?'看中文：写出英文':'听写：输入英文拼写';
     toggle(['dsubmit'],isD); toggle(['mnext'],false); toggle(['dskip'],true);
     $('rfb').innerHTML=''; setSubmit('提交');
     var st=RV.info(cur.key,cur.track);
     $('rprog').innerHTML='<span class="tag">'+TRN[cur.track]+'</span> <span class="tag">'+esc(SRCN[sourceOf(cur)]||sourceOf(cur))+'</span> <span class="tag">'+esc(st.label)+'</span>　第 '+(qi+1)+' / '+Q.length;
     $('rscore').textContent='✓ '+right+'　✗ '+missed.length;
     if(isD){
-      homShown=!!cur.rec.hom;                  // homophones cannot be told apart by ear: show the meaning first
-      $('dtr').textContent=homShown?('同音词，按这个意思拼写：'+(cur.rec.zh||'（暂无中文释义）')):'提交答案后显示中文意思'; $('dhint').textContent='';
+      homShown=isP||!!cur.rec.hom;             // homophones cannot be told apart by ear: show the meaning first
+      $('dtr').textContent=isP?('写出英文：'+cur.rec.zh):homShown?('同音词，按这个意思拼写：'+(cur.rec.zh||'（暂无中文释义）')):'提交答案后显示中文意思'; $('dhint').textContent='';
       $('dans').value=''; $('dans').readOnly=false;
       setTimeout(function(){ try{$('dans').focus();}catch(e){} },60);
     }else{
@@ -301,7 +304,7 @@
         $('mchoices').innerHTML='<button class="choice" id="reveal" style="text-align:center">先回忆意思，再点这里核对</button>';
       }
     }
-    speak(sayOf(cur));
+    if(!isP) speak(sayOf(cur));
     saveSess();
   }
   // Wrong options: past confusions of this word, then same part of speech / related meaning /
@@ -347,29 +350,30 @@
     try{ localStorage.setItem('ielts_wrong',JSON.stringify(L)); }catch(e){}
     try{ if(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.persist) webkit.messageHandlers.persist.postMessage(JSON.stringify({deck:'wrong',payload:{list:L}})); }catch(e){}
   }
-  function settle(res,typed,headline,extra){
+  function settle(res,answer,headline,extra){
     answered=true;
     var snap=JSON.parse(JSON.stringify((RV.all()[cur.key]||{})[cur.track]||null)), copyAt=-1;
     if(res==='bad'){
       missed.push(cur.key);
       if(Q.indexOf(cur,qi+1)<0){ copyAt=Math.min(Q.length,qi+4); Q.splice(copyAt,0,cur); }      // 隔几题再测
-      IELTSMistakes.record({en:wordOf(cur),zh:cur.rec.zh||''},sourceOf(cur),cur.track==='d'?'dict':'quiz',typed,extra);
+      IELTSMistakes.record({en:wordOf(cur),zh:cur.rec.zh||''},sourceOf(cur),{d:'dict',p:'wprompt'}[cur.track]||'quiz',answer,extra);
       addToWrongBook(cur);
     }else{ right++; if(res==='soft') softN++; }
     var r=RV.answer({key:cur.key},cur.track,res);
     var choice=cur.track==='m'&&opts.length;
-    last=choice?{key:cur.key,chose:res==='bad'?typed:null,snap:snap,copyAt:copyAt}:null;
+    last=choice?{key:cur.key,chose:res==='bad'?answer:null,snap:snap,copyAt:copyAt}:null;
     $('rfb').innerHTML=headline+(r&&r.text?'<div class="plan">📅 '+esc(r.text)+'</div>':'')+
       (choice?'<div id="ambBox"><button class="ghosti" id="amb" style="font-size:13px;margin-top:6px">⚑ 题目有歧义？</button></div>':'');
     if(choice) $('amb').onclick=ambiguous;
     $('rscore').textContent='✓ '+right+'　✗ '+missed.length;
-    toggle(['dsubmit'],cur.track==='d'); toggle(['mnext'],cur.track!=='d'); toggle(['dskip'],false);
+    toggle(['dsubmit'],byTyping(cur)); toggle(['mnext'],!byTyping(cur)); toggle(['dskip'],false);
+    if(cur.track==='p') toggle(['dsay','dslow'],true);
     setSubmit('下一个');
-    if(cur.track!=='d') $('mnext').focus();
+    if(!byTyping(cur)) $('mnext').focus();
     saveSess();
   }
   function submitDict(){
-    if(!cur||cur.track!=='d') return;
+    if(!byTyping(cur)) return;
     if(answered){ next(); return; }
     var typed=$('dans').value, g=RV.grade(typed,altsOf(cur));
     if(g.empty){ try{$('dans').focus();}catch(e){} return; }

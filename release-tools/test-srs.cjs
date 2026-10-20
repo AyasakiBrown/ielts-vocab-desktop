@@ -188,4 +188,27 @@ assert.deepEqual(S.today(), {done: 8, ok: 7}); assert.deepEqual(S.today('p1'), {
 S.adopt({days: {[today]: {devB: {n: 5, ok: 5, s: {notebook: [5, 5]}}}}});                             // re-synced: still 8
 assert.equal(S.today().done, 8);
 S.tally('review', 'quay', 'ok'); assert.deepEqual(S.read().days[today].devA.s.review, [1, 1]);
-console.log('PASS: UK/US spellings accepted, misspellings rejected, format slips flagged; cross-day promotion, lapses, hints, merge, queue cap and seeding behave as specified; mistakes are diagnosed by cause and drilled words wait for an unaided re-test.');
+
+// ---- 看中文写 (track p) is recorded apart from dictation (d); speaking (o) never enters the queue ----
+at(40);
+RV.answer({en: 'meticulous', zh: '一丝不苟的'}, 'd', 'ok');
+const dBefore = JSON.stringify(RV.all().meticulous.d);
+RV.answer({en: 'meticulous', zh: '一丝不苟的'}, 'p', 'bad');
+assert.equal(JSON.stringify(RV.all().meticulous.d), dBefore, 'a writing answer must not touch the dictation track');
+assert.equal(RV.all().meticulous.p.bad, 1);
+assert.ok(RV.queue({cap: false}).some(x => x.key === 'meticulous' && x.track === 'p'));
+assert.ok(!RV.isDue('meticulous') || RV.isDue('meticulous', 'd'), 'name-less lookups only look at d/m');
+const stuck = RV.spoke({en: 'vivid'}, false), said = RV.spoke({en: 'fluent'}, true);
+assert.ok(stuck.stuck && said.due > RV.dayNo());
+assert.ok(!RV.queue({cap: false}).some(x => x.key === 'vivid' || x.key === 'fluent'), 'speaking self-checks are not graded reviews');
+assert.deepEqual(RV.speakOrder(['fluent', 'novel', 'vivid']), ['vivid', 'novel', 'fluent']);   // stuck, never practised, later
+const pm = RV.mergeRec({t: 300, d: {t: 300, lv: 1}, p: {t: 100, lv: 0}}, {t: 200, p: {t: 200, lv: 2}, o: {t: 150, n: 1}});
+assert.equal(pm.p.lv, 2); assert.equal(pm.o.n, 1); assert.equal(pm.d.lv, 1);
+
+// ---- word forms for 搭配填空 ----
+for (const [w, form] of [['stop', 'stopped'], ['run', 'running'], ['go', 'went'], ['go', 'gone'], ['take part in', 'took part in'],
+  ['study', 'studied'], ['make', 'making'], ['analysis', 'analyses'], ['child', 'children'], ['good', 'better'], ['travel', 'travelled'],
+  ['die', 'dying'], ['agree', 'agreed'], ['knife', 'knives'], ['panic', 'panicked'], ['begin', 'beginning']])
+  assert.ok(RV.inflections(w).includes(form), w + ' → ' + form);
+assert.ok(!RV.inflections('see').includes('seed') && !RV.inflections('good').includes('goods'));
+console.log('PASS: UK/US spellings accepted, misspellings rejected, format slips flagged; cross-day promotion, lapses, hints, merge, queue cap and seeding behave as specified; mistakes are diagnosed by cause and drilled words wait for an unaided re-test; writing recall (p) and speaking (o) are tracked apart from dictation; inflections cover irregular forms.');
