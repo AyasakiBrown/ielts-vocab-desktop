@@ -2,12 +2,12 @@
 
 支持 Windows 和 macOS 的离线桌面工具，包含听写、生词本、错词本、今日复习，以及听力、阅读、写作和口语分类练习。学习数据保存在本地。
 
-## 下载 v1.1.2（测试版）
+## 下载 v1.1.3（测试版）
 
-- [Windows 10/11 · 64 位](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/download/v1.1.2/IELTSVocab-Windows-x64-1.1.2.zip)
-- [macOS 13+ · Intel / Apple Silicon](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/download/v1.1.2/IELTSVocab-macOS-universal-1.1.2.zip)
-- [完整源码包](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/download/v1.1.2/IELTSVocab-Source-1.1.2.zip)
-- [更新说明与全部附件](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/tag/v1.1.2)
+- [Windows 10/11 · 64 位](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/download/v1.1.3/IELTSVocab-Windows-x64-1.1.3.zip)
+- [macOS 13+ · Intel / Apple Silicon](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/download/v1.1.3/IELTSVocab-macOS-universal-1.1.3.zip)
+- [完整源码包](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/download/v1.1.3/IELTSVocab-Source-1.1.3.zip)
+- [更新说明与全部附件](https://github.com/AyasakiBrown/ielts-vocab-desktop/releases/tag/v1.1.3)
 
 Windows 版本尚未完成真机验证，因此本版标记为测试版。
 
@@ -18,6 +18,15 @@ Windows 版本尚未完成真机验证，因此本版标记为测试版。
 **Mac：** 解压后将应用拖入“应用程序”。本版仅本地签名，尚未获得 Apple 公证。若提示“无法验证开发者”或“Apple 无法检查是否包含恶意软件”，确认下载来源后先尝试打开一次，再前往 **系统设置 → 隐私与安全性 → 仍要打开**。无需关闭系统整体安全保护。
 
 发音依赖系统英语语音；离线发音需已安装本地语音。
+
+## v1.1.3 修复（2026-10-20）
+
+- 恢复完整备份时同步替换统计缓存、清除旧的今日复习断点，并阻止退出页面时的自动保存覆盖恢复结果。
+- 口语录音等待授权时关闭练习或换题，不会再在授权返回后启动录音；修复连续点击、延迟停止回调及录音资源释放。
+- 写作「看中文写」和「搭配填空」答错后记入每日错词明细；填空按题目要求的词形诊断错因。
+- 修复写作练习重新开练后「跳过」按钮消失的问题。
+
+升级保留现有学习记录。Windows 真机运行及真实麦克风授权、录音回放仍待人工验收，本版继续标记为测试版。
 
 ## v1.1.2 更新（2026-10-19）
 
