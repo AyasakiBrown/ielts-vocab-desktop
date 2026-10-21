@@ -10,8 +10,8 @@
       decks[deck][field] = read('ielts_' + deck + '_' + field, field === 'daily' ? {date:'',done:0,ok:0} : {});
     }
   }
-  decks.notebook = {list: read('ielts_nb', []), del: read('ielts_nb_del', {})};
-  decks.wrong = {list: read('ielts_wrong', []), del: read('ielts_wrong_del', {})};
+  decks.notebook = {list: read('ielts_nb', []), del: read('ielts_nb_del', {}), sessions: read('ielts_nb_sessions', {})};
+  decks.wrong = {list: read('ielts_wrong', []), del: read('ielts_wrong_del', {}), events: read('ielts_wrong_events', {})};
   decks.srs = {items: read('ielts_srs', {}), meta: read('ielts_srs_meta', {})};
   decks.stats = {days: read('ielts_stats', {}).days || {}};
   decks.config = read('ielts_desktop_config', {});
@@ -33,13 +33,13 @@
       decks=root.decks;window.__INITIAL_STATE__=root;
     } catch(error) {failure(error);throw error;}
   }
-  const zoom = value => {
+  const zoom = (value, persist = true) => {
     const n = Number(value);
     if (!Number.isFinite(n)) return;
     decks.config.zoom = Math.min(1.8, Math.max(0.6, n));
     document.documentElement.style.zoom = decks.config.zoom;
     localStorage.setItem('ielts_desktop_config', JSON.stringify(decks.config));
-    save('config',decks.config);
+    if (persist) save('config',decks.config);
   };
   window.adjustDesktopZoom = delta => {
     zoom(delta === 0 ? 1 : (decks.config.zoom || 1) + delta);
@@ -55,7 +55,7 @@
     learningData: {postMessage: action => window.desktopData.action(action)},
     zoom: {postMessage: zoom}
   }};
-  zoom(decks.config.zoom || 1);
+  zoom(decks.config.zoom || 1, false);
   document.addEventListener('DOMContentLoaded', () => {
     const intro = document.querySelector('header p');
     if (!document.getElementById('zoombox')) return;

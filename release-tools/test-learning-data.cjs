@@ -95,15 +95,45 @@ test('恢复备份替换旧统计和今日复习断点，普通加载仍保留�
 });
 test('Windows 首次启动从旧版 localStorage 迁移，更新后以稳定文件为准',()=>{
   const store=new Store(path.join(temp,'legacy'));
-  const map=new Map([['ielts_nb',JSON.stringify(fixture().decks.notebook.list)],['ielts_p1_prog',JSON.stringify(fixture().decks.p1.prog)],['ielts_shortcutsWindows',JSON.stringify(fixture().decks.config.shortcutsWindows)]]);
+  const sessions={'dict:rw':{words:['apple'],idx:0,draft:'app',ts:200}};
+  const events={e1:{word:'apple',answer:'aple',ts:200}};
+  const map=new Map([['ielts_nb',JSON.stringify(fixture().decks.notebook.list)],['ielts_p1_prog',JSON.stringify(fixture().decks.p1.prog)],['ielts_shortcutsWindows',JSON.stringify(fixture().decks.config.shortcutsWindows)],['ielts_nb_sessions',JSON.stringify(sessions)],['ielts_wrong_events',JSON.stringify(events)]]);
   const storage={getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)};
-  const window={IELTSData:Data,desktopData:{call:(action,p)=>action==='read'?store.read():action==='seed'?store.write(p):store.save(p.deck,p.payload)}};
+  let saves=0;
+  const window={IELTSData:Data,desktopData:{call:(action,p)=>{
+    if(action==='read') return store.read();
+    if(action==='seed') return store.write(p);
+    saves++;return store.save(p.deck,p.payload);
+  }}};
   const context={window,localStorage:storage,document:{documentElement:{style:{}},addEventListener(){}},CustomEvent:function(){}};
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'desktop.js'),'utf8'),context);
   assert.equal(store.read().decks.notebook.list.length,1);assert.equal(store.read().decks.config.shortcutsWindows.bindings.home,'Ctrl+Digit9');
+  assert.deepEqual(store.read().decks.notebook.sessions,sessions);assert.deepEqual(store.read().decks.wrong.events,events);
+  assert.equal(saves,0,'loading a page must not rewrite config');
   store.restore({v:1,decks:{}});
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'desktop.js'),'utf8'),context);
   assert.equal(JSON.parse(map.get('ielts_nb')).length,0);assert.equal(Object.keys(store.read().decks.p1.prog).length,0);
+});
+
+test('断点单独保存保留生词、分类、删除标记；每日备份仅扫描一次，删除后重建',()=>{
+  const store=new Store(path.join(temp,'checkpoint'));
+  const root=fixture();store.write(root);
+  let scans=0;const backup=store.backup.bind(store);
+  store.backup=(...args)=>{scans++;return backup(...args);};
+  const sessions={'dict:rw':{words:['apple'],idx:0,draft:'app',ts:200}};
+  store.save('notebook',{sessions});store.save('notebook',{sessions});
+  const after=store.read().decks.notebook;
+  assert.deepEqual(after,{...root.decks.notebook,sessions});
+  assert.equal(scans,1);
+  fs.unlinkSync(store.dailyBackupFile);
+  store.save('notebook',{sessions});assert.equal(scans,2);assert(fs.existsSync(store.dailyBackupFile));
+  fs.unlinkSync(store.dailyBackupFile);
+  const before=fs.readFileSync(store.file,'utf8');
+  store.backup=()=>{throw Error('disk full');};
+  assert.throws(()=>store.save('notebook',{sessions:{}}),/disk full/);
+  assert.equal(fs.readFileSync(store.file,'utf8'),before);
+  store.backup=(...args)=>{scans++;return backup(...args);};
+  store.save('notebook',{sessions});assert.equal(scans,3,'a failed backup must be retried');
 });
 
 test('练习断点随备份恢复，旧备份清除过时的生词本断点',()=>{

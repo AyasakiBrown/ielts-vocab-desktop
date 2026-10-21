@@ -81,7 +81,7 @@ else {
     win.webContents.setWindowOpenHandler(() => ({action: 'deny'}));
     win.webContents.on('will-navigate', (event, url) => { if (!urls.includes(url)) event.preventDefault(); });
     win.webContents.on('will-attach-webview', event => event.preventDefault());
-    const labels = ['主页', '今日复习', 'Part 1 高频词', '词汇真经', '听力场景词汇', '生词本', '错词本'];
+    const labels = ['主页', '今日复习', '英义猜词', 'Part 1 高频词', '词汇真经', '听力场景词汇', '生词本', '错词本'];
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       {label: '词库', submenu: pages.map((_, i) => ({label: labels[i], click: () => win.loadURL(urls[i])}))},
       {label: '学习数据', submenu: [{label:'学习记录与数据转移',click:()=>win.webContents.executeJavaScript('window.showLearningData()')},{label:'导出完整备份…',click:()=>dataAction('export')},{label:'从备份恢复…',click:()=>dataAction('import')},{label:'从最近的有效备份恢复…',click:()=>dataAction('latest')},{label:'打开自动备份目录',click:()=>dataAction('folder')}]},

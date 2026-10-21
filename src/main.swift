@@ -13,10 +13,14 @@ func backupDirectory() throws -> URL {
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     return dir
 }
+var completedDailyBackup: URL?
 func backupRoot(_ root: [String: Any], reason: String = "daily") throws {
-    let dir = try backupDirectory()
     let stamp = ISO8601DateFormatter().string(from: Date())
     let name = reason == "daily" ? String(stamp.prefix(10)) : UUID().uuidString
+    if reason == "daily", let completed = completedDailyBackup,
+       completed.lastPathComponent == "daily-\(name).json",
+       FileManager.default.fileExists(atPath: completed.path) { return }
+    let dir = try backupDirectory()
     let url = dir.appendingPathComponent("\(reason)-\(name).json")
     if !FileManager.default.fileExists(atPath: url.path) {
         let wrapped: [String: Any] = ["format":"IELTSVocabBackup", "version":1, "createdAt":stamp, "data":root]
@@ -26,10 +30,13 @@ func backupRoot(_ root: [String: Any], reason: String = "daily") throws {
         let files = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
             .filter { $0.lastPathComponent.hasPrefix("daily-") && $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
         for file in files.prefix(max(0, files.count - 30)) { try FileManager.default.removeItem(at: file) }
+        completedDailyBackup = url
     }
 }
 func writeRoot(_ root: [String: Any]) throws {
-    try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys]).write(to: dataFileURL(), options: .atomic)
+    // Compact live data avoids sorting/formatting the entire history per answer.
+    // Exported and automatic backups remain human-readable.
+    try JSONSerialization.data(withJSONObject: root).write(to: dataFileURL(), options: .atomic)
 }
 func rememberDaily(_ deck: inout [String: Any], _ daily: [String: Any]?) {
     guard let daily = daily, let date = daily["date"] as? String, !date.isEmpty else { return }
@@ -376,6 +383,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     var webView: WKWebView!
     var zoom: CGFloat = 1.0
     var dataBusy = false
+    var scriptCache: [String: String] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
@@ -387,23 +395,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         controller.add(self, name: "zoom")
         controller.add(self, name: "learningData")
         let initial = loadData()
-        // Display mode (decks.config.imgMode) controls how much loads — lets the user
-        // shrink the app's memory use: "photo"=emoji+images, "emoji"=emoji only, "off"=neither.
-        var assets = ["emoji", "images"]
         if let d = initial.data(using: .utf8),
            let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
            let cfg = (o["decks"] as? [String: Any])?["config"] as? [String: Any] {
-            if let mode = cfg["imgMode"] as? String {
-                if mode == "emoji" { assets = ["emoji"] }
-                else if mode == "off" { assets = [] }
-            }
             if let z = cfg["zoom"] as? NSNumber { zoom = CGFloat(truncating: z) }
-        }
-        for asset in assets {
-            if let u = Bundle.main.url(forResource: asset, withExtension: "js"),
-               let s = try? String(contentsOf: u, encoding: .utf8) {
-                controller.addUserScript(WKUserScript(source: s, injectionTime: .atDocumentStart, forMainFrameOnly: true))
-            }
         }
 
         let config = WKWebViewConfiguration()
@@ -452,7 +447,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             let cfg = (root["decks"] as? [String: Any])?["config"] as? [String: Any]
             if name == "images" && ["off", "emoji"].contains(cfg?["imgMode"] as? String ?? "") { continue }
             if name == "emoji" && cfg?["imgMode"] as? String == "off" { continue }
-            if let url = Bundle.main.url(forResource: name, withExtension: "js"), let script = try? String(contentsOf: url, encoding: .utf8) {
+            if scriptCache[name] == nil, let url = Bundle.main.url(forResource: name, withExtension: "js") {
+                scriptCache[name] = try? String(contentsOf: url, encoding: .utf8)
+            }
+            if let script = scriptCache[name] {
                 controller.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
                 if name == "learning-data" && safe && root["decks"] != nil {
                     controller.addUserScript(WKUserScript(source: "try { IELTSData.hydrate(window.__INITIAL_STATE__, localStorage); } catch(e) { window.__DATA_ERROR__ = e.message; }", injectionTime: .atDocumentStart, forMainFrameOnly: true))
@@ -583,6 +581,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
 
     @objc func goHome()  { loadResource("index") }
     @objc func goReview() { loadResource("review") }
+    @objc func goEdef() { loadResource("edef") }
     @objc func goP1()    { loadResource("p1") }
     @objc func goVj()    { loadResource("vj") }
     @objc func goScene() { loadResource("scene") }
@@ -695,6 +694,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         let deckMenu = NSMenu(title: "词库")
         let home = deckMenu.addItem(withTitle: "📚 词库主页", action: #selector(goHome), keyEquivalent: ""); home.target = self
         let today = deckMenu.addItem(withTitle: "📅 今日复习", action: #selector(goReview), keyEquivalent: ""); today.target = self
+        let edef = deckMenu.addItem(withTitle: "🔤 英义猜词", action: #selector(goEdef), keyEquivalent: ""); edef.target = self
         deckMenu.addItem(.separator())
         let m1 = deckMenu.addItem(withTitle: "① Part 1 高频词", action: #selector(goP1), keyEquivalent: ""); m1.target = self
         let m2 = deckMenu.addItem(withTitle: "② 词汇真经", action: #selector(goVj), keyEquivalent: ""); m2.target = self

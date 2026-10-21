@@ -49,7 +49,10 @@ class DataStore {
   save(deck,payload) {
     const root=this.read(); if(!root) throw Error('数据尚未初始化');
     if(!Object.hasOwn(root.decks,deck)) throw Error('未知词库');
-    this.backup(root);
+    // Keep per-answer saves from rescanning the backup directory. Recreate a
+    // deleted backup and retry failures; only a successful backup is remembered.
+    const dailyFile=path.join(this.directory,'backups','daily-'+new Date().toISOString().slice(0,10)+'.json');
+    if(this.dailyBackupFile!==dailyFile || !fs.existsSync(dailyFile)) this.dailyBackupFile=this.backup(root);
     if(deck==='config') Object.assign(root.decks.config,payload);
     else if(deck==='srs') root.decks.srs=Data.mergeReview(root.decks.srs,payload);
     else if(deck==='stats') root.decks.stats=Data.mergeStats(root.decks.stats,payload);

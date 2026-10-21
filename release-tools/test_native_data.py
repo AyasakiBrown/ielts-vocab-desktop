@@ -105,6 +105,19 @@ let s2 = mergeDeckPayload(existing:s1, deck:"stats", payload:["days":["2026-10-1
 let s3 = mergeDeckPayload(existing:s2, deck:"stats", payload:["days":["2026-10-19":["devA":["n":10,"ok":8]]]])
 let sday = (s3["days"] as! [String: Any])["2026-10-19"] as! [String: Any]
 assert(sday.count == 2 && (((sday["devA"] as! [String: Any])["n"]) as! NSNumber).intValue == 10)
+// Session-only payloads must never replace words, categories or tombstones.
+try writeRoot(original)
+persistDeck("{\"deck\":\"notebook\",\"payload\":{\"sessions\":{\"dict:rw\":{\"draft\":\"app\",\"ts\":500}}}}")
+let nbAfter = (loadRoot().0["decks"] as! [String: Any])["notebook"] as! [String: Any]
+assert((nbAfter["list"] as! [[String: Any]])[0]["ww"] as! Bool)
+assert(((nbAfter["sessions"] as! [String: Any])["dict:rw"] as! [String: Any])["draft"] as! String == "app")
+let dailyBackup = completedDailyBackup!
+let savedBackup = try Data(contentsOf: dailyBackup)
+try backupRoot(["v":1,"decks":[:]])
+let sameBackup = try Data(contentsOf: dailyBackup); assert(sameBackup == savedBackup)
+try FileManager.default.removeItem(at: dailyBackup)
+try backupRoot(original)
+assert(FileManager.default.fileExists(atPath: dailyBackup.path), "a removed daily backup must be recreated")
 print("Swift: history, category preservation, notebook edits (newer ut wins), newer-answer-wins progress, review ledger merge, pre-restore backup, exact replacement and corruption protection (incl. valid-JSON-wrong-shape files and backups), restore from the latest valid backup and per-device daily answer log passed")
 '''.replace('assert(try String(contentsOf: dataFileURL(), encoding:.utf8) == "damaged")', 'let unchanged = try String(contentsOf: dataFileURL(), encoding:.utf8); assert(unchanged == "damaged")')
 with tempfile.TemporaryDirectory(prefix='ielts-native-data-test-') as folder:

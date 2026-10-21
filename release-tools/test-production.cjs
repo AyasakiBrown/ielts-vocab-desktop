@@ -69,6 +69,30 @@ const root=path.resolve(__dirname,'../src');
    await page.locator('#xsprompt').click();
    assert.deepEqual(await page.evaluate(()=>[X.i,X.right]),[1,1]);
   });
+  await check('typing checkpoints persist immediately without rewriting the vocabulary',async()=>{
+   await page.evaluate(()=>save());
+   await page.locator('#xwprompt').click();
+   await page.evaluate(()=>{
+    window.checkpointWrites=[];window.checkpointPosts=[];
+    const set=Storage.prototype.setItem;
+    Storage.prototype.setItem=function(k,v){checkpointWrites.push(k);return set.call(this,k,v);};
+    window.webkit={messageHandlers:{persist:{postMessage:s=>checkpointPosts.push(JSON.parse(s))}}};
+   });
+   await page.locator('#xans').fill('draft');
+   const saved=await page.evaluate(()=>({writes:checkpointWrites,posts:checkpointPosts,session:JSON.parse(localStorage.getItem('ielts_nb_sessions'))['xwprompt:ww']}));
+   assert.deepEqual(saved.writes,['ielts_nb_sessions']);assert.equal(saved.session.draft,'draft');
+   assert.deepEqual(Object.keys(saved.posts[0].payload),['sessions']);
+   await page.reload();await page.locator('#xwprompt').click();assert.equal(await page.locator('#xans').inputValue(),'draft');
+  });
+  await check('rapid search updates coalesce and render the final query',async()=>{
+   const result=await page.evaluate(async()=>{
+    let renders=0;const original=render;render=function(){renders++;return original();};
+    for(const q of ['a','ap','apple']){$('search').value=q;$('search').dispatchEvent(new Event('input'));}
+    await new Promise(requestAnimationFrame);render=original;
+    return {renders,words:[...document.querySelectorAll('#list .w')].map(e=>e.textContent)};
+   });
+   assert.deepEqual(result,{renders:1,words:['apple']});
+  });
   await check('writing answers use their own review track; stuck words lead the next speaking round',async()=>{
    await page.locator('#xwprompt').click();
    await page.evaluate(()=>{$('xans').value=X.want[0];xSubmit();});
