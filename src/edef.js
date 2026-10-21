@@ -551,7 +551,44 @@ electricity|n|电；电力|Energy that powers lights, heating and machines.~The 
   // First-letter hint: shape of the answer without giving it away.
   function shape(w) { return String(w).split('').map((ch, i) => i === 0 ? ch : /[a-z]/i.test(ch) ? '_' : ch).join(' '); }
 
-  const api = {entries, alias, keyOf, entry, gap, judge, shape, fold, size: () => Object.keys(entries).length};
+  /* ---------- 选择题 options ----------
+     Three other bank words, same part of speech where possible. A word never appears as
+     a wrong option when it is in the target's reviewed synonym lists (or the target is in
+     its lists), or when the two share a Chinese meaning, so no wrong option also fits the
+     definition. opts.prefer: keys to draw from first (the learner's chosen scope);
+     opts.exclude: words the learner said were also right for this target. */
+  const hanzi = z => new Set(String(z || '').replace(/（[^）]*）|\([^)]*\)/g, '').split(/[；;，,、\/\s~]+/).filter(x => /[一-龥]/.test(x)));
+  function clash(a, b) {
+    const fa = new Set([fold(a.w), ...a.forms.map(fold)]), fb = new Set([fold(b.w), ...b.forms.map(fold)]);
+    for (const x of fa) if (fb.has(x)) return true;
+    for (const d of a.defs) for (const s of d.syn) if (fb.has(fold(s))) return true;
+    for (const d of b.defs) for (const s of d.syn) if (fa.has(fold(s))) return true;
+    const za = new Set(), zb = new Set();
+    for (const d of a.defs) for (const z of hanzi(d.zh)) za.add(z);
+    for (const d of b.defs) for (const z of hanzi(d.zh)) zb.add(z);
+    for (const x of za) for (const y of zb) {
+      if (x === y) return true;
+      for (let i = 0; i + 1 < x.length; i++) if (y.includes(x.slice(i, i + 2))) return true;   // 巨大的 / 大的 share 大的
+    }
+    return false;
+  }
+  function options(key, opts) {
+    opts = opts || {};
+    const t = entries[key]; if (!t) return [];
+    const n = opts.n || 3, rand = opts.random || Math.random, skip = new Set((opts.exclude || []).map(fold));
+    const ok = k => k !== key && !skip.has(fold(entries[k].w)) && !clash(t, entries[k]);
+    const mix = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const prefer = (opts.prefer || []).filter(k => Object.prototype.hasOwnProperty.call(entries, k));
+    const all = Object.keys(entries), same = k => entries[k].pos === t.pos;
+    const out = [];
+    for (const group of [prefer.filter(same), all.filter(same), prefer, all]) {
+      for (const k of mix(group)) { if (out.length >= n) break; if (!out.includes(k) && ok(k)) out.push(k); }
+      if (out.length >= n) break;
+    }
+    return out.map(k => entries[k].w);
+  }
+
+  const api = {entries, alias, keyOf, entry, gap, judge, shape, fold, options, clash, size: () => Object.keys(entries).length};
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   scope.IELTSEdef = api;
 })(typeof window === 'undefined' ? globalThis : window);

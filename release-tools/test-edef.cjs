@@ -99,10 +99,31 @@ assert.deepEqual(RV.all().vast.e.q[0].slice(1), ['accept', 'huge', 0]);
 RV.recallClear('vast');
 assert.ok(RV.all().vast.e.qd >= RV.all().vast.e.q[0][0]);
 
+// 选择题: three wrong options that never also fit; picking right never moves the level
+for (const k of Object.keys(E.entries)) {
+  const o = E.options(k);
+  assert.equal(o.length, 3, k + ' needs three wrong options');
+  for (const w of o) assert.ok(!E.clash(E.entries[k], E.entry(w)), k + ' / ' + w + ' share a meaning');
+}
+assert.equal(E.clash(E.entries.obstacle, E.entries.impediment), true);     // reviewed synonyms
+assert.equal(E.clash(E.entries.anxious, E.entries.worried || {w: 'worried', forms: [], defs: []}), true);
+assert.ok(!E.options('obstacle').includes('impediment'));
+assert.ok(!E.options('vast', {exclude: ['packed']}).includes('packed'));
+at(12);
+localStorage.setItem('ielts_nb', JSON.stringify(['anxious', 'mitigate', 'vague', 'vast', 'tent'].map(w => ({w}))));
+const lv0 = RV.all().anxious.e.lv;
+let c = RV.recallChoice({en: 'anxious', src: 'notebook'}, true, {mode: 'p', def: 0});
+assert.equal(RV.all().anxious.e.lv, lv0, 'recognition does not raise the recall level');
+assert.deepEqual(RV.all().anxious.e.g.slice(-1)[0], [RV.dayNo(), 'pc', 1, 0, 1]);
+c = RV.recallChoice({en: 'tent', src: 'notebook'}, false, {mode: 't', def: 0});
+assert.equal(RV.all().tent.e.n, 0);
+assert.ok(RV.queue({tracks: ['e'], cap: false}).some(x => x.key === 'tent'), 'a wrong pick is due for typed recall today');
+assert.match(c.text, /自己输入/);
+
 // merged like the other tracks (newer answer wins per track)
 const a = {t: 5, e: {t: 5, lv: 1}, d: {t: 9, lv: 3}}, b = {t: 8, e: {t: 8, lv: 2}, d: {t: 2, lv: 1}};
 const m = RV.mergeRec(a, b);
 assert.deepEqual([m.e.lv, m.d.lv], [2, 3]);
 assert.ok(sent.some(p => p.deck === 'srs' && p.payload.items.anxious && p.payload.items.anxious.e));
 
-console.log('PASS: 英义猜词 bank hides its answers; judging separates recalled / hinted / misspelled / synonym / not recalled; track e is kept apart from dictation and the mixed queue, needs another day and another wording to count as stable, and flagged items are not scored.');
+console.log('PASS: 英义猜词 bank hides its answers; judging separates recalled / hinted / misspelled / synonym / not recalled; track e is kept apart from dictation and the mixed queue, needs another day and another wording to count as stable, and flagged items are not scored; 选择题 options never also fit and picking never raises the recall level.');

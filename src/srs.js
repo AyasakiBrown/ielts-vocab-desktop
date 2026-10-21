@@ -348,6 +348,26 @@
     r.code = code;
     return r;
   }
+  // 选择题: picking the word out of four shows recognition, not recall, so it never moves
+  // the level. It is logged apart (mode 'pc' / 'tc'); a wrong pick puts the word on
+  // today's list for typed recall.
+  function recallChoice(item, ok, opts, now) {
+    opts = opts || {};
+    const k = record(item && typeof item === 'object' ? {en: item.en || item.w || item.key, src: item.src} : item); if (!k) return null;
+    now = now == null ? api.clock() : now;
+    const today = dayNo(now), r = L[k], tr = track(r, 'e') || (r.e = {n: 0, h: []});
+    if (!Array.isArray(tr.g)) tr.g = [];
+    tr.g.push([today, (opts.mode === 't' ? 't' : 'p') + 'c', ok ? (opts.hinted ? 2 : 1) : 0, opts.def || 0, opts.first === false ? 0 : 1]);
+    if (tr.g.length > 40) tr.g = tr.g.slice(-40);
+    if (!ok) {
+      if (!active(tr)) { tr.sd = 1; tr.so = now; }
+      tr.due = Math.min(tr.due == null ? today : tr.due, today);
+    }
+    tr.t = now; r.t = now;
+    persist([k]);
+    return {key: k, due: tr.due, text: ok ? (opts.hinted ? '借助语境选对 · ' : '') + '选择题只说明认得出，不改变英义回忆的等级'
+      : '已排进今天的英义练习，用「自己输入」再测一次'};
+  }
   // "题目有问题": no score, kept with the learner's answer so the line can be checked.
   function recallFlag(item, reason, typed, def, now) {
     const k = record(item && typeof item === 'object' ? {en: item.en || item.w || item.key, src: item.src} : item); if (!k) return null;
@@ -364,7 +384,7 @@
     now = now == null ? api.clock() : now;
     tr.qd = dayNo(now); tr.t = now; L[k].t = now; persist([k]); return k;
   }
-  Object.assign(api, {answer, flag, confirm, reset, spoke, speakOrder, recall, recallFlag, recallClear, RCODE});
+  Object.assign(api, {answer, flag, confirm, reset, spoke, speakOrder, recall, recallChoice, recallFlag, recallClear, RCODE});
 
   /* ---------- lookups ---------- */
   function info(word, name) {
