@@ -2,7 +2,9 @@
    One record per word (folded to lower case), shared by the three decks, 生词本 and
    错词本, with separate tracks for spelling (d: 听到能拼), meaning (m: 看见能懂) and
    writing recall (p: 看到中文能写, 生词本写作练习). 口语 self-checks live in track o:
-   they only schedule speaking practice and never enter the graded queue.
+   they only schedule speaking practice and never enter the graded queue. 英义猜词
+   (e: 看英文释义能想起并拼出) is graded like the others but scheduled on its own page,
+   so it never raises 听写 / 词义 and never fills the mixed 今日复习 queue.
    A level only rises on a clean answer given on a later day than the last mistake or
    hint, so "全对 within one sitting" never counts as remembered. */
 (function (scope) {
@@ -11,7 +13,8 @@
   const KEY = 'ielts_srs', META = 'ielts_srs_meta';
   const STEPS = [0, 1, 3, 7, 14, 30];        // days until the next test, by level
   const MAXLV = STEPS.length - 1, STABLE = 4; // lv>=4: passed a test after a 7-day gap
-  const TRACKS = ['d', 'm', 'p'];             // graded: queue, levels, metrics
+  const TRACKS = ['d', 'm', 'p', 'e'];        // graded: levels, delayed-test history
+  const QUEUE = ['d', 'm', 'p'];               // 今日复习 queue, cap, metrics (e: edef.html)
   const ALL_TRACKS = TRACKS.concat('o');       // + speaking self-checks: merged and reset alike
   const BASIC = ['d', 'm'];                    // what a lookup without a track name means (decks, badges)
   const LABEL = {new: '未学', learning: '学习中', relearn: '遗忘重学', fresh: '刚学会', firming: '待巩固', stable: '较稳定', recheck: '待复核'};
@@ -238,6 +241,7 @@
       else if (wasDue) {
         let lv = Math.min(MAXLV, before + 1);
         if (since != null && lv < MAXLV && since >= STEPS[lv + 1]) lv++;   // remembered across a longer gap than planned
+        if (item && item.lvCap != null && lv > item.lvCap) lv = Math.max(before, item.lvCap);   // 英义: same wording as last time
         tr.lv = lv; tr.ld = today; tr.due = today + STEPS[lv]; event = 'up';
       } else event = 'early';
       tr.ls = today;
@@ -308,7 +312,59 @@
     return words.map((w, i) => ({w, i, r: rank(w)}))
       .sort((a, b) => a.r[0] - b.r[0] || a.r[1] - b.r[1] || a.i - b.i).map(x => x.w);
   }
-  Object.assign(api, {answer, flag, confirm, reset, spoke, speakOrder});
+  /* ---------- 英义猜词 (track e) ----------
+     code: ind 独立回忆 | hint 提示后想起 | spell 拼写待巩固 | syn 近义词，目标词待复测 | none 未能回忆.
+     Only ind counts as remembered; hint / spell / syn bring the word back tomorrow, none
+     re-tests it today. opts: {mode:'p'|'t', def: wording index, defs: how many wordings,
+     first: first try at this word today}. Each answer is logged in tr.g as
+     [day, mode, code, def, first] so practice and test accuracy are never mixed. A level
+     past 2 needs a correct answer to a different wording than the last success (when the
+     word has one): recognising a familiar sentence is not the same as knowing the word. */
+  const RCODE = {none: 0, ind: 1, hint: 2, spell: 3, syn: 4};
+  function recall(item, code, opts, now) {
+    opts = opts || {};
+    if (!own(RCODE, code)) return null;
+    const k = fold(item && (item.key || item.en || item.w)); if (!k) return null;
+    const prev = own(L, k) ? track(L[k], 'e') : null;
+    const sameWording = opts.defs > 1 && prev && prev.dv != null && prev.dv === opts.def;
+    const res = code === 'ind' ? 'ok' : code === 'none' ? 'bad' : 'soft';
+    const ask = Object.assign({}, item, sameWording ? {lvCap: 2} : null);
+    const r = answer(ask, 'e', res, now); if (!r) return null;
+    const tr = L[r.key].e, today = dayNo(now == null ? api.clock() : now);
+    if (!Array.isArray(tr.g)) tr.g = [];
+    tr.g.push([today, opts.mode === 't' ? 't' : 'p', RCODE[code], opts.def || 0, opts.first === false ? 0 : 1]);
+    if (tr.g.length > 40) tr.g = tr.g.slice(-40);
+    if (code === 'ind') tr.dv = opts.def || 0;
+    persist([r.key]);
+    const when = dueText(tr.due, today);
+    r.text = code === 'ind' ? (r.event === 'fixed' ? '当次纠正 · 明天换一种释义再测，独立答对才算记住'
+        : r.event === 'early' ? '还没到复测日，记录不变 · 下次复测：' + when
+        : sameWording && tr.lv <= 2 ? '答对了，但和上次是同一条释义 · 下次换一种说法再测（' + when + '）'
+        : LABEL[stageOf(tr)] + ' · 下次复测：' + when)
+      : code === 'none' ? '记为未能回忆 · 本轮稍后重测，明天再测'
+      : code === 'syn' ? '意思对了，目标词还没想起来 · ' + when + '再测目标词'
+      : code === 'spell' ? '想到了这个词，拼写还要巩固 · ' + when + '再测'
+      : '借助提示想起，不计入独立回忆 · ' + when + '独立再测';
+    r.code = code;
+    return r;
+  }
+  // "题目有问题": no score, kept with the learner's answer so the line can be checked.
+  function recallFlag(item, reason, typed, def, now) {
+    const k = record(item && typeof item === 'object' ? {en: item.en || item.w || item.key, src: item.src} : item); if (!k) return null;
+    now = now == null ? api.clock() : now;
+    const r = L[k], tr = track(r, 'e') || (r.e = {n: 0, h: []});
+    if (!Array.isArray(tr.q)) tr.q = [];
+    tr.q.push([dayNo(now), String(reason || ''), String(typed || '').slice(0, 60), def || 0]);
+    if (tr.q.length > 10) tr.q = tr.q.slice(-10);
+    tr.t = now; r.t = now;
+    persist([k]); return k;
+  }
+  function recallClear(word, now) {               // checked: the flags stay in history, marked done
+    const k = fold(word), tr = own(L, k) ? track(L[k], 'e') : null; if (!tr || !Array.isArray(tr.q)) return null;
+    now = now == null ? api.clock() : now;
+    tr.qd = dayNo(now); tr.t = now; L[k].t = now; persist([k]); return k;
+  }
+  Object.assign(api, {answer, flag, confirm, reset, spoke, speakOrder, recall, recallFlag, recallClear, RCODE});
 
   /* ---------- lookups ---------- */
   function info(word, name) {
@@ -353,19 +409,21 @@
   function setCap(n) { M.cap = Math.max(5, Math.min(1000, Math.round(Number(n) || 60))); M.capT = api.clock(); persist([]); }
   function doneToday(today) {
     let n = 0;
-    for (const k of Object.keys(L)) for (const name of TRACKS) { const tr = track(L[k], name); if (tr && tr.rd === today) n++; }
+    for (const k of Object.keys(L)) for (const name of QUEUE) { const tr = track(L[k], name); if (tr && tr.rd === today) n++; }
     return n;
   }
-  // opts.cap===false → everything due; opts.src → only words seen in that source
+  // opts.cap===false → everything due; opts.src → only words seen in that source;
+  // opts.tracks → other tracks than the mixed queue's (英义猜词 asks for ['e'])
   function queue(opts) {
     opts = opts || {};
+    const names = Array.isArray(opts.tracks) ? opts.tracks.filter(n => TRACKS.includes(n)) : QUEUE;
     const today = dayNo(), nb = notebookKeys(), all = [];
     for (const k of Object.keys(L)) {
       const r = L[k]; if (!r || typeof r !== 'object') continue;
       const src = Array.isArray(r.src) ? r.src : [];
       if (src.length && src.every(s => s === 'notebook') && !nb.has(k)) continue;   // deleted from 生词本
       if (opts.src && !src.includes(opts.src)) continue;
-      for (const name of TRACKS) {
+      for (const name of names) {
         const tr = track(r, name);
         if (active(tr) && (tr.due || 0) <= today) all.push({key: k, track: name, rec: r, tr, pri: priority(tr, today)});
       }
@@ -381,7 +439,7 @@
     const today = dayNo(), q = queue(), bySrc = {};
     let tomorrow = 0, tracked = 0, steady = 0;
     for (const x of q) for (const s of (x.rec.src && x.rec.src.length ? x.rec.src : ['other'])) bySrc[s] = (bySrc[s] || 0) + 1;
-    for (const k of Object.keys(L)) for (const name of TRACKS) {
+    for (const k of Object.keys(L)) for (const name of QUEUE) {
       const tr = track(L[k], name); if (!active(tr)) continue;
       tracked++; if (tr.due === today + 1) tomorrow++; if (!tr.rc && (tr.lv || 0) >= STABLE) steady++;
     }
@@ -389,9 +447,9 @@
       cap: cap(), tomorrow, tracked, stable: steady, bySrc};
   }
   // Delayed performance: only first attempts after a gap count, never same-day retries.
-  function metrics() {
+  function metrics(names) {
     const m = {next: [0, 0], week: [0, 0], answers: 0, soft: 0, lapses: 0, sameDay: [0, 0]};
-    for (const k of Object.keys(L)) for (const name of TRACKS) {
+    for (const k of Object.keys(L)) for (const name of (Array.isArray(names) ? names : QUEUE)) {
       const tr = track(L[k], name); if (!tr) continue;
       m.answers += tr.n || 0; m.soft += tr.soft || 0; m.lapses += tr.lapse || 0;
       for (const h of Array.isArray(tr.h) ? tr.h : []) {
@@ -638,7 +696,7 @@
     }
     for (const k of Object.keys(L)) {                       // forgotten again after it had been consolidated
       const r = L[k]; if (!r || by.has(k)) continue;
-      const lapses = TRACKS.reduce((n, name) => n + ((track(r, name) && track(r, name).lapse) || 0), 0);
+      const lapses = QUEUE.reduce((n, name) => n + ((track(r, name) && track(r, name).lapse) || 0), 0);
       if (lapses >= 1) { const t = slot(r.w || k); t.n = Math.max(min, lapses); t.last = r.t || 0; }
     }
     const out = [];
@@ -869,7 +927,7 @@
       const p = v && prog && own(prog, v.en) ? prog[v.en] : null;
       if (!p || (p.box || 0) < 3) continue;
       const k = fold(v.en);
-      if (own(L, k) && TRACKS.some(n => active(track(L[k], n)))) continue;
+      if (own(L, k) && QUEUE.some(n => active(track(L[k], n)))) continue;
       record(Object.assign({}, v, {src: deck}));
       L[k].d = {lv: 2, due: today, n: 0, h: [], rc: 1, t: now}; L[k].t = now; keys.push(k);
     }

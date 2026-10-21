@@ -58,10 +58,11 @@ assert((apple["zh"] as! String) == "苹果"); assert((apple["src"] as! [String])
 assert((ledgerC["items"] as! [String: Any]).count == 2)
 let ledgerMeta = ledgerC["meta"] as! [String: Any]
 assert((ledgerMeta["cap"] as! NSNumber).intValue == 30); assert((ledgerMeta["seed"] as! NSNumber).intValue == 1)
-let tp1 = mergeDeckPayload(existing:nil, deck:"srs", payload:["items":["vivid":["t":300,"d":["t":300,"lv":1],"p":["t":100,"lv":0]]]])
-let tp2 = mergeDeckPayload(existing:tp1, deck:"srs", payload:["items":["vivid":["t":200,"p":["t":200,"lv":2],"o":["t":150,"n":1]]]])
+let tp1 = mergeDeckPayload(existing:nil, deck:"srs", payload:["items":["vivid":["t":300,"d":["t":300,"lv":1],"p":["t":100,"lv":0],"e":["t":100,"lv":1]]]])
+let tp2 = mergeDeckPayload(existing:tp1, deck:"srs", payload:["items":["vivid":["t":200,"p":["t":200,"lv":2],"o":["t":150,"n":1],"e":["t":250,"lv":3]]]])
 let vv = (tp2["items"] as! [String: Any])["vivid"] as! [String: Any]
 assert(((vv["p"] as! [String: Any])["lv"] as! NSNumber).intValue == 2 && ((vv["o"] as! [String: Any])["n"] as! NSNumber).intValue == 1 && ((vv["d"] as! [String: Any])["lv"] as! NSNumber).intValue == 1)
+assert(((vv["e"] as! [String: Any])["lv"] as! NSNumber).intValue == 3)
 try backupRoot(root, reason:"before-restore")
 try writeRoot(["v":1,"decks":[:]])
 assert((loadRoot().0["decks"] as! [String: Any]).isEmpty)

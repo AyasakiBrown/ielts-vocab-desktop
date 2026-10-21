@@ -100,7 +100,7 @@ func mergeReview(existing: [String: Any]?, payload: [String: Any]) -> [String: A
             if let name = s as? String, !src.contains(name) { src.append(name) }
         }
         rec["src"] = src
-        for name in ["d", "m", "p", "o"] {                  // spelling, meaning, writing recall, speaking
+        for name in ["d", "m", "p", "e", "o"] {             // spelling, meaning, writing recall, 英义回忆, speaking
             let a = old[name] as? [String: Any], b = inc[name] as? [String: Any]
             if let a = a, let b = b { rec[name] = stampOf(b) > stampOf(a) ? b : a }
             else if let one = a ?? b { rec[name] = one }

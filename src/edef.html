@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<script src="srs.js"></script>
+<script src="edef.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>英义猜词</title>
+<style>
+  :root{ --bg:#f5f6f8; --card:#fff; --ink:#1d2330; --soft:#6b7280; --line:#e5e7eb; --accent:#2563eb; --accent2:#0ea5a4; --good:#16a34a; --bad:#dc2626; --chip:#eef2ff; --warn:#b45309; --warnbg:#fff7ed; --track:#eef0f3; --shadow:0 1px 3px rgba(0,0,0,.06),0 6px 18px rgba(0,0,0,.05); }
+  @media (prefers-color-scheme:dark){ :root{ --bg:#0f1320; --card:#171c2b; --ink:#e8ecf3; --soft:#9aa3b2; --line:#262d40; --accent:#5b8cff; --accent2:#2dd4bf; --good:#34d399; --bad:#f87171; --chip:#1e2740; --warn:#fbbf24; --warnbg:#231a0e; --track:#222a3d; --shadow:0 1px 3px rgba(0,0,0,.4); } }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior-y:contain}
+  button{-webkit-tap-highlight-color:transparent;font:inherit}
+  .wrap{max-width:680px;margin:0 auto;padding:30px 18px 60px}
+  h1{margin:0 0 3px;font-size:23px}
+  h2{margin:0 0 10px;font-size:15.5px}
+  a{color:var(--accent)}
+  .sub{color:var(--soft);font-size:12.5px;margin:0 0 18px;line-height:1.65}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow);margin-bottom:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
+  .stat{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center}
+  .stat .v{font-size:24px;font-weight:750;line-height:1.15}
+  .stat .l{font-size:12px;color:var(--soft);margin-top:3px;line-height:1.4}
+  .note{color:var(--soft);font-size:12.5px;line-height:1.65;margin:10px 0 0}
+  .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .btn{border:none;border-radius:9px;padding:9px 14px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-block}
+  .btn.lg{padding:12px 20px;font-size:15.5px;font-weight:600}
+  .btn.alt{background:transparent;border:1px solid var(--line);color:var(--ink)}
+  .btn.sm{padding:5px 10px;font-size:12px}
+  .btn:disabled{opacity:.45;cursor:default}
+  [hidden]{display:none!important}
+  .ghosti{background:transparent;border:none;cursor:pointer;color:var(--soft);font-size:13px;padding:2px 5px;text-decoration:underline;text-underline-offset:3px}
+  select,input{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+  input{width:100%}
+  input:focus{outline:none;border-color:var(--accent)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .chip small{opacity:.75}
+  .tag{display:inline-block;background:var(--chip);color:var(--accent);font-size:11px;padding:1px 8px;border-radius:999px}
+  .tag.warn{background:var(--warnbg);color:var(--warn)}
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50}
+  .ov.show{display:flex}
+  .rc{background:var(--card);border-radius:18px;padding:22px 22px;width:min(500px,94vw);max-height:94vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .prog{color:var(--soft);font-size:12.5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .def{font-size:19px;line-height:1.55;margin:16px 0 12px;font-weight:600}
+  .hints{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+  .hints div{background:var(--warnbg);color:var(--warn);border-radius:10px;padding:7px 11px;font-size:13.5px;line-height:1.55}
+  .hints .shape{font-family:ui-monospace,Menlo,monospace;letter-spacing:1px}
+  .nav{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+  .fb{margin-top:12px;font-size:14.5px;line-height:1.6}
+  .verdict{font-weight:700;font-size:15.5px}
+  .ans{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
+  .ans .w{font-size:25px;font-weight:750}
+  .ans .ph{color:var(--accent2);font-size:13px;margin-left:6px}
+  .ans .zh{margin-top:3px}
+  .ans .ex{color:var(--soft);font-size:13.5px;margin-top:6px}
+  .plan{font-size:12.5px;color:var(--soft);margin-top:6px}
+  .bar{height:8px;border-radius:99px;background:var(--track);overflow:hidden;margin-top:12px}
+  .bar b{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+  td{border-top:1px solid var(--line);padding:7px 4px;vertical-align:top;line-height:1.5}
+  td.r{white-space:nowrap}
+  .c-ind{color:var(--good)} .c-hint,.c-spell,.c-syn{color:var(--warn)} .c-none{color:var(--bad)} .c-skip{color:var(--soft)}
+  details summary{cursor:pointer;color:var(--soft);font-size:12.5px;margin-top:10px}
+  .flag{border-top:1px solid var(--line);padding:8px 0;font-size:13px;line-height:1.55}
+  .toastmsg{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);background:rgba(20,24,35,.92);color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;z-index:80}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧩 英义猜词</h1>
+  <p class="sub">看英文释义，自己想出并拼出这个词。它测的是「读懂释义后，能否提取并拼出单词」，只是词汇掌握的一个侧面，不代表听、说、写中都会用。成绩单独记录，不提升听写和词义选择题的掌握等级。<a href="notebook.html">返回生词本</a> · <a href="review.html">今日复习</a></p>
+
+  <div class="panel">
+    <h2>范围</h2>
+    <div class="chips" id="cats"></div>
+    <p class="note" id="cover"></p>
+    <details id="gapBox"><summary id="gapSum"></summary><p class="note" id="gapList"></p></details>
+  </div>
+
+  <div class="panel">
+    <h2>练习</h2>
+    <p class="note" style="margin:0" id="pNote"></p>
+    <div class="tools">
+      <button class="btn lg" id="pStart">开始练习</button>
+      <button class="btn alt" id="resume" hidden></button>
+    </div>
+    <p class="note">到期词、薄弱词优先，然后是还没测过的词。答后立即反馈；没想起、拼错或写了近义词的词，隔几题换一种释义再测一次。</p>
+  </div>
+
+  <div class="panel">
+    <h2>测试</h2>
+    <div class="tools" style="margin-top:0">
+      <label style="font-size:13.5px">题数
+        <select id="tSize"><option>10</option><option selected>20</option></select>
+      </label>
+      <button class="btn lg" id="tStart">开始测试</button>
+    </div>
+    <p class="note">从当前范围随机抽题，答题时不显示对错，结束后统一反馈。成绩只算每题的首次作答，与练习的正确率分开统计。</p>
+  </div>
+
+  <div class="panel">
+    <h2>记录</h2>
+    <div class="grid" id="stats"></div>
+    <p class="note" id="statNote"></p>
+  </div>
+
+  <div class="panel" id="flagPanel" hidden>
+    <h2>待检查的题目</h2>
+    <p class="note" style="margin:0 0 4px">你标记了「我的答案也合理」或「释义看不懂」的题，这些作答暂不计分。核对后点「已检查」。</p>
+    <div id="flags"></div>
+  </div>
+</div>
+
+<div class="ov" id="ov">
+  <div class="rc">
+    <div class="prog" id="rprog"></div>
+    <div class="def" id="rdef"></div>
+    <div class="hints" id="rhints"></div>
+    <div id="inBox">
+      <input id="dans" placeholder="输入单词" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
+      <div class="nav">
+        <button class="btn" id="dsubmit">提交</button>
+        <button class="btn alt" id="dhint">需要提示</button>
+        <button class="btn alt" id="dforgot">想不起来</button>
+      </div>
+    </div>
+    <div class="fb" id="rfb"></div>
+    <div class="nav" id="after" hidden>
+      <button class="btn" id="mnext">下一题 ›</button>
+    </div>
+    <div class="nav" style="margin-top:8px">
+      <button class="ghosti" id="dunclear" title="这条释义读不懂或有问题：本题不计分，加入待检查">释义看不懂</button>
+      <button class="ghosti" id="dispute" hidden title="你的答案也符合这条释义：本题不计分，加入待检查">我的答案也合理</button>
+      <button class="ghosti" id="dsay" hidden>🔊 发音</button>
+      <button class="ghosti" id="dclose">结束</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function has(o,k){ return Object.prototype.hasOwnProperty.call(o,k); }
+  var RV=window.IELTSReview, E=window.IELTSEdef;
+  if(!RV||!E){ document.querySelector('.wrap').insertAdjacentHTML('beforeend','<div class="panel">英义猜词模块未能加载（srs.js / edef.js）。请联网刷新一次，或重新打开软件。</div>'); return; }
+  function toast(t){ var d=document.createElement('div'); d.className='toastmsg'; d.textContent=t; document.body.appendChild(d); setTimeout(function(){ d.remove(); },2600); }
+
+  /* ---------- 生词本 (read only: union of this device and the synced copy, minus deletions) ---------- */
+  var CATS=[['all','全部'],['lw','🎧 听力'],['rw','📖 阅读'],['ww','📝 写作'],['sw','🗣️ 口语'],['none','未分类']];
+  var CAT='all';
+  try{ var c0=localStorage.getItem('ielts_edef_cat'); if(c0&&CATS.some(function(c){return c[0]===c0;})) CAT=c0; }catch(e){}
+  function readNB(){
+    var list=[], del={}, out=[], seen={};
+    try{ list=JSON.parse(localStorage.getItem('ielts_nb'))||[]; }catch(e){}
+    try{ del=JSON.parse(localStorage.getItem('ielts_nb_del'))||{}; }catch(e){}
+    var b=window.__INITIAL_STATE__&&window.__INITIAL_STATE__.decks&&window.__INITIAL_STATE__.decks.notebook;
+    if(b){ var bd=b.del||{}; for(var k in bd) if(has(bd,k)&&(bd[k]||0)>(del[k]||0)) del[k]=bd[k]; if(Array.isArray(b.list)) list=list.concat(b.list); }
+    list.forEach(function(e){
+      if(!e||!e.w) return; var k=String(e.w).toLowerCase();
+      if(del[k]&&(e.ts||0)<=del[k]) return;
+      if(has(seen,k)){ var o=seen[k]; ['lw','rw','ww','sw'].forEach(function(f){ if(e[f]) o[f]=true; }); if(!o.ex&&e.ex) o.ex=e.ex; if(!o.ph&&e.ph) o.ph=e.ph; return; }
+      var c={w:e.w,tr:e.tr||'',ex:e.ex||'',ph:e.ph||'',lw:!!e.lw,rw:!!e.rw,ww:!!e.ww,sw:!!e.sw};
+      seen[k]=c; out.push(c);
+    });
+    return out;
+  }
+  function inCat(n,cat){ return cat==='all'||(cat==='none'?!(n.lw||n.rw||n.ww||n.sw):!!n[cat]); }
+  function catLabel(n){ return [['lw','听力'],['rw','阅读'],['ww','写作'],['sw','口语']].filter(function(c){return n[c[0]];}).map(function(c){return c[1];}).join(' · ')||'未分类'; }
+  // One question per bank line, even when two notebook entries share it (persuade / persuaded).
+  function pool(cat){
+    var NB=readNB(), byKey={}, items=[], total=0, gaps={phrase:[],pending:[]};
+    NB.forEach(function(n){
+      if(!inCat(n,cat)) return; total++;
+      var k=E.keyOf(n.w);
+      if(!k){ gaps[E.gap(n.w)].push(n.w); return; }
+      if(has(byKey,k)){ ['lw','rw','ww','sw'].forEach(function(f){ if(n[f]) byKey[k].nb[f]=true; }); return; }
+      byKey[k]={key:k, e:E.entries[k], nb:n}; items.push(byKey[k]);
+    });
+    return {items:items, total:total, gaps:gaps};
+  }
+  function rec(k){ var a=RV.all(); return has(a,k)?a[k]:null; }
+  function trOf(k){ var r=rec(k); return r&&r.e&&typeof r.e==='object'?r.e:null; }
+  function tested(tr){ return !!tr&&(tr.n||0)>0; }
+
+  /* ---------- overview ---------- */
+  function stat(v,l,color){ return '<div class="stat"><div class="v"'+(color?' style="color:var('+color+')"':'')+'>'+v+'</div><div class="l">'+l+'</div></div>'; }
+  function frac(a){ return a[1]?a[0]+' / '+a[1]:'—'; }
+  function weak(tr,today){
+    if(!tested(tr)) return false;
+    var g=Array.isArray(tr.g)?tr.g:[], last=g[g.length-1];
+    return (tr.lapse||0)>0||(tr.wd&&today-tr.wd<=14)||(last&&last[2]!==1);
+  }
+  function paint(){
+    var P=pool(CAT), today=RV.dayNo();
+    $('cats').innerHTML=CATS.map(function(c){
+      var p=pool(c[0]); return '<button class="chip'+(c[0]===CAT?' on':'')+'" data-cat="'+c[0]+'">'+c[1]+' <small>'+p.items.length+'</small></button>';
+    }).join('');
+    var nGap=P.gaps.phrase.length+P.gaps.pending.length;
+    $('cover').textContent='本范围生词 '+P.total+' 条，其中 '+P.items.length+' 个词有逐条审核过的英文释义，可以出题'+(nGap?'；'+nGap+' 条暂不出题':'')+'。';
+    $('gapBox').hidden=!nGap;
+    $('gapSum').textContent='暂不出题的 '+nGap+' 条（短语 '+P.gaps.phrase.length+' · 缺少可靠释义 '+P.gaps.pending.length+'）';
+    $('gapList').innerHTML=(P.gaps.pending.length?'<b>缺少可靠释义</b>（多义难定、词形特殊或是缩写）：'+esc(P.gaps.pending.join('、'))+'<br>':'')+
+      (P.gaps.phrase.length?'<b>短语 / 搭配</b>（答案写法太多，第一版不出题）：'+esc(P.gaps.phrase.join('、')):'');
+    var due=0, wk=0, fresh=0, ever=0, steady=0;
+    P.items.forEach(function(it){ var tr=trOf(it.key);
+      if(!tested(tr)){ fresh++; return; } ever++;
+      if((tr.due||0)<=today) due++; else if(weak(tr,today)) wk++;
+      if((tr.lv||0)>=RV.STABLE) steady++; });
+    $('pNote').textContent=P.items.length?('到期 '+due+' · 薄弱 '+wk+' · 未测过 '+fresh):'这个范围还没有可出题的词。';
+    $('pStart').disabled=!P.items.length; $('tStart').disabled=!P.items.length;
+    // Accuracy from the per-answer log: first tries only, practice and test kept apart, last 30 days.
+    var pr=[0,0], te=[0,0], gap=[0,0], kinds={2:0,3:0,4:0,0:0};
+    P.items.forEach(function(it){ var tr=trOf(it.key); if(!tr) return;
+      (Array.isArray(tr.g)?tr.g:[]).forEach(function(x){ if(!x[4]||today-x[0]>30) return; var s=x[1]==='t'?te:pr; s[1]++; if(x[2]===1) s[0]++; else kinds[x[2]]=(kinds[x[2]]||0)+1; });
+      (Array.isArray(tr.h)?tr.h:[]).forEach(function(h){ if(h[1]>=1){ gap[1]++; if(h[2]===1) gap[0]++; } });
+    });
+    var last=lastTest();
+    $('stats').innerHTML=stat(frac(pr),'练习 · 首次无提示正确<br>（近 30 天）')+stat(frac(te),'测试 · 首次无提示正确<br>（近 30 天）')+
+      stat(frac(gap),'隔天复测<br>独立答对','--accent')+stat(steady,'换释义、隔多天<br>仍能独立答对','--good')+stat(ever+' / '+P.items.length,'已测过的词<br>（未测 '+(P.items.length-ever)+'）');
+    $('statNote').textContent=(last?'最近一次测试：'+last.text+'。':'')+
+      (pr[1]+te[1]?'未独立答对的首次作答里：提示后想起 '+kinds[2]+'，拼写待巩固 '+kinds[3]+'，近义词 '+kinds[4]+'，未能回忆 '+kinds[0]+'。':'')+
+      '薄弱词专练的正确率偏低是正常的，不代表整体水平下降；整体水平看测试和隔天复测。';
+    paintFlags();
+    var s=loadSess(); $('resume').hidden=!s;
+    if(s) $('resume').textContent='继续上次'+(s.mode==='t'?'测试':'练习')+'（还剩 '+(s.list.length-s.i)+' 题）';
+  }
+  function lastTest(){
+    try{ var t=JSON.parse(localStorage.getItem('ielts_edef_last')); if(t&&t.text) return t; }catch(e){} return null;
+  }
+  function paintFlags(){
+    var all=RV.all(), rows=[];
+    Object.keys(all).forEach(function(k){ var tr=all[k]&&all[k].e; if(!tr||!Array.isArray(tr.q)) return;
+      tr.q.forEach(function(q){ if(tr.qd&&q[0]<=tr.qd) return; rows.push({k:k,w:all[k].w||k,q:q}); }); });
+    $('flagPanel').hidden=!rows.length;
+    $('flags').innerHTML=rows.map(function(r){
+      var e=E.entries[r.k]||E.entry(r.w), d=e&&(e.defs[r.q[3]]||e.defs[0]);
+      return '<div class="flag"><b>'+esc(e?e.w:r.w)+'</b> <span class="tag warn">'+(r.q[1]==='unclear'?'释义看不懂':'我的答案也合理')+'</span>'+
+        (r.q[2]?' 你写的：<b>'+esc(r.q[2])+'</b>':'')+(d?'<div class="plan">'+esc(d.text)+'</div>':'')+
+        '<button class="btn alt sm" data-clear="'+esc(r.k)+'" style="margin-top:6px">已检查</button></div>';
+    }).join('');
+  }
+  $('flags').onclick=function(ev){ var b=ev.target.closest('[data-clear]'); if(!b) return; RV.recallClear(b.getAttribute('data-clear')); paintFlags(); };
+  $('cats').onclick=function(ev){ var b=ev.target.closest('[data-cat]'); if(!b) return; CAT=b.getAttribute('data-cat'); try{ localStorage.setItem('ielts_edef_cat',CAT); }catch(e){} paint(); };
+
+  /* ---------- building a round ---------- */
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)), t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  // A different wording from the one last answered correctly, so a familiar sentence is not mistaken for the word.
+  function pickDef(it,avoid){
+    var n=it.e.defs.length; if(n<2) return 0;
+    var tr=trOf(it.key), last=avoid!=null?avoid:(tr&&tr.dv!=null?tr.dv:null);
+    var opts=[]; for(var i=0;i<n;i++) if(i!==last) opts.push(i);
+    return opts[Math.floor(Math.random()*opts.length)];
+  }
+  function practiceList(items,n){
+    var today=RV.dayNo(), due=[], wk=[], fresh=[], rest=[];
+    items.forEach(function(it){ var tr=trOf(it.key);
+      if(!tested(tr)) fresh.push(it);
+      else if((tr.due||0)<=today) due.push(it);
+      else if(weak(tr,today)) wk.push(it);
+      else rest.push(it); });
+    var pri=function(it){ var tr=trOf(it.key); return (tr.wd===today?0:tr.wd&&today-tr.wd<=7?1:2)*1e6+(tr.due||0); };
+    due.sort(function(a,b){ return pri(a)-pri(b); });
+    wk.sort(function(a,b){ return (trOf(a.key).due||0)-(trOf(b.key).due||0); });
+    rest.sort(function(a,b){ return (trOf(a.key).due||0)-(trOf(b.key).due||0); });
+    return due.concat(wk,shuffle(fresh),rest).slice(0,n);
+  }
+
+  /* ---------- a round ---------- */
+  // S.list: [{k, def, re}] (re = 隔题重测 copy); S.res: one result per answered question
+  var S=null, cur=null, answered=false, hints=0, typedDraft='';
+  var SESS='ielts_edef_sess';
+  function saveSess(){
+    if(!S) return;
+    if(S.i>=S.list.length){ clearSess(); return; }
+    try{ localStorage.setItem(SESS,JSON.stringify({v:1,day:RV.dayNo(),mode:S.mode,cat:S.cat,list:S.list,i:S.i,res:S.res,retested:S.retested})); }catch(e){}
+  }
+  function clearSess(){ try{ localStorage.removeItem(SESS); }catch(e){} }
+  function loadSess(){
+    var s=null; try{ s=JSON.parse(localStorage.getItem(SESS)); }catch(e){}
+    if(!s||s.v!==1||s.day!==RV.dayNo()||!Array.isArray(s.list)||s.i>=s.list.length) return null;
+    if(!s.list.every(function(x){ return x&&has(E.entries,x.k); })) return null;
+    return s;
+  }
+  function begin(mode,list){
+    if(!list.length) return;
+    S={mode:mode,cat:CAT,list:list.map(function(it){ return {k:it.key,def:pickDef(it)}; }),i:0,res:[],retested:{}};
+    clearSess(); open();
+  }
+  function open(){ $('ov').classList.add('show'); keepAwake(true); show(); }
+  function item(k){ var P=pool('all'); for(var i=0;i<P.items.length;i++) if(P.items[i].key===k) return P.items[i]; return {key:k,e:E.entries[k],nb:{w:E.entries[k].w,tr:'',ex:'',ph:''}}; }
+  function show(){
+    if(S.i>=S.list.length){ finish(); return; }
+    var q=S.list[S.i]; cur={q:q,it:item(q.k)}; cur.d=cur.it.e.defs[q.def]||cur.it.e.defs[0];
+    answered=false; hints=0;
+    var e=cur.it.e;
+    $('rprog').innerHTML='<span class="tag">'+(S.mode==='t'?'测试':'练习')+'</span>'+(q.re?'<span class="tag warn">隔题重测</span>':'')+
+      '<span>第 '+(S.i+1)+' / '+S.list.length+' 题 · '+esc(e.pos)+'</span>';
+    $('rdef').textContent=cur.d.text;
+    $('rhints').innerHTML=''; $('rfb').innerHTML='';
+    $('inBox').hidden=false; $('after').hidden=true; $('dispute').hidden=true; $('dsay').hidden=true; $('dunclear').hidden=false;
+    $('dans').value=''; $('dans').readOnly=false;
+    $('dhint').disabled=false; $('dhint').textContent='需要提示（语境）';
+    $('dsubmit').textContent='提交';
+    setTimeout(function(){ try{ $('dans').focus(); }catch(e){} },60);
+    saveSess();
+  }
+  var HINTS=['语境','首字母','中文'];
+  function hint(){
+    if(answered||hints>=3) return;
+    var d=cur.d, w=cur.it.e.w, html='';
+    if(hints===0) html='语境：'+esc(d.ctx||'（这个词没有语境句）');
+    else if(hints===1) html='首字母：<span class="shape">'+esc(E.shape(w))+'</span>（'+w.replace(/[^a-z]/gi,'').length+' 个字母）';
+    else html='中文：'+esc(d.zh);
+    hints++;
+    $('rhints').insertAdjacentHTML('beforeend','<div>'+html+'</div>');
+    $('dhint').disabled=hints>=3; $('dhint').textContent=hints>=3?'提示已用完':'需要提示（'+HINTS[hints]+'）';
+    try{ $('dans').focus(); }catch(e){}
+  }
+  var LBL={ind:'独立回忆成功',hint:'提示后想起',spell:'拼写待巩固',syn:'意思符合，目标词待复测',none:'未能回忆',skip:'暂不计分，进入检查'};
+  function submit(forgot){
+    if(answered){ next(); return; }
+    var typed=forgot?'':$('dans').value.trim();
+    if(!forgot&&!typed){ try{ $('dans').focus(); }catch(e){} return; }
+    var j=forgot?{code:'none',blank:true}:E.judge(cur.it.e,cur.q.def,typed,{hinted:hints>0,RV:RV});
+    var before=trOf(cur.q.k), snap=before?JSON.parse(JSON.stringify(before)):null;
+    var gapDay=!!before&&tested(before)&&before.last!=null&&before.last<RV.dayNo();
+    var first=!cur.q.re&&!S.res.some(function(r){ return r.k===cur.q.k; });
+    var r=RV.recall({en:cur.it.e.w,src:'notebook'},j.code,{mode:S.mode,def:cur.q.def,defs:cur.it.e.defs.length,first:first});
+    var res={k:cur.q.k,def:cur.q.def,code:j.code,typed:typed,hints:hints,first:first,gap:gapDay&&first,re:!!cur.q.re,fixed:!!(r&&r.event==='fixed'),
+      syn:j.syn||'',form:j.form||'',snap:snap,text:r?r.text:'',copyAt:-1};
+    S.res.push(res);
+    // 隔题重测 (practice): one more try a few questions later, with the other wording when there is one.
+    if(S.mode==='p'&&['none','spell','syn'].indexOf(j.code)>=0&&!S.retested[cur.q.k]){
+      S.retested[cur.q.k]=1; res.copyAt=Math.min(S.list.length,S.i+4);
+      S.list.splice(res.copyAt,0,{k:cur.q.k,def:cur.it.e.defs.length>1?pickDef(cur.it,cur.q.def):cur.q.def,re:1});
+    }
+    answered=true; $('dans').readOnly=true;
+    if(S.mode==='t'){ S.i++; saveSess(); show(); return; }        // test: no feedback until the end
+    feedback(res);
+    saveSess();
+  }
+  function explain(res,e){
+    var w=e.w, t=res.typed;
+    if(res.code==='skip') return res.reason==='unclear'?'这条释义读不懂，问题可能在题目而不在你：这次不计分。':'你认为「'+esc(t)+'」也符合这条释义：这次不计分，核对后再决定是否加入答案表。';
+    if(res.code==='ind') return res.fixed?'看过答案后再答对：记作当次纠正，明天换一种释义再测。':res.form?'写成了「'+esc(res.form)+'」，是同一个词的变形，算想起来了。':'没有借助提示就想起并拼对了。';
+    if(res.code==='hint') return '用了 '+res.hints+' 个提示（'+HINTS.slice(0,res.hints).join('、')+'）后答对，不计入独立回忆。';
+    if(res.code==='spell') return '你写的「'+esc(t)+'」与目标词 '+esc(w)+' 字母接近：想到了这个词，拼写还要巩固。';
+    if(res.code==='syn') return '「'+esc(t)+'」在审核过的答案表里，和这条释义意思相符；但本题要的是 '+esc(w)+'，明天再测目标词。';
+    if(!t) return '这次没想起来。';
+    var other=E.entry(t);
+    return '「'+esc(t)+'」与这条释义不符'+(other?'（它是你生词本里的另一个词：'+esc(other.defs[0].zh)+'）':'')+'。如果你认为它也说得通，点下面的「我的答案也合理」。';
+  }
+  function feedback(res){
+    var e=cur.it.e, n=cur.it.nb, d=cur.d, color=res.code==='ind'?'--good':res.code==='none'?'--bad':'--warn';
+    var ex=String(n.ex||'').replace(/\[([^\[\]]*)\]/g,'$1').split(/\s*\/\s*/).filter(function(s){ return /\s/.test(s); }).pop()||(d.ctx?d.ctx.replace('___',e.w):'');
+    $('inBox').hidden=true; $('after').hidden=false; $('dsay').hidden=false;
+    $('dispute').hidden=!(res.typed&&['none','spell','syn'].indexOf(res.code)>=0);
+    $('rfb').innerHTML='<div class="verdict" style="color:var('+color+')">'+(res.code==='ind'?'✓ ':res.code==='none'?'✗ ':'△ ')+LBL[res.code]+'</div>'+
+      '<div class="plan" style="color:var(--ink)">'+explain(res,e)+'</div>'+
+      '<div class="ans"><span class="w">'+esc(e.w)+'</span><span class="ph">'+(n.ph?'['+esc(n.ph)+']':'')+'</span>'+
+      '<div class="zh">'+esc(e.pos)+' · '+esc(d.zh)+'</div>'+(ex?'<div class="ex">例句：'+esc(ex)+'</div>':'')+'</div>'+
+      (res.text?'<div class="plan">📅 '+esc(res.text)+'</div>':'');
+    speak(e.w);
+    setTimeout(function(){ try{ $('mnext').focus(); }catch(e){} },30);
+  }
+  // Not the learner's failure: undo the answer's effect on the schedule and keep it for checking.
+  function flagCurrent(reason){
+    if(!cur) return;
+    var last=answered?S.res[S.res.length-1]:null, typed=last?last.typed:$('dans').value.trim();
+    if(last&&last.k===cur.q.k){
+      RV.restoreTrack({key:cur.q.k},'e',last.snap);
+      if(last.copyAt>=0&&S.list[last.copyAt]&&S.list[last.copyAt].k===cur.q.k&&S.list[last.copyAt].re){ S.list.splice(last.copyAt,1); delete S.retested[cur.q.k]; }
+      last.code='skip'; last.reason=reason;
+    }else{
+      S.res.push({k:cur.q.k,def:cur.q.def,code:'skip',reason:reason,typed:typed,hints:hints,first:!cur.q.re,re:!!cur.q.re});
+    }
+    RV.recallFlag({en:cur.it.e.w,src:'notebook'},reason,typed,cur.q.def);
+    if(S.mode==='t'&&!answered){ S.i++; saveSess(); show(); return; }
+    answered=true; $('dans').readOnly=true;
+    feedback(S.res[S.res.length-1]);
+    $('rfb').insertAdjacentHTML('afterbegin','<div class="plan" style="color:var(--warn)">已记录：本题暂不计分，加入「待检查的题目」。'+(last&&last.k===cur.q.k?'复习安排已恢复到答题前。':'')+'</div>');
+    $('dispute').hidden=true; $('dunclear').hidden=true;
+    saveSess();
+  }
+  function next(){ S.i++; show(); }
+
+  /* ---------- results ---------- */
+  function summarize(list){
+    var firsts=list.filter(function(r){ return r.first&&r.code!=='skip'; }), c={ind:0,hint:0,spell:0,syn:0,none:0,skip:0};
+    firsts.forEach(function(r){ c[r.code]++; });
+    c.skip=list.filter(function(r){ return r.code==='skip'; }).length;
+    var gap=firsts.filter(function(r){ return r.gap; }), re=list.filter(function(r){ return r.re&&r.code!=='skip'; });
+    return {n:firsts.length,c:c,gap:[gap.filter(function(r){return r.code==='ind';}).length,gap.length],
+      fixed:[re.filter(function(r){return r.code==='ind';}).length,re.length]};
+  }
+  function finish(){
+    clearSess(); keepAwake(false);
+    var sm=summarize(S.res), P=pool(S.cat), ever=P.items.filter(function(it){ return tested(trOf(it.key)); }).length;
+    if(S.mode==='t'){ try{ localStorage.setItem('ielts_edef_last',JSON.stringify({ts:Date.now(),text:sm.c.ind+' / '+sm.n+' 首次无提示正确（'+(CATS.filter(function(c){return c[0]===S.cat;})[0]||['',''])[1]+'）'})); }catch(e){} }
+    $('rprog').innerHTML='<span class="tag">'+(S.mode==='t'?'测试':'练习')+'</span><span>本轮结束</span>';
+    $('rdef').textContent=''; $('rhints').innerHTML=''; $('inBox').hidden=true; $('after').hidden=true;
+    $('dispute').hidden=true; $('dunclear').hidden=true; $('dsay').hidden=true;
+    var pct=sm.n?Math.round(sm.c.ind/sm.n*100):0;
+    var rows=S.res.filter(function(r){ return !r.re; }).map(function(r,i){
+      var e=E.entries[r.k], d=e.defs[r.def]||e.defs[0];
+      return '<tr><td><b>'+esc(e.w)+'</b><div class="plan" style="margin:0">'+esc(d.text)+'</div></td><td>'+(r.typed?esc(r.typed):'<span class="plan">（空）</span>')+'</td>'+
+        '<td class="r c-'+r.code+'">'+LBL[r.code]+(S.mode==='t'&&['none','spell','syn'].indexOf(r.code)>=0&&r.typed?'<br><button class="ghosti" data-dis="'+S.res.indexOf(r)+'">我的答案也合理</button>':'')+'</td></tr>';
+    }).join('');
+    $('rfb').innerHTML='<div style="font-size:32px;font-weight:800">'+sm.c.ind+' <span style="font-size:18px;color:var(--soft)">/ '+sm.n+'</span></div>'+
+      '<div class="verdict">首次作答、无提示答对 '+pct+'%</div><div class="bar"><b style="width:'+pct+'%"></b></div>'+
+      '<div class="grid" style="margin-top:12px">'+stat(sm.c.hint,'提示后想起')+stat(sm.c.spell,'拼写待巩固')+stat(sm.c.syn,'写了近义词')+stat(sm.c.none,'未能回忆')+(sm.c.skip?stat(sm.c.skip,'暂不计分'):'')+'</div>'+
+      '<p class="note">隔天复测：'+(sm.gap[1]?sm.gap[0]+' / '+sm.gap[1]+' 独立答对（之前某天答过、今天第一次再测的词）':'本轮没有隔天再测的词')+'。'+
+      (S.mode==='p'&&sm.fixed[1]?' 隔题重测：'+sm.fixed[0]+' / '+sm.fixed[1]+' 答对，记作当次纠正，明天换释义再测才算数。':'')+
+      ' 已测范围：本范围 '+P.items.length+' 个可出题的词中已测过 '+ever+' 个，未测 '+(P.items.length-ever)+' 个。</p>'+
+      '<p class="note">这个分数只说明「看英文释义能否想起并拼出」，不等于会在听、说、写中使用这些词。</p>'+
+      '<table>'+rows+'</table>';
+    $('after').hidden=false; $('mnext').textContent='完成'; $('mnext').onclick=close;
+    paint();
+  }
+  $('rfb').onclick=function(ev){
+    var b=ev.target.closest('[data-dis]'); if(!b||!S) return;
+    var r=S.res[+b.getAttribute('data-dis')]; if(!r||r.code==='skip') return;
+    RV.restoreTrack({key:r.k},'e',r.snap); RV.recallFlag({en:E.entries[r.k].w,src:'notebook'},'accept',r.typed,r.def);
+    r.code='skip'; r.reason='accept'; finish();
+  };
+  function close(){
+    $('ov').classList.remove('show'); keepAwake(false); try{ speechSynthesis.cancel(); }catch(e){}
+    $('mnext').textContent='下一题 ›'; $('mnext').onclick=next;
+    cur=null; paint();
+  }
+
+  /* ---------- speech + wake lock (same behaviour as the other pages) ---------- */
+  var VOICES=[];
+  function loadVoices(){ try{ var all=(window.speechSynthesis&&speechSynthesis.getVoices())||[]; VOICES=all.filter(function(v){return /^en[-_]/i.test(v.lang)||/english/i.test(v.name);}); if(!VOICES.length) VOICES=all; }catch(e){} }
+  if(window.speechSynthesis){ try{ speechSynthesis.onvoiceschanged=loadVoices; }catch(e){} loadVoices(); setTimeout(loadVoices,300); }
+  function voiceScore(v){
+    var n=(v.name||'').toLowerCase(), l=(v.lang||'').toLowerCase().replace('_','-'), u=(v.voiceURI||'').toLowerCase(), s=0;
+    if(l==='en-gb') s+=6; else if(l.slice(0,2)==='en') s+=2;
+    if(/premium/.test(n)||/premium/.test(u)) s+=4;
+    if(/enhanced/.test(n)||/enhanced/.test(u)) s+=3;
+    if(/siri/.test(n)||/siri/.test(u)) s+=3;
+    if(/compact/.test(u)) s-=3;
+    if(/\b(daniel|kate|serena|arthur|martha|stephanie|oliver|samantha|karen|moira|tessa)\b/.test(n)) s+=2;
+    if(v.localService) s+=1;
+    if(/novelty|eloquence|trinoids|whisper|zarvox|bells|bubbles|organ|cellos|boing|albert|jester|bahh|wobble/.test(n)) s-=6;
+    return s;
+  }
+  function bestVoice(){ var best=VOICES[0]||null, bs=-1e9; VOICES.forEach(function(v){ var sc=voiceScore(v); if(sc>bs){bs=sc; best=v;} }); return best; }
+  function speak(t){ try{ if(!window.speechSynthesis||!t) return; if(!VOICES.length) loadVoices(); var u=new SpeechSynthesisUtterance(t); u.lang='en-GB'; u.rate=0.9; var v=bestVoice(); if(v) u.voice=v; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){} }
+  var _wake=null, _wantWake=false;
+  function _acqWake(){ try{ if(_wantWake&&!_wake&&navigator.wakeLock){ navigator.wakeLock.request('screen').then(function(w){ if(_wantWake){ _wake=w; w.addEventListener('release',function(){_wake=null;}); } else { w.release(); } }).catch(function(){}); } }catch(e){} }
+  function keepAwake(on){ _wantWake=on; if(on){_acqWake();} else { try{ if(_wake){_wake.release();_wake=null;} }catch(e){} } }
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _acqWake(); });
+
+  /* ---------- wiring ---------- */
+  $('pStart').onclick=function(){ begin('p',practiceList(pool(CAT).items,20)); };
+  $('tStart').onclick=function(){ begin('t',shuffle(pool(CAT).items.slice()).slice(0,+$('tSize').value||20)); };
+  $('resume').onclick=function(){ var s=loadSess(); if(!s){ paint(); return; } S=s; CAT=s.cat||CAT; open(); };
+  $('dsubmit').onclick=function(){ submit(false); };
+  $('dforgot').onclick=function(){ submit(true); };
+  $('dhint').onclick=hint;
+  $('mnext').onclick=next;
+  $('dclose').onclick=function(){ if(S&&S.i<S.list.length&&S.res.length) toast('进度已保存，可以在页面上继续'); close(); };
+  $('dunclear').onclick=function(){ flagCurrent('unclear'); };
+  $('dispute').onclick=function(){ flagCurrent('accept'); };
+  $('dsay').onclick=function(){ if(cur) speak(cur.it.e.w); };
+  // Desktop hosts route Enter / Escape through shortcuts.js (dsubmit, mnext, dclose); the phone needs its own.
+  $('dans').addEventListener('keydown',function(ev){ if(ev.key==='Enter'&&!window.__CUSTOM_SHORTCUTS__&&!ev.isComposing){ ev.preventDefault(); submit(false); } });
+  document.addEventListener('keydown',function(ev){
+    if(window.__CUSTOM_SHORTCUTS__||!$('ov').classList.contains('show')) return;
+    if(ev.key==='Enter'&&answered&&document.activeElement!==$('dans')&&!$('after').hidden&&document.activeElement.tagName!=='BUTTON'){ ev.preventDefault(); $('mnext').click(); }
+    if(ev.key==='Escape') $('dclose').click();
+  });
+  window.addEventListener('ielts:pulled',function(){ if(!$('ov').classList.contains('show')) paint(); });
+  paint();
+  // Test hooks for release-tools/test-edef.cjs
+  window.__edef={pool:pool,practiceList:practiceList,state:function(){ return S; }};
+})();
+</script>
+</body>
+</html>

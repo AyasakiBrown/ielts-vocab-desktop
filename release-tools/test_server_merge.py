@@ -30,10 +30,11 @@ assert srs["meta"] == {"seed": 1, "cap": 30, "capT": 20}
 server.merge(root, "srs", {"items": {}, "meta": {}})            # an empty push changes nothing
 assert root["decks"]["srs"] == srs
 # writing recall (p) and speaking (o) merge per track, like d/m
-server.merge(root, "srs", {"items": {"vivid": {"t": 300, "d": {"t": 300, "lv": 1}, "p": {"t": 100, "lv": 0}}}})
-server.merge(root, "srs", {"items": {"vivid": {"t": 200, "p": {"t": 200, "lv": 2}, "o": {"t": 150, "n": 1}}}})
+server.merge(root, "srs", {"items": {"vivid": {"t": 300, "d": {"t": 300, "lv": 1}, "p": {"t": 100, "lv": 0}, "e": {"t": 100, "lv": 1}}}})
+server.merge(root, "srs", {"items": {"vivid": {"t": 200, "p": {"t": 200, "lv": 2}, "o": {"t": 150, "n": 1}, "e": {"t": 250, "lv": 3}}}})
 vv = root["decks"]["srs"]["items"]["vivid"]
 assert vv["p"]["lv"] == 2 and vv["o"]["n"] == 1 and vv["d"]["lv"] == 1
+assert vv["e"]["lv"] == 3                                      # 英义回忆 merges per track too
 print("server.py: newer answer wins for progress, review ledger merges per track, cap follows the latest change")
 
 # daily answer log: devices add up, the same record re-sent (or an older smaller copy) counts once

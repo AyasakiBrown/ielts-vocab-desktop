@@ -15,7 +15,7 @@ VERSION = '1.1.4'
 OUT = ROOT / 'GitHub-Release' / ('v' + VERSION)
 ELECTRON = '44.3.0'
 ASSETS = ['index.html', 'p1.html', 'vj.html', 'scene.html', 'notebook.html',
-          'wrong.html', 'review.html', 'mistakes.js', 'srs.js', 'learning-data.js', 'shortcuts.js', 'dict.js', 'defs.js', 'emoji.js', 'images.js', 'icon-512.png', 'icon-180.png', 'AppIcon.icns']
+          'wrong.html', 'review.html', 'edef.html', 'edef.js', 'mistakes.js', 'srs.js', 'learning-data.js', 'shortcuts.js', 'dict.js', 'defs.js', 'emoji.js', 'images.js', 'icon-512.png', 'icon-180.png', 'AppIcon.icns']
 
 def run(*args):
     subprocess.run(args, check=True)
@@ -96,6 +96,8 @@ def main():
         write(res / 'notebook.html', nb)
         page = (res / 'review.html').read_text()
         write(res / 'review.html', page.replace('<script src="dict.js"></script>', '<script>\n' + (res / 'dict.js').read_text() + '\n</script>'))
+        page = (res / 'edef.html').read_text()
+        write(res / 'edef.html', page.replace('<script src="edef.js"></script>', '<script>\n' + (res / 'edef.js').read_text() + '\n</script>'))
         bins = []
         for arch in ['arm64', 'x86_64']:
             binary = stage / ('IELTSVocab-' + arch)

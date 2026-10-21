@@ -15,7 +15,7 @@ else {
   app.on('second-instance', () => { if (win) { win.restore(); win.focus(); } });
   app.whenReady().then(() => {
     const store = new DataStore(app.getPath('userData'));
-    const pages = ['index', 'review', 'p1', 'vj', 'scene', 'notebook', 'wrong'];
+    const pages = ['index', 'review', 'edef', 'p1', 'vj', 'scene', 'notebook', 'wrong'];
     const urls = pages.map(p => pathToFileURL(path.join(__dirname, 'src', p + '.html')).href);
     session.defaultSession.webRequest.onBeforeRequest({urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*']}, (_, callback) => callback({cancel: true}));
     // Only the microphone, only for our own pages (生词本 口语练习 records for local playback).

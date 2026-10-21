@@ -80,6 +80,7 @@
       <button class="btn alt" id="startD">只练听写</button>
       <button class="btn alt" id="startM">只练词义</button>
       <button class="btn alt" id="more" hidden>再练排队中的 20 个</button>
+      <a class="btn alt" id="edefDue" href="edef.html" hidden></a>
       <label style="margin-left:auto;font-size:12.5px;color:var(--soft)">每日上限
         <select id="cap"><option>20</option><option>40</option><option>60</option><option>100</option><option>200</option></select>
       </label>
@@ -206,6 +207,9 @@
       parts.push('来源：'+Object.keys(by).map(function(k){return (SRCN[k]||k)+' '+by[k];}).join('、'));
     }else parts.push(s.tracked?'今天到期的词已全部复习完 🎉':'还没有复习记录。去词库或生词本做一次听写 / 选择题，答过的词会自动排进复习。');
     if(s.waiting) parts.push('另有 '+s.waiting+' 个旧错词在排队，按每日上限逐天放出，不会一次压过来');
+    var ed=RV.queue({tracks:['e'],cap:false}).length;     // 英义回忆 has its own page and record
+    $('edefDue').hidden=!ed; $('edefDue').textContent='🧩 英义猜词到期 '+ed+' 词';
+    if(ed) parts.push('英义回忆另有 '+ed+' 词到期，在「英义猜词」里复测，不占这里的上限');
     $('detail').textContent=parts.join('　·　');
     var rs=loadSess();
     $('resume').hidden=!rs;

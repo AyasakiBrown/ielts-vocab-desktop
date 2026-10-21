@@ -37,6 +37,14 @@ assert '<script src="dict.js"></script>' in page
 open(sys.argv[3],'w',encoding='utf-8').write(page.replace('<script src="dict.js"></script>', '<script>\n'+dj+'\n</script>'))
 print('  review.html: dict inlined')
 PY
+# 英义猜词 question bank: inlined like the dictionaries so it cannot fail to load.
+python3 - "$SRC/edef.html" "$SRC/edef.js" "$APP/Contents/Resources/edef.html" <<'PY'
+import sys
+page=open(sys.argv[1],encoding='utf-8').read()
+assert '<script src="edef.js"></script>' in page
+open(sys.argv[3],'w',encoding='utf-8').write(page.replace('<script src="edef.js"></script>', '<script>\n'+open(sys.argv[2],encoding='utf-8').read()+'\n</script>'))
+print('  edef.html: question bank inlined')
+PY
 cp "$SRC/learning-data.js" "$APP/Contents/Resources/learning-data.js"
 cp "$SRC/mistakes.js" "$APP/Contents/Resources/mistakes.js"
 cp "$SRC/srs.js" "$APP/Contents/Resources/srs.js"
