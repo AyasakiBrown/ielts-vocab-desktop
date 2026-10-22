@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script src="mistakes.js"></script>
+<script src="srs.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>雅思听力 Part 1 · 记忆与听写</title>
+<style>
+:root{
+  --bg:#f5f6fb; --card:#ffffff; --ink:#1f2937; --muted:#6b7280; --line:#e6e8f0;
+  --brand:#6366f1; --brand2:#8b5cf6; --ok:#10b981; --bad:#ef4444; --star:#f59e0b;
+  --chip:#eef0fb; --shadow:0 6px 24px rgba(30,30,80,.08);
+}
+.dark{
+  --bg:#0f172a; --card:#1e293b; --ink:#e2e8f0; --muted:#94a3b8; --line:#334155;
+  --chip:#27324a; --shadow:0 6px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Segoe UI,Roboto,sans-serif;
+  background:var(--bg); color:var(--ink); line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit; cursor:pointer}
+a{color:var(--brand)}
+.wrap{max-width:920px; margin:0 auto; padding:0 16px 60px}
+
+/* Header */
+header{position:sticky; top:0; z-index:30; background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#fff;
+  box-shadow:0 2px 14px rgba(80,60,200,.25)}
+.hbar{max-width:920px; margin:0 auto; padding:12px 16px; display:flex; align-items:center; gap:12px}
+.logo{font-weight:800; font-size:18px; letter-spacing:.3px; display:flex; align-items:center; gap:8px}
+.logo small{font-weight:500; opacity:.85; font-size:12px}
+.hstats{margin-left:auto; display:flex; gap:14px; font-size:13px; opacity:.95}
+.hstats b{font-size:16px}
+.gear{background:rgba(255,255,255,.18); border:none; color:#fff; width:38px; height:38px; border-radius:10px; font-size:18px}
+.gear:hover{background:rgba(255,255,255,.3)}
+
+/* Deck chips */
+.decks{display:flex; gap:8px; overflow-x:auto; padding:14px 0 6px; scrollbar-width:thin}
+.chip{flex:0 0 auto; background:var(--chip); border:1px solid transparent; color:var(--ink);
+  padding:8px 14px; border-radius:999px; font-size:13.5px; font-weight:600; display:flex; gap:7px; align-items:center}
+.chip .n{background:rgba(99,102,241,.16); color:var(--brand); border-radius:999px; padding:1px 8px; font-size:11.5px; font-weight:700}
+.dark .chip .n{background:rgba(139,92,246,.25); color:#c7b6ff}
+.chip.on{background:var(--brand); color:#fff; box-shadow:0 4px 14px rgba(99,102,241,.4)}
+.chip.on .n{background:rgba(255,255,255,.25); color:#fff}
+
+/* Mode tabs */
+.tabs{display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:5px; margin:10px 0 18px; box-shadow:var(--shadow); overflow-x:auto}
+.tab{flex:1 1 auto; min-width:74px; border:none; background:transparent; color:var(--muted); padding:9px 8px; border-radius:10px; font-size:14px; font-weight:600; white-space:nowrap}
+.tab.on{background:var(--brand); color:#fff}
+.tab:hover:not(.on){background:var(--chip)}
+
+/* Cards */
+.card{background:var(--card); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow); padding:26px}
+.row{display:flex; align-items:center; gap:10px}
+.muted{color:var(--muted)}
+.pill{font-size:11.5px; font-weight:700; padding:2px 9px; border-radius:999px; background:var(--chip); color:var(--muted)}
+.pill.core{background:rgba(245,158,11,.16); color:#b45309}
+.pill.p80{background:rgba(16,185,129,.16); color:#047857}
+.dark .pill.core{color:#fcd34d}.dark .pill.p80{color:#6ee7b7}
+
+/* Progress bar */
+.pbar{position:relative; height:10px; background:var(--chip); border-radius:999px; overflow:hidden; margin:6px 0 0}
+.pbar>i{position:absolute; left:0; top:0; bottom:0; border-radius:999px; background:linear-gradient(90deg,var(--brand),var(--brand2)); width:0; transition:width .3s}
+.pbar>i.pseen{opacity:.22}
+.bsub{display:flex; justify-content:flex-end; font-size:11px; color:var(--muted); margin-top:4px}
+.chip .n.done{background:rgba(16,185,129,.18); color:var(--ok)}
+.dark .chip .n.done{background:rgba(16,185,129,.28); color:#6ee7b7}
+.toastmsg{position:fixed; left:50%; bottom:calc(70px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:9px 16px; border-radius:999px; font-size:13px; z-index:9999; box-shadow:0 6px 20px rgba(0,0,0,.25); opacity:0; transition:opacity .35s; pointer-events:none; max-width:88vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.toastmsg.show{opacity:.95}
+
+/* Controls / buttons */
+.btn{border:1px solid var(--line); background:var(--card); color:var(--ink); padding:10px 16px; border-radius:12px; font-size:14.5px; font-weight:600; transition:.15s}
+.btn:hover{border-color:var(--brand); color:var(--brand)}
+.btn.primary{background:var(--brand); border-color:var(--brand); color:#fff}
+.btn.primary:hover{filter:brightness(1.06); color:#fff}
+.btn.ghost{background:transparent}
+.btn.lg{padding:13px 22px; font-size:16px}
+.iconbtn{border:1px solid var(--line); background:var(--card); color:var(--ink); width:46px; height:46px; border-radius:12px; font-size:20px; display:inline-flex; align-items:center; justify-content:center}
+.iconbtn:hover{border-color:var(--brand); color:var(--brand)}
+.tools{display:flex; flex-wrap:wrap; gap:9px; justify-content:center; margin:16px 0}
+
+/* Dictation */
+.dict-top{display:flex; align-items:center; gap:10px; margin-bottom:4px; flex-wrap:wrap}
+.spk{width:84px; height:84px; border-radius:50%; border:none; background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#fff; font-size:38px; display:flex; align-items:center; justify-content:center; margin:6px auto 2px; box-shadow:0 8px 24px rgba(99,102,241,.45); transition:.15s}
+.spk:hover{transform:scale(1.05)}
+.spk:active{transform:scale(.96)}
+.hintline{text-align:center; min-height:30px; margin:6px 0; font-size:17px}
+.mask{letter-spacing:7px; font-weight:700; font-size:22px; color:var(--brand)}
+#dictInput{width:100%; font-size:26px; text-align:center; padding:16px; border:2px solid var(--line); border-radius:14px; background:var(--bg); color:var(--ink); font-weight:600; letter-spacing:.5px; outline:none; transition:.15s}
+#dictInput:focus{border-color:var(--brand); background:var(--card)}
+#dictInput.good{border-color:var(--ok)} #dictInput.wrong{border-color:var(--bad)}
+.fb{margin-top:16px; border-radius:14px; padding:16px 18px; display:none}
+.fb.show{display:block; animation:pop .2s}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.fb.good{background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.35)}
+.fb.bad{background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.3)}
+.fb h3{margin:0 0 6px; font-size:15px}
+.ans{font-size:30px; font-weight:800; letter-spacing:1px; margin:2px 0 8px}
+.ans .x{color:var(--bad)} .ans .c{color:var(--ok)}
+.yourans{color:var(--muted); font-size:14px}
+.yourans del{color:var(--bad); text-decoration-thickness:2px}
+.note{margin-top:10px; font-size:14px; background:rgba(245,158,11,.12); border-left:3px solid var(--star); padding:8px 12px; border-radius:0 8px 8px 0}
+.colloc{margin-top:8px; font-size:14.5px; color:var(--muted)}
+.colloc b{color:var(--ink)}
+
+/* Flashcard */
+.flash{perspective:1400px; margin:10px 0}
+.flash-inner{position:relative; min-height:240px; transition:transform .5s; transform-style:preserve-3d; cursor:pointer}
+.flash.flip .flash-inner{transform:rotateY(180deg)}
+.face{position:absolute; inset:0; backface-visibility:hidden; border-radius:16px; border:1px solid var(--line); background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center}
+.face.back{transform:rotateY(180deg)}
+.bigword{font-size:40px; font-weight:800; letter-spacing:.5px}
+.bigzh{font-size:34px; font-weight:800}
+.sub{color:var(--muted); margin-top:10px; font-size:15px}
+
+/* Quiz */
+.qprompt{font-size:30px; font-weight:800; text-align:center; margin:8px 0 20px; min-height:40px}
+.opts{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.opt{padding:16px; border:1.5px solid var(--line); border-radius:14px; background:var(--card); color:var(--ink); font-size:17px; font-weight:600; text-align:left; transition:.12s}
+.opt:hover{border-color:var(--brand)}
+.opt.correct{background:rgba(16,185,129,.14); border-color:var(--ok); color:#047857}
+.opt.wrong{background:rgba(239,68,68,.1); border-color:var(--bad); color:#b91c1c}
+.dark .opt.correct{color:#6ee7b7}.dark .opt.wrong{color:#fca5a5}
+.opt:disabled{cursor:default}
+.pos{display:inline-block; font-size:12.5px; font-weight:700; padding:1px 8px; margin-left:8px; border-radius:999px; background:var(--chip); color:var(--brand); vertical-align:middle; letter-spacing:.3px; white-space:nowrap}
+
+/* Browse table */
+.search{width:100%; padding:11px 14px; border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--ink); font-size:15px; margin-bottom:12px; outline:none}
+.search:focus{border-color:var(--brand)}
+table{width:100%; border-collapse:collapse; font-size:14px}
+th,td{text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+th{position:sticky; top:64px; background:var(--card); color:var(--muted); font-size:12.5px; z-index:5}
+tbody tr:hover{background:var(--chip)}
+td.en{font-weight:700; white-space:nowrap}
+td.zh{white-space:nowrap}
+.tnote{color:var(--muted); font-size:12.5px}
+.starbtn{background:none; border:none; font-size:18px; color:var(--line); padding:0}
+.starbtn.on{color:var(--star)}
+.rowspk{background:none;border:none;font-size:17px;color:var(--muted)}
+.rowspk:hover{color:var(--brand)}
+
+/* Stats */
+.grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px}
+.stat{background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:16px; text-align:center}
+.stat .v{font-size:30px; font-weight:800}
+.stat .l{font-size:12.5px; color:var(--muted); margin-top:2px}
+.barrow{display:flex; align-items:center; gap:10px; margin:10px 0}
+.barrow .lab{width:90px; font-size:13.5px; font-weight:600}
+.barrow .track{flex:1; height:18px; background:var(--chip); border-radius:999px; overflow:hidden; position:relative}
+.barrow .fill{height:100%; background:linear-gradient(90deg,var(--ok),#34d399)}
+.barrow .pct{width:64px; text-align:right; font-size:12.5px; color:var(--muted)}
+
+/* Plan */
+.day{border-left:4px solid var(--brand); background:var(--bg); border-radius:0 12px 12px 0; padding:12px 16px; margin:10px 0}
+.day h4{margin:0 0 4px; color:var(--brand)}
+.tipbox{background:rgba(99,102,241,.07); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:10px 0; font-size:14.5px}
+
+/* Settings modal */
+.modal{position:fixed; inset:0; background:rgba(15,23,42,.5); display:none; align-items:flex-start; justify-content:center; z-index:60; padding:40px 16px; overflow:auto}
+.modal.show{display:flex}
+.sheet{background:var(--card); border-radius:18px; box-shadow:var(--shadow); width:100%; max-width:460px; padding:22px}
+.sheet h2{margin:0 0 4px; font-size:19px}
+.set-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--line)}
+.set-row:last-child{border-bottom:none}
+.set-row label{font-weight:600; font-size:14.5px}
+.set-row .desc{font-size:12px; color:var(--muted)}
+select,input[type=range]{font-family:inherit}
+select{padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font-size:14px; max-width:170px}
+.seg{display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden}
+.seg button{border:none; background:var(--card); color:var(--muted); padding:7px 12px; font-size:13.5px; font-weight:600}
+.seg button.on{background:var(--brand); color:#fff}
+.switch{position:relative; width:46px; height:26px}
+.switch input{display:none}
+.slider{position:absolute; inset:0; background:var(--line); border-radius:999px; transition:.2s}
+.slider:before{content:"";position:absolute; width:20px; height:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s}
+.switch input:checked+.slider{background:var(--brand)}
+.switch input:checked+.slider:before{transform:translateX(20px)}
+
+.center{text-align:center}
+.empty{text-align:center; color:var(--muted); padding:50px 20px}
+.empty .big{font-size:46px; margin-bottom:8px}
+.hide{display:none!important}
+kbd{background:var(--chip); border:1px solid var(--line); border-bottom-width:2px; border-radius:6px; padding:1px 6px; font-size:12px; font-family:inherit}
+@media(max-width:560px){
+  .opts{grid-template-columns:1fr}
+  .hstats{display:none}
+  .ans,.bigword,.bigzh,.qprompt{font-size:26px}
+  th{top:58px}
+}
+body{overscroll-behavior-y:contain}
+button{-webkit-tap-highlight-color:transparent}
+</style>
+</head>
+<body>
+<header>
+  <div class="hbar">
+    <div class="logo">🎧 雅思 Part 1 听写记忆 <small>职业·房屋·服务·衣物</small></div>
+    <div class="hstats">
+      <div class="center"><b id="hsDone">0</b><br>今日</div>
+      <div class="center"><b id="hsAcc">—</b><br>正确率</div>
+      <div class="center"><b id="hsMaster">0</b><br>较稳定</div>
+    </div>
+    <button class="gear" id="gearBtn" title="设置">⚙️</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="decks" id="decks"></div>
+  <div class="practice-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+    <button class="btn alt" id="restartPractice" title="从第一题重做当前练习，保留历史记录">↺ 从头重做</button>
+  </div>
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-mode="dict">✍️ 听写</button>
+    <button class="tab" data-mode="flash">🃏 记忆卡</button>
+    <button class="tab" data-mode="quiz">📝 选择题</button>
+    <button class="tab" data-mode="browse">📖 词表</button>
+    <button class="tab" data-mode="stats">📊 统计</button>
+    <button class="tab" data-mode="plan">🗓️ 计划</button>
+  </div>
+
+  <!-- DICTATION -->
+  <section id="m-dict">
+    <div class="card">
+      <div class="dict-top">
+        <span class="pill" id="dDeck">全部</span>
+        <span class="pill" id="dTags"></span>
+        <span class="muted" id="dProg" style="margin-left:auto; font-size:13.5px"></span>
+      </div>
+      <div class="pbar"><i class="pseen" id="dSeen"></i><i id="dBar"></i></div>
+      <div class="bsub" id="dCov"></div>
+      <button class="spk" id="dSpk" title="播放发音 (空格键)">🔊</button>
+      <div class="hintline" id="dHint"></div>
+      <input id="dictInput" enterkeyhint="go" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="听音，输入英文拼写…">
+      <div class="tools">
+        <button class="btn" id="dReplay">🔊 重听</button>
+        <button class="btn" id="dSlow">🐢 慢读</button>
+        <button class="btn" id="dExample">🗣️ 例句</button>
+        <button class="btn" id="dZh">💡 中文</button>
+        <button class="btn" id="dLetter">🔤 首字母</button>
+      </div>
+      <div class="row" style="gap:10px">
+        <button class="btn ghost" id="dSkip">跳过 →</button>
+        <button class="btn primary lg" id="dSubmit" style="flex:1">提交 ⏎</button>
+      </div>
+      <div class="fb" id="dFb"></div>
+    </div>
+    <p class="center muted" style="font-size:12.5px;margin-top:12px">
+      <kbd>空格</kbd> 播放 · <kbd>Enter</kbd> 提交/下一个 · <kbd>Tab</kbd> 跳过
+    </p>
+  </section>
+
+  <!-- FLASHCARD -->
+  <section id="m-flash" class="hide">
+    <div class="card">
+      <div class="dict-top">
+        <span class="pill" id="fDeck">全部</span>
+        <span class="muted" id="fProg" style="margin-left:auto;font-size:13.5px"></span>
+      </div>
+      <div class="pbar"><i class="pseen" id="fSeen"></i><i id="fBar"></i></div>
+      <div class="bsub" id="fCov"></div>
+      <div class="flash" id="flash">
+        <div class="flash-inner" id="flashInner">
+          <div class="face front" id="fFront"></div>
+          <div class="face back" id="fBack"></div>
+        </div>
+      </div>
+      <p class="center muted" style="font-size:12.5px">点击卡片翻面 · <kbd>空格</kbd> 翻面 · <kbd>←</kbd><kbd>→</kbd> 切换</p>
+      <div class="tools">
+        <button class="btn" id="fPrev">← 上一个</button>
+        <button class="btn" id="fSpeak">🔊 发音</button>
+        <button class="btn" id="fAuto">▶ 连播</button>
+        <button class="btn" id="fStar">🔖 收藏</button>
+        <button class="btn" id="fNext">下一个 →</button>
+      </div>
+      <div class="row" style="gap:10px">
+        <button class="btn" id="fHard" style="flex:1;color:var(--bad)">🔁 不熟</button>
+        <button class="btn primary" id="fEasy" style="flex:1">✅ 记住了</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="m-quiz" class="hide">
+    <div class="card">
+      <div class="dict-top">
+        <span class="pill" id="qDeck">全部</span>
+        <span class="muted" id="qProg" style="margin-left:auto;font-size:13.5px"></span>
+      </div>
+      <div class="pbar"><i class="pseen" id="qSeen"></i><i id="qBar"></i></div>
+      <div class="bsub" id="qCov"></div>
+      <div class="muted center" id="qDir" style="font-size:13px;margin-top:8px"></div>
+      <div class="qprompt" id="qPrompt"></div>
+      <div class="opts" id="qOpts"></div>
+      <div class="center" style="margin-top:16px">
+        <button class="btn primary hide" id="qNext">下一题 →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- BROWSE -->
+  <section id="m-browse" class="hide">
+    <input class="search" id="search" placeholder="🔍 搜索英文 / 中文 / 搭配 / 易错点…">
+    <div class="card" style="padding:6px 10px">
+      <table>
+        <thead><tr><th style="width:30px"></th><th>English</th><th>中文</th><th>搭配 / 易错点</th><th style="width:30px"></th></tr></thead>
+        <tbody id="browseBody"></tbody>
+      </table>
+      <div class="empty hide" id="browseEmpty"><div class="big">🔍</div>没有匹配的词</div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section id="m-stats" class="hide">
+    <div class="card">
+      <h2 style="margin:0 0 14px">学习概况</h2>
+      <div class="grid" id="statGrid"></div>
+      <h3 style="margin:24px 0 6px">各类别掌握度</h3>
+      <div id="statBars"></div>
+      <div class="row" style="gap:10px;margin-top:24px;flex-wrap:wrap">
+        <button class="btn" id="btnExport">⬇️ 导出进度</button>
+        <button class="btn" id="btnImport">⬆️ 导入进度</button>
+        <button class="btn ghost" id="btnReset" style="color:var(--bad)">🗑️ 重置进度</button>
+        <input type="file" id="importFile" accept="application/json" class="hide">
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAN -->
+  <section id="m-plan" class="hide">
+    <div class="card">
+      <h2 style="margin:0 0 6px">📌 使用方法</h2>
+      <div class="tipbox"><b>三步记词：</b>① 看英文读音与拼写 → ② 记住常见搭配 → ③ 听写时判断单复数、词性与场景逻辑。不要只看中文意思。</div>
+      <div class="tipbox"><b>优先级：</b>先背「高危拼写」和「场景搭配」。Part 1 目标 8–9/10，职业 / 房屋 / 服务 / 衣物不能再失分。</div>
+      <div class="tipbox"><b>答题提醒：</b>填空题拼写错、单复数错、词性错通常都会失分；英式 / 美式拼写多数可接受，但练习时建议按剑桥答案写法。</div>
+      <h2 style="margin:22px 0 6px">🗓️ 7 天训练法</h2>
+      <div class="day"><h4>Day 1–2 · 职业 + 服务</h4>听写 electrician, plumber, receptionist, pharmacist, physiotherapist, appointment, reference, complaint, refund, receipt 等；每个词写 3 遍、读 3 遍。</div>
+      <div class="day"><h4>Day 3–4 · 房屋 + 维修</h4>重点练 accommodation, balcony, ceiling, radiator, thermostat, cupboard, maintenance, leak, mould, utility bill 等；配合 Part 1 家政 / 租房题。</div>
+      <div class="day"><h4>Day 5 · 衣物 + 洗护</h4>重点练 shirts, trousers, laundry, dry cleaning, alterations, cotton, woollen, leather, detergent, stain, crease 等；注意单复数。</div>
+      <div class="day"><h4>Day 6 · 场景搭配听写</h4>只听写短语：clean the floor, ironing shirts only, allergic to dust, background check by the police, given training for two weeks。</div>
+      <div class="day"><h4>Day 7 · 模拟 Part 1</h4>做一套 Part 1；错题只分为：拼写错、单复数错、定位错、场景判断错、搭配没反应。</div>
+      <p class="muted center" style="font-size:12.5px;margin-top:18px">数据来源：IELTS Listening Part 1 Vocabulary · 共 <span id="planTotal"></span> 词</p>
+    </div>
+  </section>
+</div>
+
+<!-- SETTINGS -->
+<div class="modal" id="modal">
+  <div class="sheet">
+    <h2>⚙️ 设置</h2>
+    <div class="set-row">
+      <div><label>发音口音</label><div class="desc">雅思常用英式发音</div></div>
+      <div class="seg" id="setAccent">
+        <button data-v="en-GB">英式</button><button data-v="en-US">美式</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <div><label>具体语音</label><div class="desc">系统可用的英语语音</div></div>
+      <select id="setVoice"></select>
+    </div>
+    <div class="set-row">
+      <div><label>语速</label><div class="desc"><span id="rateVal">1.0</span>×</div></div>
+      <input type="range" id="setRate" min="0.5" max="1.2" step="0.05" value="0.95">
+    </div>
+    <div class="set-row">
+      <div><label>自动播放</label><div class="desc">进入新词时自动发音</div></div>
+      <label class="switch"><input type="checkbox" id="setAuto"><span class="slider"></span></label>
+    </div>
+    <div class="set-row">
+      <div><label>听写朗读内容</label><div class="desc">只读单词或读整句搭配</div></div>
+      <div class="seg" id="setDictRead">
+        <button data-v="word">单词</button><button data-v="sentence">例句</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <div><label>记忆卡正面</label></div>
+      <div class="seg" id="setFront">
+        <button data-v="en">英文</button><button data-v="zh">中文</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <div><label>选择题方向</label></div>
+      <div class="seg" id="setQuizDir">
+        <button data-v="zh2en">中→英</button><button data-v="en2zh">英→中</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <div><label>词序</label><div class="desc">智能优先复习薄弱词</div></div>
+      <div class="seg" id="setOrder">
+        <button data-v="smart">智能</button><button data-v="seq">顺序</button><button data-v="shuffle">随机</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <div><label>深色模式</label></div>
+      <label class="switch"><input type="checkbox" id="setDark"><span class="slider"></span></label>
+    </div>
+    <div class="center" style="margin-top:18px">
+      <button class="btn primary lg" id="closeModal" style="width:100%">完成</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const VOCAB = [{"id": 0, "en": "accountant", "alts": ["accountant"], "say": "accountant", "zh": "会计", "pos": "n.", "col": "work as an accountant; accounting firm", "note": "accountant 不是 account", "cat": "jobs", "core": false, "p80": false}, {"id": 1, "en": "actor / actress", "alts": ["actor", "actress"], "say": "actor", "zh": "演员", "pos": "n.", "col": "a professional actor; theatre group", "note": "actress 女演员；现在也常用 actor", "cat": "jobs", "core": false, "p80": false}, {"id": 2, "en": "architect", "alts": ["architect"], "say": "architect", "zh": "建筑师", "pos": "n.", "col": "an architect designed the building", "note": "ch 发 /k/", "cat": "jobs", "core": false, "p80": false}, {"id": 3, "en": "artist", "alts": ["artist"], "say": "artist", "zh": "艺术家", "pos": "n.", "col": "local artist; art exhibition", "note": "与 artisan 手工艺人区分", "cat": "jobs", "core": false, "p80": false}, {"id": 4, "en": "assistant", "alts": ["assistant"], "say": "assistant", "zh": "助理/店员", "pos": "n./adj.", "col": "shop assistant; research assistant", "note": "assistant 双 s", "cat": "jobs", "core": false, "p80": false}, {"id": 5, "en": "attendant", "alts": ["attendant"], "say": "attendant", "zh": "服务员/管理员", "pos": "n./adj.", "col": "flight attendant; parking attendant", "note": "attend + ant", "cat": "jobs", "core": false, "p80": false}, {"id": 6, "en": "babysitter", "alts": ["babysitter"], "say": "babysitter", "zh": "临时保姆", "pos": "n.", "col": "hire a babysitter", "note": "baby + sitter", "cat": "jobs", "core": false, "p80": false}, {"id": 7, "en": "baker", "alts": ["baker"], "say": "baker", "zh": "面包师", "pos": "n.", "col": "work in a bakery; baker", "note": "bakery 是面包店", "cat": "jobs", "core": false, "p80": false}, {"id": 8, "en": "bank clerk", "alts": ["bank clerk"], "say": "bank clerk", "zh": "银行职员", "pos": "n.", "col": "speak to a bank clerk", "note": "clerk 英式可读 /klk/", "cat": "jobs", "core": false, "p80": false}, {"id": 9, "en": "barista", "alts": ["barista"], "say": "barista", "zh": "咖啡师", "pos": "n.", "col": "a barista in a cafe", "note": "不要写成 barrista", "cat": "jobs", "core": false, "p80": false}, {"id": 10, "en": "bartender", "alts": ["bartender"], "say": "bartender", "zh": "酒吧调酒师", "pos": "n.", "col": "work as a bartender", "note": "bar + tender", "cat": "jobs", "core": false, "p80": false}, {"id": 11, "en": "biologist", "alts": ["biologist"], "say": "biologist", "zh": "生物学家", "pos": "n.", "col": "marine biologist; biology department", "note": "biology -> biologist", "cat": "jobs", "core": false, "p80": false}, {"id": 12, "en": "builder", "alts": ["builder"], "say": "builder", "zh": "建筑工/施工方", "pos": "n.", "col": "a builder repaired the wall", "note": "building 是建筑物", "cat": "jobs", "core": false, "p80": false}, {"id": 13, "en": "bus driver", "alts": ["bus driver"], "say": "bus driver", "zh": "公交司机", "pos": "n.", "col": "a bus driver; coach driver", "note": "driver 可泛指司机", "cat": "jobs", "core": false, "p80": false}, {"id": 14, "en": "butcher", "alts": ["butcher"], "say": "butcher", "zh": "肉贩/屠夫", "pos": "n./vt.", "col": "local butcher; butcher shop", "note": "t 不明显但要写", "cat": "jobs", "core": false, "p80": false}, {"id": 15, "en": "caretaker", "alts": ["caretaker"], "say": "caretaker", "zh": "看管员/楼管", "pos": "n.", "col": "school caretaker; building caretaker", "note": "care + taker", "cat": "jobs", "core": false, "p80": false}, {"id": 16, "en": "carpenter", "alts": ["carpenter"], "say": "carpenter", "zh": "木匠", "pos": "n.", "col": "a carpenter fixed the door", "note": "与 plumber/electrician 常同场出现", "cat": "jobs", "core": false, "p80": false}, {"id": 17, "en": "cashier", "alts": ["cashier"], "say": "cashier", "zh": "收银员", "pos": "n.", "col": "pay the cashier; cashier desk", "note": "cash + ier", "cat": "jobs", "core": false, "p80": false}, {"id": 18, "en": "caterer", "alts": ["caterer"], "say": "caterer", "zh": "餐饮承办人", "pos": "n.", "col": "book a caterer; catering service", "note": "catering 是服务名", "cat": "jobs", "core": false, "p80": false}, {"id": 19, "en": "chef", "alts": ["chef"], "say": "chef", "zh": "厨师", "pos": "n.", "col": "head chef; restaurant chef", "note": "chef 不是 chief", "cat": "jobs", "core": false, "p80": false}, {"id": 20, "en": "chemist", "alts": ["chemist"], "say": "chemist", "zh": "药剂师/化学家", "pos": "n.", "col": "chemist shop; research chemist", "note": "英式 chemist 可指药房/药剂师", "cat": "jobs", "core": false, "p80": false}, {"id": 21, "en": "childminder", "alts": ["childminder"], "say": "childminder", "zh": "儿童看护", "pos": "n.", "col": "registered childminder", "note": "英国生活场景常见", "cat": "jobs", "core": false, "p80": false}, {"id": 22, "en": "cleaner", "alts": ["cleaner"], "say": "cleaner", "zh": "清洁工", "pos": "n.", "col": "regular cleaner; domestic cleaner", "note": "cleaning service 场景高频", "cat": "jobs", "core": false, "p80": true}, {"id": 23, "en": "clerk", "alts": ["clerk"], "say": "clerk", "zh": "职员/办事员", "pos": "n./vi.", "col": "hotel clerk; office clerk", "note": "英美发音差异", "cat": "jobs", "core": false, "p80": false}, {"id": 24, "en": "coach", "alts": ["coach"], "say": "coach", "zh": "教练/长途汽车", "pos": "n./vt./vi.", "col": "sports coach; tennis coach", "note": "同形词：coach 长途汽车", "cat": "jobs", "core": false, "p80": false}, {"id": 25, "en": "consultant", "alts": ["consultant"], "say": "consultant", "zh": "顾问", "pos": "n.", "col": "financial consultant; consultant doctor", "note": "consultation 是咨询", "cat": "jobs", "core": false, "p80": false}, {"id": 26, "en": "cook", "alts": ["cook"], "say": "cook", "zh": "厨师/做饭的人", "pos": "n./vt./vi.", "col": "work as a cook", "note": "chef 更专业", "cat": "jobs", "core": false, "p80": false}, {"id": 27, "en": "courier", "alts": ["courier"], "say": "courier", "zh": "快递员", "pos": "n.", "col": "courier service; delivery courier", "note": "courier 不是 career", "cat": "jobs", "core": false, "p80": false}, {"id": 28, "en": "dentist", "alts": ["dentist"], "say": "dentist", "zh": "牙医", "pos": "n.", "col": "dental appointment; see a dentist", "note": "dental 是形容词", "cat": "jobs", "core": false, "p80": false}, {"id": 29, "en": "designer", "alts": ["designer"], "say": "designer", "zh": "设计师", "pos": "n.", "col": "fashion designer; graphic designer", "note": "design + er", "cat": "jobs", "core": false, "p80": false}, {"id": 30, "en": "doctor / GP", "alts": ["doctor", "GP"], "say": "doctor", "zh": "医生/全科医生", "pos": "n./vt./vi.", "col": "make an appointment with a GP", "note": "GP = general practitioner", "cat": "jobs", "core": false, "p80": false}, {"id": 31, "en": "driver", "alts": ["driver"], "say": "driver", "zh": "司机", "pos": "n.", "col": "taxi driver; delivery driver", "note": "drive -> driver", "cat": "jobs", "core": false, "p80": false}, {"id": 32, "en": "economist", "alts": ["economist"], "say": "economist", "zh": "经济学家", "pos": "n.", "col": "an economist; economic research", "note": "economy/economic/economist 区分", "cat": "jobs", "core": false, "p80": false}, {"id": 33, "en": "editor", "alts": ["editor"], "say": "editor", "zh": "编辑", "pos": "n.", "col": "newspaper editor; magazine editor", "note": "edit + or", "cat": "jobs", "core": false, "p80": false}, {"id": 34, "en": "electrician", "alts": ["electrician"], "say": "electrician", "zh": "电工", "pos": "n.", "col": "an electrician repaired the switch", "note": "高危拼写", "cat": "jobs", "core": true, "p80": true}, {"id": 35, "en": "engineer", "alts": ["engineer"], "say": "engineer", "zh": "工程师", "pos": "n./vt.", "col": "civil engineer; software engineer", "note": "engineer 双 e", "cat": "jobs", "core": false, "p80": false}, {"id": 36, "en": "farmer", "alts": ["farmer"], "say": "farmer", "zh": "农民/农场主", "pos": "n.", "col": "organic farmer; dairy farmer", "note": "farm/farmer/farming", "cat": "jobs", "core": false, "p80": false}, {"id": 37, "en": "firefighter", "alts": ["firefighter"], "say": "firefighter", "zh": "消防员", "pos": "n.", "col": "call the firefighter; fire station", "note": "也可说 fireman，但 firefighter 更通用", "cat": "jobs", "core": false, "p80": false}, {"id": 38, "en": "flight attendant", "alts": ["flight attendant"], "say": "flight attendant", "zh": "空乘", "pos": "n.", "col": "ask a flight attendant", "note": "attendant 拼写", "cat": "jobs", "core": false, "p80": false}, {"id": 39, "en": "florist", "alts": ["florist"], "say": "florist", "zh": "花店店主/花艺师", "pos": "n.", "col": "a florist shop; order flowers", "note": "flower 是花，florist 是人", "cat": "jobs", "core": false, "p80": false}, {"id": 40, "en": "gardener", "alts": ["gardener"], "say": "gardener", "zh": "园丁", "pos": "n.", "col": "hire a gardener; garden maintenance", "note": "garden + er", "cat": "jobs", "core": false, "p80": true}, {"id": 41, "en": "geologist", "alts": ["geologist"], "say": "geologist", "zh": "地质学家", "pos": "n.", "col": "field geologist; geology", "note": "geo- 地球", "cat": "jobs", "core": false, "p80": false}, {"id": 42, "en": "guide / tour guide", "alts": ["guide", "tour guide"], "say": "guide", "zh": "导游", "pos": "n./vt./vi.", "col": "local guide; tour guide", "note": "guide 中 u 不发音但要写", "cat": "jobs", "core": false, "p80": false}, {"id": 43, "en": "hairdresser", "alts": ["hairdresser"], "say": "hairdresser", "zh": "理发师", "pos": "n.", "col": "book a hairdresser; hair salon", "note": "hairdresser 常英式", "cat": "jobs", "core": false, "p80": false}, {"id": 44, "en": "historian", "alts": ["historian"], "say": "historian", "zh": "历史学家", "pos": "n.", "col": "local historian; history research", "note": "history -> historian", "cat": "jobs", "core": false, "p80": false}, {"id": 45, "en": "housekeeper", "alts": ["housekeeper"], "say": "housekeeper", "zh": "客房/家政人员", "pos": "n.", "col": "hotel housekeeper; housekeeping", "note": "housekeeping 是家政/客房服务", "cat": "jobs", "core": false, "p80": false}, {"id": 46, "en": "interpreter", "alts": ["interpreter"], "say": "interpreter", "zh": "口译员", "pos": "n.", "col": "conference interpreter", "note": "translator 笔译；interpreter 口译", "cat": "jobs", "core": false, "p80": false}, {"id": 47, "en": "journalist", "alts": ["journalist"], "say": "journalist", "zh": "记者", "pos": "n.", "col": "newspaper journalist; reporter", "note": "journalist 比 reporter 更广", "cat": "jobs", "core": false, "p80": false}, {"id": 48, "en": "lawyer / solicitor", "alts": ["lawyer", "solicitor"], "say": "lawyer", "zh": "律师", "pos": "n.", "col": "speak to a lawyer; solicitor office", "note": "solicitor 英式常见", "cat": "jobs", "core": false, "p80": false}, {"id": 49, "en": "lecturer", "alts": ["lecturer"], "say": "lecturer", "zh": "讲师", "pos": "n.", "col": "university lecturer; lecture", "note": "lecturer 人；lecture 讲座", "cat": "jobs", "core": false, "p80": false}, {"id": 50, "en": "librarian", "alts": ["librarian"], "say": "librarian", "zh": "图书管理员", "pos": "n.", "col": "ask the librarian; library card", "note": "library -> librarian", "cat": "jobs", "core": false, "p80": true}, {"id": 51, "en": "lifeguard", "alts": ["lifeguard"], "say": "lifeguard", "zh": "救生员", "pos": "n.", "col": "swimming pool lifeguard", "note": "life + guard", "cat": "jobs", "core": false, "p80": false}, {"id": 52, "en": "locksmith", "alts": ["locksmith"], "say": "locksmith", "zh": "锁匠", "pos": "n.", "col": "call a locksmith; change the lock", "note": "lock + smith", "cat": "jobs", "core": false, "p80": true}, {"id": 53, "en": "manager", "alts": ["manager"], "say": "manager", "zh": "经理", "pos": "n.", "col": "hotel manager; line manager", "note": "management 是管理", "cat": "jobs", "core": false, "p80": false}, {"id": 54, "en": "mechanic", "alts": ["mechanic"], "say": "mechanic", "zh": "机械师/修车工", "pos": "n./adj.", "col": "car mechanic; garage", "note": "mechanic 不是 machine", "cat": "jobs", "core": false, "p80": true}, {"id": 55, "en": "nurse", "alts": ["nurse"], "say": "nurse", "zh": "护士", "pos": "n./vt./vi.", "col": "registered nurse; nursing home", "note": "nursing 可指护理", "cat": "jobs", "core": false, "p80": false}, {"id": 56, "en": "optician", "alts": ["optician"], "say": "optician", "zh": "验光师/眼镜商", "pos": "n.", "col": "visit an optician; eye test", "note": "optician 不是 opticist", "cat": "jobs", "core": false, "p80": false}, {"id": 57, "en": "painter / decorator", "alts": ["painter", "decorator"], "say": "painter", "zh": "油漆工/装修工", "pos": "n.", "col": "painter and decorator", "note": "decorator 常与 house repair 同场", "cat": "jobs", "core": false, "p80": false}, {"id": 58, "en": "pharmacist", "alts": ["pharmacist"], "say": "pharmacist", "zh": "药剂师", "pos": "n.", "col": "ask the pharmacist; pharmacy", "note": "pharmacist 拼写高危", "cat": "jobs", "core": false, "p80": true}, {"id": 59, "en": "photographer", "alts": ["photographer"], "say": "photographer", "zh": "摄影师", "pos": "n.", "col": "wedding photographer", "note": "photo + graph + er", "cat": "jobs", "core": false, "p80": false}, {"id": 60, "en": "physiotherapist", "alts": ["physiotherapist"], "say": "physiotherapist", "zh": "理疗师", "pos": "n.", "col": "see a physiotherapist", "note": "physio- 拼写长", "cat": "jobs", "core": false, "p80": true}, {"id": 61, "en": "pilot", "alts": ["pilot"], "say": "pilot", "zh": "飞行员", "pos": "n./vt./adj.", "col": "airline pilot", "note": "pilot 可作名词/动词", "cat": "jobs", "core": false, "p80": false}, {"id": 62, "en": "plumber", "alts": ["plumber"], "say": "plumber", "zh": "水管工", "pos": "n.", "col": "a plumber fixed the leak", "note": "b 要写", "cat": "jobs", "core": true, "p80": true}, {"id": 63, "en": "police officer", "alts": ["police officer"], "say": "police officer", "zh": "警察", "pos": "n.", "col": "background check by the police", "note": "police 不作 a police", "cat": "jobs", "core": false, "p80": false}, {"id": 64, "en": "porter", "alts": ["porter"], "say": "porter", "zh": "搬运工/门房", "pos": "n.", "col": "hotel porter; luggage porter", "note": "port 有搬运含义", "cat": "jobs", "core": false, "p80": false}, {"id": 65, "en": "receptionist", "alts": ["receptionist"], "say": "receptionist", "zh": "前台", "pos": "n.", "col": "hotel receptionist; reception desk", "note": "reception vs receptionist", "cat": "jobs", "core": true, "p80": true}, {"id": 66, "en": "researcher", "alts": ["researcher"], "say": "researcher", "zh": "研究员", "pos": "n.", "col": "market researcher; research assistant", "note": "researcher 人", "cat": "jobs", "core": false, "p80": false}, {"id": 67, "en": "sales assistant", "alts": ["sales assistant"], "say": "sales assistant", "zh": "销售员/店员", "pos": "n.", "col": "ask a sales assistant", "note": "assistant 拼写", "cat": "jobs", "core": false, "p80": false}, {"id": 68, "en": "scientist", "alts": ["scientist"], "say": "scientist", "zh": "科学家", "pos": "n.", "col": "environmental scientist", "note": "science -> scientist", "cat": "jobs", "core": false, "p80": false}, {"id": 69, "en": "secretary", "alts": ["secretary"], "say": "secretary", "zh": "秘书", "pos": "n.", "col": "school secretary; secretary office", "note": "secretary 拼写", "cat": "jobs", "core": false, "p80": false}, {"id": 70, "en": "security guard", "alts": ["security guard"], "say": "security guard", "zh": "保安", "pos": "n.", "col": "security guard; security check", "note": "security 不等于 safety", "cat": "jobs", "core": false, "p80": false}, {"id": 71, "en": "social worker", "alts": ["social worker"], "say": "social worker", "zh": "社工", "pos": "n.", "col": "a social worker; social services", "note": "worker 可数", "cat": "jobs", "core": false, "p80": false}, {"id": 72, "en": "student adviser / advisor", "alts": ["student adviser", "advisor"], "say": "student adviser", "zh": "学生顾问", "pos": "n.", "col": "student adviser; academic adviser", "note": "英式 adviser；美式 advisor", "cat": "jobs", "core": false, "p80": false}, {"id": 73, "en": "supervisor", "alts": ["supervisor"], "say": "supervisor", "zh": "主管/导师", "pos": "n.", "col": "project supervisor; shift supervisor", "note": "supervise -> supervisor", "cat": "jobs", "core": false, "p80": false}, {"id": 74, "en": "surveyor", "alts": ["surveyor"], "say": "surveyor", "zh": "测量员/估价员", "pos": "n.", "col": "land surveyor; property surveyor", "note": "survey -> surveyor", "cat": "jobs", "core": false, "p80": false}, {"id": 75, "en": "tailor", "alts": ["tailor"], "say": "tailor", "zh": "裁缝", "pos": "n./vt./vi.", "col": "take it to a tailor; alterations", "note": "衣物服务高频", "cat": "jobs", "core": false, "p80": false}, {"id": 76, "en": "technician", "alts": ["technician"], "say": "technician", "zh": "技术员", "pos": "n.", "col": "lab technician; IT technician", "note": "technician 拼写", "cat": "jobs", "core": false, "p80": false}, {"id": 77, "en": "travel agent", "alts": ["travel agent"], "say": "travel agent", "zh": "旅行社职员", "pos": "n.", "col": "contact a travel agent", "note": "agent 是人/机构代理", "cat": "jobs", "core": false, "p80": false}, {"id": 78, "en": "tutor", "alts": ["tutor"], "say": "tutor", "zh": "导师/家教", "pos": "n./vt./vi.", "col": "private tutor; English tutor", "note": "tutorial 是辅导课", "cat": "jobs", "core": false, "p80": false}, {"id": 79, "en": "vet / veterinarian", "alts": ["vet", "veterinarian"], "say": "vet", "zh": "兽医", "pos": "n./vi./vt.", "col": "take the dog to the vet", "note": "vet 常用短词", "cat": "jobs", "core": false, "p80": false}, {"id": 80, "en": "volunteer", "alts": ["volunteer"], "say": "volunteer", "zh": "志愿者", "pos": "n./adj./v.", "col": "work as a volunteer", "note": "volunteer 双 e", "cat": "jobs", "core": false, "p80": false}, {"id": 81, "en": "waiter / waitress", "alts": ["waiter", "waitress"], "say": "waiter", "zh": "服务员", "pos": "n.", "col": "restaurant waiter; waitress", "note": "waiter 男/泛指，waitress 女", "cat": "jobs", "core": false, "p80": false}, {"id": 82, "en": "warden", "alts": ["warden"], "say": "warden", "zh": "管理员/舍监", "pos": "n.", "col": "hall warden; traffic warden", "note": "校园住宿场景可见", "cat": "jobs", "core": false, "p80": false}, {"id": 83, "en": "web developer", "alts": ["web developer"], "say": "web developer", "zh": "网页开发员", "pos": "n.", "col": "software developer; web developer", "note": "developer 人，development 发展", "cat": "jobs", "core": false, "p80": false}, {"id": 84, "en": "accommodation", "alts": ["accommodation"], "say": "accommodation", "zh": "住宿", "pos": "n.", "col": "student accommodation; temporary accommodation", "note": "不可数为主；拼写双 c 双 m", "cat": "housing", "core": true, "p80": true}, {"id": 85, "en": "apartment / flat", "alts": ["apartment", "flat"], "say": "apartment", "zh": "公寓", "pos": "n.", "col": "rent an apartment; clean the flat", "note": "flat 英式；apartment 美式/国际化", "cat": "housing", "core": true, "p80": true}, {"id": 86, "en": "detached house", "alts": ["detached house"], "say": "detached house", "zh": "独栋住宅", "pos": "n.", "col": "a detached house with a garden", "note": "detached = 不相连", "cat": "housing", "core": false, "p80": false}, {"id": 87, "en": "semi-detached house", "alts": ["semi-detached house"], "say": "semi-detached house", "zh": "半独立住宅", "pos": "n.", "col": "semi-detached house; shared wall", "note": "semi- = 半", "cat": "housing", "core": false, "p80": false}, {"id": 88, "en": "terraced house", "alts": ["terraced house"], "say": "terraced house", "zh": "联排住宅", "pos": "n.", "col": "a terraced house in the city", "note": "terrace/terraced 区分", "cat": "housing", "core": false, "p80": false}, {"id": 89, "en": "bungalow", "alts": ["bungalow"], "say": "bungalow", "zh": "平房", "pos": "n.", "col": "single-storey bungalow", "note": "常指一层住宅", "cat": "housing", "core": false, "p80": false}, {"id": 90, "en": "studio", "alts": ["studio"], "say": "studio", "zh": "单间公寓", "pos": "n.", "col": "studio flat; studio apartment", "note": "不是 study room", "cat": "housing", "core": false, "p80": false}, {"id": 91, "en": "dormitory / dorm", "alts": ["dormitory", "dorm"], "say": "dormitory", "zh": "宿舍", "pos": "n.", "col": "student dormitory; dorm room", "note": "dorm 是缩写", "cat": "housing", "core": false, "p80": false}, {"id": 92, "en": "hall of residence", "alts": ["hall of residence"], "say": "hall of residence", "zh": "学生宿舍楼", "pos": "n.", "col": "university hall of residence", "note": "residence 拼写", "cat": "housing", "core": false, "p80": false}, {"id": 93, "en": "hostel", "alts": ["hostel"], "say": "hostel", "zh": "青年旅舍/宿舍", "pos": "n.", "col": "youth hostel; hostel room", "note": "不是 hotel", "cat": "housing", "core": false, "p80": false}, {"id": 94, "en": "landlord / landlady", "alts": ["landlord", "landlady"], "say": "landlord", "zh": "房东", "pos": "n.", "col": "contact the landlord", "note": "landlady 女性房东", "cat": "housing", "core": false, "p80": true}, {"id": 95, "en": "tenant", "alts": ["tenant"], "say": "tenant", "zh": "租客", "pos": "n./vt.", "col": "the tenant pays rent", "note": "tenancy = 租期/租赁关系", "cat": "housing", "core": false, "p80": true}, {"id": 96, "en": "lease", "alts": ["lease"], "say": "lease", "zh": "租约", "pos": "n./vt.", "col": "sign a lease; lease agreement", "note": "lease 可名词/动词", "cat": "housing", "core": false, "p80": false}, {"id": 97, "en": "rent", "alts": ["rent"], "say": "rent", "zh": "租金/租", "pos": "n./vt./vi.", "col": "monthly rent; rent a room", "note": "rent 可名词/动词", "cat": "housing", "core": false, "p80": false}, {"id": 98, "en": "deposit", "alts": ["deposit"], "say": "deposit", "zh": "押金", "pos": "n./vt./vi.", "col": "pay a deposit; refundable deposit", "note": "de-posit", "cat": "housing", "core": false, "p80": true}, {"id": 99, "en": "utility bill", "alts": ["utility bill"], "say": "utility bill", "zh": "水电煤账单", "pos": "n.", "col": "utility bills are included", "note": "utilities 包括水电气网", "cat": "housing", "core": false, "p80": true}, {"id": 100, "en": "furnished", "alts": ["furnished"], "say": "furnished", "zh": "带家具的", "pos": "adj.", "col": "fully furnished flat", "note": "furniture 不可数", "cat": "housing", "core": false, "p80": true}, {"id": 101, "en": "unfurnished", "alts": ["unfurnished"], "say": "unfurnished", "zh": "不带家具的", "pos": "adj.", "col": "unfurnished room", "note": "un- 否定前缀", "cat": "housing", "core": false, "p80": false}, {"id": 102, "en": "ensuite", "alts": ["ensuite"], "say": "ensuite", "zh": "带独卫的", "pos": "adj.", "col": "ensuite bathroom; ensuite room", "note": "也写 en suite", "cat": "housing", "core": false, "p80": true}, {"id": 103, "en": "shared bathroom", "alts": ["shared bathroom"], "say": "shared bathroom", "zh": "共用浴室", "pos": "n.", "col": "share a bathroom with others", "note": "shared = 共用的", "cat": "housing", "core": false, "p80": false}, {"id": 104, "en": "single room", "alts": ["single room"], "say": "single room", "zh": "单人间", "pos": "n.", "col": "book a single room", "note": "single 可指单人床/单人间", "cat": "housing", "core": false, "p80": false}, {"id": 105, "en": "double room", "alts": ["double room"], "say": "double room", "zh": "双人间/大床房", "pos": "n.", "col": "double room with a balcony", "note": "double bed 大床", "cat": "housing", "core": false, "p80": false}, {"id": 106, "en": "twin room", "alts": ["twin room"], "say": "twin room", "zh": "双床房", "pos": "n.", "col": "twin room with two beds", "note": "twin = 两张单人床", "cat": "housing", "core": false, "p80": false}, {"id": 107, "en": "master bedroom", "alts": ["master bedroom"], "say": "master bedroom", "zh": "主卧", "pos": "n.", "col": "master bedroom with ensuite", "note": "bedroom 可数", "cat": "housing", "core": false, "p80": false}, {"id": 108, "en": "spare room", "alts": ["spare room"], "say": "spare room", "zh": "空房/备用房间", "pos": "n.", "col": "use the spare room as a study", "note": "spare = 多余的", "cat": "housing", "core": false, "p80": false}, {"id": 109, "en": "living room / lounge", "alts": ["living room", "lounge"], "say": "living room", "zh": "客厅", "pos": "n./vi./vt.", "col": "living room; lounge area", "note": "lounge 常见于酒店/宿舍", "cat": "housing", "core": false, "p80": false}, {"id": 110, "en": "dining room", "alts": ["dining room"], "say": "dining room", "zh": "餐厅", "pos": "n.", "col": "dining room table", "note": "dining 不是 dinner", "cat": "housing", "core": false, "p80": false}, {"id": 111, "en": "kitchen", "alts": ["kitchen"], "say": "kitchen", "zh": "厨房", "pos": "n.", "col": "shared kitchen; kitchen facilities", "note": "kitchenette 是小厨房", "cat": "housing", "core": false, "p80": false}, {"id": 112, "en": "kitchenette", "alts": ["kitchenette"], "say": "kitchenette", "zh": "小厨房", "pos": "n.", "col": "room with a kitchenette", "note": "后缀 -ette 表小", "cat": "housing", "core": false, "p80": false}, {"id": 113, "en": "bathroom", "alts": ["bathroom"], "say": "bathroom", "zh": "浴室/卫生间", "pos": "n.", "col": "bathroom cleaning; private bathroom", "note": "toilet 更具体指马桶/厕所", "cat": "housing", "core": false, "p80": false}, {"id": 114, "en": "toilet / lavatory", "alts": ["toilet", "lavatory"], "say": "toilet", "zh": "厕所/马桶", "pos": "n./vi./vt.", "col": "clean the toilet; public lavatory", "note": "lavatory 较正式", "cat": "housing", "core": false, "p80": false}, {"id": 115, "en": "laundry room", "alts": ["laundry room"], "say": "laundry room", "zh": "洗衣房", "pos": "n.", "col": "use the laundry room", "note": "laundry 不可数为主", "cat": "housing", "core": false, "p80": false}, {"id": 116, "en": "study", "alts": ["study"], "say": "study", "zh": "书房", "pos": "n./vt./vi.", "col": "a quiet study; study room", "note": "可名词/动词", "cat": "housing", "core": false, "p80": false}, {"id": 117, "en": "basement", "alts": ["basement"], "say": "basement", "zh": "地下室", "pos": "n.", "col": "basement flat; basement parking", "note": "base + ment", "cat": "housing", "core": false, "p80": false}, {"id": 118, "en": "attic / loft", "alts": ["attic", "loft"], "say": "attic", "zh": "阁楼", "pos": "n.", "col": "store boxes in the attic", "note": "loft 常英式/房产场景", "cat": "housing", "core": false, "p80": false}, {"id": 119, "en": "balcony", "alts": ["balcony"], "say": "balcony", "zh": "阳台", "pos": "n.", "col": "wash down the balcony", "note": "拼写高危", "cat": "housing", "core": true, "p80": true}, {"id": 120, "en": "patio", "alts": ["patio"], "say": "patio", "zh": "露台", "pos": "n.", "col": "patio doors; garden patio", "note": "常在花园旁", "cat": "housing", "core": false, "p80": false}, {"id": 121, "en": "garden / yard", "alts": ["garden", "yard"], "say": "garden", "zh": "花园/院子", "pos": "n./vi./vt.", "col": "front garden; back yard", "note": "yard 更美式", "cat": "housing", "core": false, "p80": false}, {"id": 122, "en": "garage", "alts": ["garage"], "say": "garage", "zh": "车库/修车厂", "pos": "n./vt.", "col": "park in the garage", "note": "garage 发音英美不同", "cat": "housing", "core": false, "p80": false}, {"id": 123, "en": "driveway", "alts": ["driveway"], "say": "driveway", "zh": "私家车道", "pos": "n.", "col": "parking on the driveway", "note": "drive + way", "cat": "housing", "core": false, "p80": false}, {"id": 124, "en": "porch", "alts": ["porch"], "say": "porch", "zh": "门廊", "pos": "n.", "col": "front porch", "note": "常与 entrance 同场", "cat": "housing", "core": false, "p80": false}, {"id": 125, "en": "corridor / hallway", "alts": ["corridor", "hallway"], "say": "corridor", "zh": "走廊", "pos": "n.", "col": "walk along the corridor", "note": "hallway 家里/学校常见", "cat": "housing", "core": false, "p80": true}, {"id": 126, "en": "staircase / stairs", "alts": ["staircase", "stairs"], "say": "staircase", "zh": "楼梯", "pos": "n.", "col": "staircase to the first floor", "note": "stairs 常复数", "cat": "housing", "core": false, "p80": false}, {"id": 127, "en": "lift / elevator", "alts": ["lift", "elevator"], "say": "lift", "zh": "电梯", "pos": "n./vt./vi.", "col": "take the lift/elevator", "note": "lift 英式；elevator 美式", "cat": "housing", "core": false, "p80": false}, {"id": 128, "en": "entrance", "alts": ["entrance"], "say": "entrance", "zh": "入口", "pos": "n./vt.", "col": "main entrance", "note": "enter -> entrance", "cat": "housing", "core": false, "p80": false}, {"id": 129, "en": "lobby / reception area", "alts": ["lobby", "reception area"], "say": "lobby", "zh": "大厅/前台区域", "pos": "n./vi./vt.", "col": "hotel lobby; reception area", "note": "reception 不是 receptionist", "cat": "housing", "core": false, "p80": false}, {"id": 130, "en": "floor", "alts": ["floor"], "say": "floor", "zh": "地板/楼层", "pos": "n./vt.", "col": "clean the floor; on the first floor", "note": "注意英美楼层说法可能不同", "cat": "housing", "core": false, "p80": true}, {"id": 131, "en": "ceiling", "alts": ["ceiling"], "say": "ceiling", "zh": "天花板", "pos": "n.", "col": "high ceiling; ceiling fan", "note": "ei 拼写", "cat": "housing", "core": false, "p80": true}, {"id": 132, "en": "wall", "alts": ["wall"], "say": "wall", "zh": "墙", "pos": "n./adj./vt.", "col": "paint the wall; wall socket", "note": "wallpaper 墙纸", "cat": "housing", "core": false, "p80": false}, {"id": 133, "en": "roof", "alts": ["roof"], "say": "roof", "zh": "屋顶", "pos": "n./vt.", "col": "repair the roof; roof leak", "note": "roof/roofs", "cat": "housing", "core": false, "p80": false}, {"id": 134, "en": "window / windowsill", "alts": ["window", "windowsill"], "say": "window", "zh": "窗户/窗台", "pos": "n./vt.", "col": "clean all the windows", "note": "windows 常复数", "cat": "housing", "core": false, "p80": false}, {"id": 135, "en": "door / lock / key", "alts": ["door", "lock", "key"], "say": "door", "zh": "门/锁/钥匙", "pos": "n.", "col": "change the lock; spare key", "note": "locksmith 锁匠", "cat": "housing", "core": false, "p80": false}, {"id": 136, "en": "socket / plug", "alts": ["socket", "plug"], "say": "socket", "zh": "插座/插头", "pos": "n./vt.", "col": "electrical socket; plug in", "note": "socket 常和 switch 搭配", "cat": "housing", "core": false, "p80": false}, {"id": 137, "en": "switch", "alts": ["switch"], "say": "switch", "zh": "开关", "pos": "n./vt./vi.", "col": "light switch; switch on/off", "note": "动词/名词同形", "cat": "housing", "core": false, "p80": false}, {"id": 138, "en": "fuse", "alts": ["fuse"], "say": "fuse", "zh": "保险丝", "pos": "n./v.", "col": "replace a fuse", "note": "与 electricity 维修相关", "cat": "housing", "core": false, "p80": false}, {"id": 139, "en": "radiator", "alts": ["radiator"], "say": "radiator", "zh": "暖气片", "pos": "n.", "col": "turn on the radiator", "note": "radiator 拼写", "cat": "housing", "core": false, "p80": true}, {"id": 140, "en": "heater", "alts": ["heater"], "say": "heater", "zh": "加热器", "pos": "n.", "col": "electric heater; water heater", "note": "heat -> heater", "cat": "housing", "core": false, "p80": false}, {"id": 141, "en": "air conditioner", "alts": ["air conditioner"], "say": "air conditioner", "zh": "空调", "pos": "n.", "col": "air conditioning; air conditioner", "note": "conditioner 拼写", "cat": "housing", "core": false, "p80": false}, {"id": 142, "en": "thermostat", "alts": ["thermostat"], "say": "thermostat", "zh": "恒温器", "pos": "n.", "col": "adjust the thermostat", "note": "thermo- 与温度有关", "cat": "housing", "core": false, "p80": true}, {"id": 143, "en": "boiler", "alts": ["boiler"], "say": "boiler", "zh": "锅炉/热水器", "pos": "n.", "col": "boiler room; boiler repair", "note": "boil -> boiler", "cat": "housing", "core": false, "p80": true}, {"id": 144, "en": "pipe", "alts": ["pipe"], "say": "pipe", "zh": "管道", "pos": "n./vt./vi.", "col": "leaking pipe; water pipe", "note": "pipe 可数", "cat": "housing", "core": false, "p80": true}, {"id": 145, "en": "tap / faucet", "alts": ["tap", "faucet"], "say": "tap", "zh": "水龙头", "pos": "n./vt./vi.", "col": "turn off the tap/faucet", "note": "tap 英式；faucet 美式", "cat": "housing", "core": false, "p80": true}, {"id": 146, "en": "sink", "alts": ["sink"], "say": "sink", "zh": "水槽", "pos": "n./vi./vt.", "col": "kitchen sink; bathroom sink", "note": "sink 也可作动词“下沉”", "cat": "housing", "core": false, "p80": true}, {"id": 147, "en": "drain", "alts": ["drain"], "say": "drain", "zh": "排水管/下水道", "pos": "n./vt./vi.", "col": "blocked drain", "note": "drainage 排水系统", "cat": "housing", "core": false, "p80": false}, {"id": 148, "en": "shower", "alts": ["shower"], "say": "shower", "zh": "淋浴", "pos": "n./vi./vt.", "col": "clean the shower; shower room", "note": "也可指阵雨", "cat": "housing", "core": false, "p80": false}, {"id": 149, "en": "bathtub / bath", "alts": ["bathtub", "bath"], "say": "bathtub", "zh": "浴缸", "pos": "n.", "col": "clean the bathtub", "note": "bath 英式常用", "cat": "housing", "core": false, "p80": false}, {"id": 150, "en": "curtain / blind", "alts": ["curtain", "blind"], "say": "curtain", "zh": "窗帘/百叶窗", "pos": "n./vt.", "col": "draw the curtains; window blinds", "note": "blind 可形容词“失明的”", "cat": "housing", "core": false, "p80": false}, {"id": 151, "en": "carpet / rug", "alts": ["carpet", "rug"], "say": "carpet", "zh": "地毯/小地毯", "pos": "n./vt.", "col": "clean the carpet; rug on the floor", "note": "carpet 常铺满；rug 较小", "cat": "housing", "core": false, "p80": true}, {"id": 152, "en": "tile", "alts": ["tile"], "say": "tile", "zh": "瓷砖", "pos": "n./vt.", "col": "floor tiles; bathroom tiles", "note": "常复数 tiles", "cat": "housing", "core": false, "p80": false}, {"id": 153, "en": "wooden floor", "alts": ["wooden floor"], "say": "wooden floor", "zh": "木地板", "pos": "n.", "col": "wooden floor throughout", "note": "wooden 形容词", "cat": "housing", "core": false, "p80": false}, {"id": 154, "en": "mattress", "alts": ["mattress"], "say": "mattress", "zh": "床垫", "pos": "n.", "col": "new mattress; firm mattress", "note": "双 s", "cat": "housing", "core": false, "p80": false}, {"id": 155, "en": "wardrobe", "alts": ["wardrobe"], "say": "wardrobe", "zh": "衣柜", "pos": "n.", "col": "built-in wardrobe", "note": "wardrobe 也指全部衣服", "cat": "housing", "core": false, "p80": true}, {"id": 156, "en": "cupboard", "alts": ["cupboard"], "say": "cupboard", "zh": "橱柜", "pos": "n.", "col": "kitchen cupboard", "note": "p 不明显但要写", "cat": "housing", "core": false, "p80": true}, {"id": 157, "en": "shelf / shelves", "alts": ["shelf", "shelves"], "say": "shelf", "zh": "架子", "pos": "n.", "col": "bookshelf; shelves in the kitchen", "note": "复数 shelves", "cat": "housing", "core": false, "p80": false}, {"id": 158, "en": "desk / chair", "alts": ["desk", "chair"], "say": "desk", "zh": "书桌/椅子", "pos": "n.", "col": "desk lamp; office chair", "note": "chair 也可主持会议", "cat": "housing", "core": false, "p80": false}, {"id": 159, "en": "sofa / couch", "alts": ["sofa", "couch"], "say": "sofa", "zh": "沙发", "pos": "n.", "col": "sofa bed; comfortable couch", "note": "couch 更口语", "cat": "housing", "core": false, "p80": false}, {"id": 160, "en": "drawer", "alts": ["drawer"], "say": "drawer", "zh": "抽屉", "pos": "n.", "col": "chest of drawers", "note": "draw + er 但发音不同", "cat": "housing", "core": false, "p80": false}, {"id": 161, "en": "fridge / refrigerator", "alts": ["fridge", "refrigerator"], "say": "fridge", "zh": "冰箱", "pos": "n.", "col": "clean the fridge", "note": "refrigerator 拼写长", "cat": "housing", "core": true, "p80": true}, {"id": 162, "en": "freezer", "alts": ["freezer"], "say": "freezer", "zh": "冷冻柜", "pos": "n.", "col": "put it in the freezer", "note": "freeze -> freezer", "cat": "housing", "core": false, "p80": false}, {"id": 163, "en": "cooker / stove", "alts": ["cooker", "stove"], "say": "cooker", "zh": "炉具", "pos": "n.", "col": "gas cooker; stove top", "note": "cooker 英式常见", "cat": "housing", "core": false, "p80": false}, {"id": 164, "en": "oven / microwave", "alts": ["oven", "microwave"], "say": "oven", "zh": "烤箱/微波炉", "pos": "n.", "col": "use the oven; microwave meals", "note": "microwave 不是可熨烫衣物", "cat": "housing", "core": false, "p80": true}, {"id": 165, "en": "dishwasher", "alts": ["dishwasher"], "say": "dishwasher", "zh": "洗碗机", "pos": "n.", "col": "dishwasher repair", "note": "dish + washer", "cat": "housing", "core": false, "p80": false}, {"id": 166, "en": "washing machine", "alts": ["washing machine"], "say": "washing machine", "zh": "洗衣机", "pos": "n.", "col": "washing machine broke down", "note": "machine 拼写", "cat": "housing", "core": false, "p80": true}, {"id": 167, "en": "dryer", "alts": ["dryer"], "say": "dryer", "zh": "烘干机", "pos": "n.", "col": "tumble dryer", "note": "dry -> dryer", "cat": "housing", "core": false, "p80": false}, {"id": 168, "en": "vacuum cleaner", "alts": ["vacuum cleaner"], "say": "vacuum cleaner", "zh": "吸尘器", "pos": "n.", "col": "use a vacuum cleaner", "note": "vacuum 双 u", "cat": "housing", "core": false, "p80": true}, {"id": 169, "en": "kettle / toaster", "alts": ["kettle", "toaster"], "say": "kettle", "zh": "水壶/烤面包机", "pos": "n.", "col": "electric kettle; toaster", "note": "kettle 双 t", "cat": "housing", "core": false, "p80": false}, {"id": 170, "en": "iron / ironing board", "alts": ["iron", "ironing board"], "say": "iron", "zh": "熨斗/熨衣板", "pos": "n./vt./vi.", "col": "ironing clothes; ironing board", "note": "iron 发音注意", "cat": "housing", "core": false, "p80": false}, {"id": 171, "en": "rubbish bin / trash can", "alts": ["rubbish bin", "trash can"], "say": "rubbish bin", "zh": "垃圾桶", "pos": "n.", "col": "empty the rubbish bin", "note": "rubbish 英式；trash 美式", "cat": "housing", "core": false, "p80": false}, {"id": 172, "en": "damp / mould", "alts": ["damp", "mould"], "say": "damp", "zh": "潮湿/霉菌", "pos": "n./adj./vt.", "col": "damp room; mould on the wall", "note": "mould 英式；mold 美式", "cat": "housing", "core": false, "p80": true}, {"id": 173, "en": "leak / crack / stain", "alts": ["leak", "crack", "stain"], "say": "leak", "zh": "漏水/裂缝/污渍", "pos": "n./vi./vt.", "col": "roof leak; crack in the wall; stain on carpet", "note": "可数名词常见", "cat": "housing", "core": false, "p80": true}, {"id": 174, "en": "maintenance / repair", "alts": ["maintenance", "repair"], "say": "maintenance", "zh": "维护/维修", "pos": "n.", "col": "request maintenance; urgent repair", "note": "maintenance 拼写高危", "cat": "housing", "core": true, "p80": true}, {"id": 175, "en": "heating / ventilation", "alts": ["heating", "ventilation"], "say": "heating", "zh": "供暖/通风", "pos": "n./adj.", "col": "central heating; good ventilation", "note": "ventilation 学术/住房都常见", "cat": "housing", "core": false, "p80": false}, {"id": 176, "en": "insulation", "alts": ["insulation"], "say": "insulation", "zh": "隔热/隔音", "pos": "n.", "col": "poor insulation; roof insulation", "note": "与 energy bills 相关", "cat": "housing", "core": false, "p80": true}, {"id": 177, "en": "neighbourhood", "alts": ["neighbourhood"], "say": "neighbourhood", "zh": "社区/街区", "pos": "n.", "col": "quiet neighbourhood", "note": "英式 neighbourhood；美式 neighborhood", "cat": "housing", "core": false, "p80": false}, {"id": 178, "en": "parking", "alts": ["parking"], "say": "parking", "zh": "停车位", "pos": "n./adj.", "col": "free parking; underground parking", "note": "parking space 可数", "cat": "housing", "core": false, "p80": false}, {"id": 179, "en": "cleaning service", "alts": ["cleaning service"], "say": "cleaning service", "zh": "清洁服务", "pos": "n.", "col": "book a cleaning service; domestic cleaning", "note": "service 可数/不可数看语境", "cat": "services", "core": false, "p80": true}, {"id": 180, "en": "carpet cleaning", "alts": ["carpet cleaning"], "say": "carpet cleaning", "zh": "地毯清洁", "pos": "n.", "col": "professional carpet cleaning", "note": "carpet 不是 floor", "cat": "services", "core": false, "p80": false}, {"id": 181, "en": "window cleaning", "alts": ["window cleaning"], "say": "window cleaning", "zh": "窗户清洁", "pos": "n.", "col": "cleaning all the windows from the inside", "note": "windows 常复数", "cat": "services", "core": false, "p80": false}, {"id": 182, "en": "laundry service", "alts": ["laundry service"], "say": "laundry service", "zh": "洗衣服务", "pos": "n.", "col": "laundry service is available", "note": "laundry 不可数为主", "cat": "services", "core": false, "p80": true}, {"id": 183, "en": "dry cleaning", "alts": ["dry cleaning"], "say": "dry cleaning", "zh": "干洗", "pos": "n.", "col": "take the suit for dry cleaning", "note": "dry-clean 可作动词", "cat": "services", "core": false, "p80": true}, {"id": 184, "en": "ironing", "alts": ["ironing"], "say": "ironing", "zh": "熨烫", "pos": "n.", "col": "ironing clothes; shirts only", "note": "iron/ironing 区分", "cat": "services", "core": false, "p80": true}, {"id": 185, "en": "alterations", "alts": ["alterations"], "say": "alterations", "zh": "衣服修改", "pos": "n.", "col": "clothing alterations; tailor", "note": "常用复数 alterations", "cat": "services", "core": false, "p80": true}, {"id": 186, "en": "repair service", "alts": ["repair service"], "say": "repair service", "zh": "维修服务", "pos": "n.", "col": "repair service for appliances", "note": "repair 可名词/动词", "cat": "services", "core": false, "p80": false}, {"id": 187, "en": "delivery service", "alts": ["delivery service"], "say": "delivery service", "zh": "送货服务", "pos": "n.", "col": "same-day delivery; delivery charge", "note": "delivery vs deliver", "cat": "services", "core": false, "p80": true}, {"id": 188, "en": "courier service", "alts": ["courier service"], "say": "courier service", "zh": "快递服务", "pos": "n.", "col": "courier service; express courier", "note": "courier 不是 career", "cat": "services", "core": false, "p80": false}, {"id": 189, "en": "plumbing service", "alts": ["plumbing service"], "say": "plumbing service", "zh": "管道维修", "pos": "n.", "col": "call a plumber; plumbing problem", "note": "plumber 是人，plumbing 是服务", "cat": "services", "core": false, "p80": false}, {"id": 190, "en": "electrical service", "alts": ["electrical service"], "say": "electrical service", "zh": "电气维修", "pos": "n.", "col": "call an electrician; electrical fault", "note": "electric/electrical 区分", "cat": "services", "core": false, "p80": false}, {"id": 191, "en": "mechanic / garage", "alts": ["mechanic", "garage"], "say": "mechanic", "zh": "修车服务/修车厂", "pos": "n./adj.", "col": "take the car to a mechanic/garage", "note": "garage 可指车库或修车厂", "cat": "services", "core": false, "p80": true}, {"id": 192, "en": "locksmith service", "alts": ["locksmith service"], "say": "locksmith service", "zh": "开锁/换锁服务", "pos": "n.", "col": "emergency locksmith service", "note": "locksmith 拼写", "cat": "services", "core": false, "p80": false}, {"id": 193, "en": "gardening service", "alts": ["gardening service"], "say": "gardening service", "zh": "园艺服务", "pos": "n.", "col": "gardening and lawn care", "note": "garden/gardening/gardener", "cat": "services", "core": false, "p80": false}, {"id": 194, "en": "decorating service", "alts": ["decorating service"], "say": "decorating service", "zh": "装修/粉刷服务", "pos": "n.", "col": "painting and decorating", "note": "decorator 是人", "cat": "services", "core": false, "p80": false}, {"id": 195, "en": "pest control", "alts": ["pest control"], "say": "pest control", "zh": "虫害控制", "pos": "n.", "col": "pest control service", "note": "pest = 害虫", "cat": "services", "core": false, "p80": false}, {"id": 196, "en": "removal company", "alts": ["removal company"], "say": "removal company", "zh": "搬家公司", "pos": "n.", "col": "hire a removal company", "note": "英式 removals = 搬家服务", "cat": "services", "core": false, "p80": false}, {"id": 197, "en": "storage service", "alts": ["storage service"], "say": "storage service", "zh": "仓储服务", "pos": "n.", "col": "short-term storage; storage room", "note": "store/storage 区分", "cat": "services", "core": false, "p80": false}, {"id": 198, "en": "waste collection", "alts": ["waste collection"], "say": "waste collection", "zh": "垃圾收集", "pos": "n.", "col": "weekly waste collection", "note": "waste/rubbish/garbage", "cat": "services", "core": false, "p80": false}, {"id": 199, "en": "recycling service", "alts": ["recycling service"], "say": "recycling service", "zh": "回收服务", "pos": "n.", "col": "recycling bins; recycling service", "note": "recycle/recycling", "cat": "services", "core": false, "p80": false}, {"id": 200, "en": "taxi service", "alts": ["taxi service"], "say": "taxi service", "zh": "出租车服务", "pos": "n.", "col": "book a taxi; taxi fare", "note": "fare 是车费", "cat": "services", "core": false, "p80": false}, {"id": 201, "en": "shuttle bus", "alts": ["shuttle bus"], "say": "shuttle bus", "zh": "接驳巴士", "pos": "n.", "col": "airport shuttle bus", "note": "shuttle 常指循环接送", "cat": "services", "core": false, "p80": false}, {"id": 202, "en": "car hire / car rental", "alts": ["car hire", "car rental"], "say": "car hire", "zh": "租车", "pos": "n.", "col": "car hire company; rental fee", "note": "hire 英式；rental 美式/通用", "cat": "services", "core": false, "p80": false}, {"id": 203, "en": "travel agency", "alts": ["travel agency"], "say": "travel agency", "zh": "旅行社", "pos": "n.", "col": "contact a travel agency", "note": "agent 是人，agency 是机构", "cat": "services", "core": false, "p80": false}, {"id": 204, "en": "tour guide", "alts": ["tour guide"], "say": "tour guide", "zh": "导游服务", "pos": "n.", "col": "guided tour; tour guide", "note": "guide 可名词/动词", "cat": "services", "core": false, "p80": false}, {"id": 205, "en": "booking / reservation", "alts": ["booking", "reservation"], "say": "booking", "zh": "预订", "pos": "n.", "col": "make a booking/reservation", "note": "booking 英式更常见", "cat": "services", "core": false, "p80": true}, {"id": 206, "en": "cancellation", "alts": ["cancellation"], "say": "cancellation", "zh": "取消", "pos": "n.", "col": "cancellation fee; cancel a booking", "note": "双 l 在 cancelled/cancellation 视英美", "cat": "services", "core": false, "p80": true}, {"id": 207, "en": "refund", "alts": ["refund"], "say": "refund", "zh": "退款", "pos": "n./vt./vi.", "col": "get a refund; refund policy", "note": "可名词/动词", "cat": "services", "core": false, "p80": true}, {"id": 208, "en": "fee / charge", "alts": ["fee", "charge"], "say": "fee", "zh": "费用/收费", "pos": "n./vt.", "col": "service fee; extra charge", "note": "fee 更固定；charge 可动词", "cat": "services", "core": false, "p80": false}, {"id": 209, "en": "receipt", "alts": ["receipt"], "say": "receipt", "zh": "收据", "pos": "n./vt.", "col": "keep the receipt", "note": "p 不明显但要写", "cat": "services", "core": false, "p80": true}, {"id": 210, "en": "invoice", "alts": ["invoice"], "say": "invoice", "zh": "发票/账单", "pos": "n./v.", "col": "send an invoice", "note": "商业场景常见", "cat": "services", "core": false, "p80": false}, {"id": 211, "en": "discount", "alts": ["discount"], "say": "discount", "zh": "折扣", "pos": "n./vt./vi.", "col": "student discount; 10% discount", "note": "discount 可名词/动词", "cat": "services", "core": false, "p80": false}, {"id": 212, "en": "membership", "alts": ["membership"], "say": "membership", "zh": "会员资格", "pos": "n.", "col": "gym membership; library membership", "note": "member/membership", "cat": "services", "core": false, "p80": true}, {"id": 213, "en": "loyalty card", "alts": ["loyalty card"], "say": "loyalty card", "zh": "会员积分卡", "pos": "n.", "col": "loyalty club membership", "note": "loyalty 拼写", "cat": "services", "core": false, "p80": false}, {"id": 214, "en": "customer service", "alts": ["customer service"], "say": "customer service", "zh": "客户服务", "pos": "n.", "col": "customer service desk", "note": "customer 不是 consumer", "cat": "services", "core": false, "p80": false}, {"id": 215, "en": "helpline", "alts": ["helpline"], "say": "helpline", "zh": "服务热线", "pos": "n.", "col": "call the helpline", "note": "help + line", "cat": "services", "core": false, "p80": false}, {"id": 216, "en": "enquiry / information desk", "alts": ["enquiry", "information desk"], "say": "enquiry", "zh": "咨询台", "pos": "n.", "col": "make an enquiry; information desk", "note": "enquiry 英式拼写", "cat": "services", "core": true, "p80": false}, {"id": 217, "en": "complaint", "alts": ["complaint"], "say": "complaint", "zh": "投诉", "pos": "n.", "col": "make a complaint; customer complaints", "note": "complain 动词；complaint 名词", "cat": "services", "core": false, "p80": true}, {"id": 218, "en": "feedback / review", "alts": ["feedback", "review"], "say": "feedback", "zh": "反馈/评价", "pos": "n.", "col": "send a review after each visit", "note": "review 可作名词/动词", "cat": "services", "core": false, "p80": true}, {"id": 219, "en": "reference", "alts": ["reference"], "say": "reference", "zh": "推荐证明", "pos": "n./vt./vi.", "col": "references are required", "note": "常用复数", "cat": "services", "core": true, "p80": true}, {"id": 220, "en": "background check", "alts": ["background check"], "say": "background check", "zh": "背景调查", "pos": "n.", "col": "background check by the police", "note": "check 可名词", "cat": "services", "core": false, "p80": true}, {"id": 221, "en": "insurance", "alts": ["insurance"], "say": "insurance", "zh": "保险", "pos": "n.", "col": "travel insurance; home insurance", "note": "不可数为主", "cat": "services", "core": false, "p80": false}, {"id": 222, "en": "bank account", "alts": ["bank account"], "say": "bank account", "zh": "银行账户", "pos": "n.", "col": "open a bank account", "note": "account 可数", "cat": "services", "core": false, "p80": false}, {"id": 223, "en": "credit card / debit card", "alts": ["credit card", "debit card"], "say": "credit card", "zh": "信用卡/借记卡", "pos": "n.", "col": "pay by credit card", "note": "debit 发音注意", "cat": "services", "core": false, "p80": false}, {"id": 224, "en": "cash / cheque", "alts": ["cash", "cheque"], "say": "cash", "zh": "现金/支票", "pos": "n./vt.", "col": "pay in cash; by cheque", "note": "cheque 英式；check 美式", "cat": "services", "core": false, "p80": false}, {"id": 225, "en": "appointment", "alts": ["appointment"], "say": "appointment", "zh": "预约", "pos": "n.", "col": "make an appointment with a dentist", "note": "appointment 拼写", "cat": "services", "core": false, "p80": true}, {"id": 226, "en": "consultation", "alts": ["consultation"], "say": "consultation", "zh": "咨询/诊疗", "pos": "n.", "col": "free consultation; medical consultation", "note": "consultant 是人", "cat": "services", "core": false, "p80": false}, {"id": 227, "en": "prescription", "alts": ["prescription"], "say": "prescription", "zh": "处方", "pos": "n.", "col": "get a prescription; prescription medicine", "note": "pre-scription", "cat": "services", "core": false, "p80": true}, {"id": 228, "en": "vaccination", "alts": ["vaccination"], "say": "vaccination", "zh": "疫苗接种", "pos": "n.", "col": "travel vaccination", "note": "vaccine/vaccination", "cat": "services", "core": false, "p80": false}, {"id": 229, "en": "pharmacy / chemist", "alts": ["pharmacy", "chemist"], "say": "pharmacy", "zh": "药房", "pos": "n.", "col": "pick it up at the pharmacy/chemist", "note": "chemist 英式可指药房", "cat": "services", "core": false, "p80": false}, {"id": 230, "en": "dental check-up", "alts": ["dental check-up"], "say": "dental check-up", "zh": "牙科检查", "pos": "n.", "col": "book a dental check-up", "note": "check-up 有连字符", "cat": "services", "core": false, "p80": false}, {"id": 231, "en": "eye test", "alts": ["eye test"], "say": "eye test", "zh": "视力检查", "pos": "n.", "col": "eye test at the optician", "note": "optician 场景词", "cat": "services", "core": false, "p80": false}, {"id": 232, "en": "physiotherapy", "alts": ["physiotherapy"], "say": "physiotherapy", "zh": "理疗", "pos": "n.", "col": "physiotherapy appointment", "note": "拼写较长", "cat": "services", "core": false, "p80": false}, {"id": 233, "en": "gym membership", "alts": ["gym membership"], "say": "gym membership", "zh": "健身房会员", "pos": "n.", "col": "annual gym membership", "note": "membership 不等于 member", "cat": "services", "core": false, "p80": false}, {"id": 234, "en": "keep-fit class", "alts": ["keep-fit class"], "say": "keep-fit class", "zh": "健身课", "pos": "n.", "col": "join a keep-fit class", "note": "雅思王听力常见生活词", "cat": "services", "core": false, "p80": false}, {"id": 235, "en": "swimming pool", "alts": ["swimming pool"], "say": "swimming pool", "zh": "游泳池", "pos": "n.", "col": "pool timetable; swimming lesson", "note": "pool 也可指台球", "cat": "services", "core": false, "p80": false}, {"id": 236, "en": "library card", "alts": ["library card"], "say": "library card", "zh": "图书证", "pos": "n.", "col": "apply for a library card", "note": "librarian 是人", "cat": "services", "core": false, "p80": false}, {"id": 237, "en": "student card", "alts": ["student card"], "say": "student card", "zh": "学生卡", "pos": "n.", "col": "student ID card", "note": "ID = identification", "cat": "services", "core": false, "p80": false}, {"id": 238, "en": "registration", "alts": ["registration"], "say": "registration", "zh": "注册/登记", "pos": "n.", "col": "registration form; online registration", "note": "register 动词", "cat": "services", "core": false, "p80": false}, {"id": 239, "en": "admission", "alts": ["admission"], "say": "admission", "zh": "入学/入场", "pos": "n.", "col": "admission office; admission fee", "note": "admit/admission", "cat": "services", "core": false, "p80": false}, {"id": 240, "en": "orientation", "alts": ["orientation"], "say": "orientation", "zh": "迎新/介绍会", "pos": "n.", "col": "orientation week", "note": "校园场景高频", "cat": "services", "core": false, "p80": false}, {"id": 241, "en": "accommodation office", "alts": ["accommodation office"], "say": "accommodation office", "zh": "住宿办公室", "pos": "n.", "col": "contact the accommodation office", "note": "accommodation 拼写", "cat": "services", "core": false, "p80": false}, {"id": 242, "en": "IT support", "alts": ["IT support"], "say": "IT support", "zh": "技术支持", "pos": "n.", "col": "contact IT support", "note": "support 可名词/动词", "cat": "services", "core": false, "p80": false}, {"id": 243, "en": "repair desk", "alts": ["repair desk"], "say": "repair desk", "zh": "维修服务台", "pos": "n.", "col": "report it to the repair desk", "note": "desk 是服务点", "cat": "services", "core": false, "p80": false}, {"id": 244, "en": "lost property", "alts": ["lost property"], "say": "lost property", "zh": "失物招领", "pos": "n.", "col": "lost property office", "note": "英式高频表达", "cat": "services", "core": false, "p80": false}, {"id": 245, "en": "reception", "alts": ["reception"], "say": "reception", "zh": "前台/接待处", "pos": "n.", "col": "ask at reception", "note": "receptionist 是人", "cat": "services", "core": false, "p80": false}, {"id": 246, "en": "canteen / cafeteria", "alts": ["canteen", "cafeteria"], "say": "canteen", "zh": "食堂", "pos": "n.", "col": "student canteen; cafeteria", "note": "canteen 英式校园常见", "cat": "services", "core": false, "p80": false}, {"id": 247, "en": "nursery / childcare", "alts": ["nursery", "childcare"], "say": "nursery", "zh": "托儿所/儿童看护", "pos": "n.", "col": "nursery place; childcare service", "note": "childcare 常不可数", "cat": "services", "core": false, "p80": false}, {"id": 248, "en": "babysitting", "alts": ["babysitting"], "say": "babysitting", "zh": "临时看护孩子", "pos": "n.", "col": "babysitting service", "note": "babysitter 是人", "cat": "services", "core": false, "p80": false}, {"id": 249, "en": "catering", "alts": ["catering"], "say": "catering", "zh": "餐饮承办", "pos": "n.", "col": "catering service for the event", "note": "caterer 是人", "cat": "services", "core": false, "p80": false}, {"id": 250, "en": "conference room", "alts": ["conference room"], "say": "conference room", "zh": "会议室", "pos": "n.", "col": "book a conference room", "note": "conference 拼写", "cat": "services", "core": false, "p80": false}, {"id": 251, "en": "equipment hire", "alts": ["equipment hire"], "say": "equipment hire", "zh": "设备租借", "pos": "n.", "col": "sports equipment hire", "note": "equipment 不可数", "cat": "services", "core": false, "p80": false}, {"id": 252, "en": "wheelchair access", "alts": ["wheelchair access"], "say": "wheelchair access", "zh": "轮椅通道", "pos": "n.", "col": "wheelchair access available", "note": "access 不可数/名词", "cat": "services", "core": false, "p80": false}, {"id": 253, "en": "disabled facilities", "alts": ["disabled facilities"], "say": "disabled facilities", "zh": "无障碍设施", "pos": "n.", "col": "disabled facilities; accessible toilet", "note": "facilities 常复数", "cat": "services", "core": false, "p80": false}, {"id": 254, "en": "opening hours", "alts": ["opening hours"], "say": "opening hours", "zh": "营业时间", "pos": "n.", "col": "check the opening hours", "note": "hours 常复数", "cat": "services", "core": false, "p80": true}, {"id": 255, "en": "timetable / schedule", "alts": ["timetable", "schedule"], "say": "timetable", "zh": "时间表", "pos": "n.", "col": "bus timetable; cleaning schedule", "note": "timetable 英式常见", "cat": "services", "core": true, "p80": true}, {"id": 256, "en": "quotation / quote", "alts": ["quotation", "quote"], "say": "quotation", "zh": "报价", "pos": "n.", "col": "ask for a quote/quotation", "note": "quote 口语；quotation 正式", "cat": "services", "core": false, "p80": false}, {"id": 257, "en": "contract", "alts": ["contract"], "say": "contract", "zh": "合同", "pos": "n./vt./vi.", "col": "sign a contract; service contract", "note": "contract 重音名/动不同", "cat": "services", "core": false, "p80": false}, {"id": 258, "en": "warranty / guarantee", "alts": ["warranty", "guarantee"], "say": "warranty", "zh": "保修/保证", "pos": "n.", "col": "under warranty; guarantee period", "note": "拼写高危", "cat": "services", "core": true, "p80": false}, {"id": 259, "en": "shirt", "alts": ["shirt"], "say": "shirt", "zh": "衬衫", "pos": "n.", "col": "ironing shirts only; cotton shirt", "note": "注意复数 shirts", "cat": "clothing", "core": true, "p80": true}, {"id": 260, "en": "T-shirt", "alts": ["T-shirt"], "say": "T-shirt", "zh": "T恤", "pos": "n.", "col": "plain T-shirt; printed T-shirt", "note": "T 大写常见", "cat": "clothing", "core": false, "p80": true}, {"id": 261, "en": "blouse", "alts": ["blouse"], "say": "blouse", "zh": "女式衬衫", "pos": "n.", "col": "silk blouse; white blouse", "note": "发音 /blaz/", "cat": "clothing", "core": false, "p80": true}, {"id": 262, "en": "sweater / jumper", "alts": ["sweater", "jumper"], "say": "sweater", "zh": "毛衣", "pos": "n.", "col": "woollen jumper; sweater", "note": "jumper 英式常见", "cat": "clothing", "core": false, "p80": true}, {"id": 263, "en": "cardigan", "alts": ["cardigan"], "say": "cardigan", "zh": "开衫", "pos": "n.", "col": "a grey cardigan", "note": "cardigan 拼写", "cat": "clothing", "core": false, "p80": false}, {"id": 264, "en": "jacket", "alts": ["jacket"], "say": "jacket", "zh": "夹克", "pos": "n./vt.", "col": "leather jacket; waterproof jacket", "note": "jacket 可泛指外套", "cat": "clothing", "core": false, "p80": true}, {"id": 265, "en": "coat", "alts": ["coat"], "say": "coat", "zh": "大衣", "pos": "n./vt.", "col": "winter coat; raincoat", "note": "coat 比 jacket 厚/长", "cat": "clothing", "core": false, "p80": true}, {"id": 266, "en": "raincoat", "alts": ["raincoat"], "say": "raincoat", "zh": "雨衣", "pos": "n.", "col": "waterproof raincoat", "note": "rain + coat", "cat": "clothing", "core": false, "p80": false}, {"id": 267, "en": "suit", "alts": ["suit"], "say": "suit", "zh": "西装/套装", "pos": "n./vt./vi.", "col": "business suit; take a suit to dry cleaning", "note": "suit 也可动词“适合”", "cat": "clothing", "core": false, "p80": false}, {"id": 268, "en": "blazer", "alts": ["blazer"], "say": "blazer", "zh": "西装外套", "pos": "n.", "col": "school blazer; navy blazer", "note": "校服场景常见", "cat": "clothing", "core": false, "p80": false}, {"id": 269, "en": "trousers / pants", "alts": ["trousers", "pants"], "say": "trousers", "zh": "裤子", "pos": "n.", "col": "a pair of trousers/pants", "note": "trousers 英式；pants 美式", "cat": "clothing", "core": true, "p80": true}, {"id": 270, "en": "jeans", "alts": ["jeans"], "say": "jeans", "zh": "牛仔裤", "pos": "n.", "col": "a pair of jeans", "note": "总是复数形式", "cat": "clothing", "core": false, "p80": true}, {"id": 271, "en": "shorts", "alts": ["shorts"], "say": "shorts", "zh": "短裤", "pos": "n.", "col": "sports shorts", "note": "总是复数形式", "cat": "clothing", "core": false, "p80": true}, {"id": 272, "en": "skirt", "alts": ["skirt"], "say": "skirt", "zh": "裙子", "pos": "n./vt./vi.", "col": "long skirt; wool skirt", "note": "与 shirt 易听混", "cat": "clothing", "core": false, "p80": true}, {"id": 273, "en": "dress", "alts": ["dress"], "say": "dress", "zh": "连衣裙", "pos": "n./vi./vt.", "col": "evening dress; summer dress", "note": "dress 也可作动词“穿衣”", "cat": "clothing", "core": false, "p80": true}, {"id": 274, "en": "uniform", "alts": ["uniform"], "say": "uniform", "zh": "制服", "pos": "n./adj.", "col": "school uniform; staff uniform", "note": "uniform 可数/不可数", "cat": "clothing", "core": false, "p80": true}, {"id": 275, "en": "overalls", "alts": ["overalls"], "say": "overalls", "zh": "工装裤/工作服", "pos": "n.", "col": "wear overalls", "note": "常复数", "cat": "clothing", "core": false, "p80": false}, {"id": 276, "en": "apron", "alts": ["apron"], "say": "apron", "zh": "围裙", "pos": "n.", "col": "wear an apron in the kitchen", "note": "a + pron", "cat": "clothing", "core": false, "p80": false}, {"id": 277, "en": "swimsuit", "alts": ["swimsuit"], "say": "swimsuit", "zh": "泳衣", "pos": "n.", "col": "one-piece swimsuit", "note": "swim + suit", "cat": "clothing", "core": false, "p80": false}, {"id": 278, "en": "tracksuit", "alts": ["tracksuit"], "say": "tracksuit", "zh": "运动套装", "pos": "n.", "col": "wear a tracksuit", "note": "track + suit", "cat": "clothing", "core": false, "p80": false}, {"id": 279, "en": "sportswear", "alts": ["sportswear"], "say": "sportswear", "zh": "运动服", "pos": "n.", "col": "comfortable sportswear", "note": "wear 不作单件名词", "cat": "clothing", "core": false, "p80": false}, {"id": 280, "en": "underwear", "alts": ["underwear"], "say": "underwear", "zh": "内衣", "pos": "n.", "col": "thermal underwear", "note": "不可数", "cat": "clothing", "core": false, "p80": false}, {"id": 281, "en": "socks", "alts": ["socks"], "say": "socks", "zh": "袜子", "pos": "n.", "col": "a pair of socks", "note": "常复数", "cat": "clothing", "core": false, "p80": true}, {"id": 282, "en": "tights / stockings", "alts": ["tights", "stockings"], "say": "tights", "zh": "连裤袜/长筒袜", "pos": "n.", "col": "wear tights; silk stockings", "note": "均常复数", "cat": "clothing", "core": false, "p80": false}, {"id": 283, "en": "scarf / scarves", "alts": ["scarf", "scarves"], "say": "scarf", "zh": "围巾", "pos": "n./vt.", "col": "woollen scarf; scarves", "note": "复数 scarves", "cat": "clothing", "core": false, "p80": false}, {"id": 284, "en": "tie", "alts": ["tie"], "say": "tie", "zh": "领带", "pos": "n./vt./vi.", "col": "silk tie; school tie", "note": "tie 也可动词“系”", "cat": "clothing", "core": false, "p80": false}, {"id": 285, "en": "belt", "alts": ["belt"], "say": "belt", "zh": "腰带", "pos": "n.", "col": "leather belt", "note": "buckle belt", "cat": "clothing", "core": false, "p80": false}, {"id": 286, "en": "hat / cap", "alts": ["hat", "cap"], "say": "hat", "zh": "帽子/鸭舌帽", "pos": "n./vt.", "col": "woollen hat; baseball cap", "note": "cap 也可瓶盖", "cat": "clothing", "core": false, "p80": false}, {"id": 287, "en": "gloves", "alts": ["gloves"], "say": "gloves", "zh": "手套", "pos": "n.", "col": "a pair of gloves", "note": "常复数", "cat": "clothing", "core": false, "p80": false}, {"id": 288, "en": "shoes", "alts": ["shoes"], "say": "shoes", "zh": "鞋", "pos": "n.", "col": "a pair of shoes", "note": "pair 高危", "cat": "clothing", "core": false, "p80": false}, {"id": 289, "en": "trainers / sneakers", "alts": ["trainers", "sneakers"], "say": "trainers", "zh": "运动鞋", "pos": "n.", "col": "trainers 英式；sneakers 美式", "note": "常复数", "cat": "clothing", "core": false, "p80": true}, {"id": 290, "en": "boots", "alts": ["boots"], "say": "boots", "zh": "靴子", "pos": "n.", "col": "walking boots; rain boots", "note": "常复数", "cat": "clothing", "core": false, "p80": true}, {"id": 291, "en": "sandals", "alts": ["sandals"], "say": "sandals", "zh": "凉鞋", "pos": "n.", "col": "leather sandals", "note": "常复数", "cat": "clothing", "core": false, "p80": false}, {"id": 292, "en": "slippers", "alts": ["slippers"], "say": "slippers", "zh": "拖鞋", "pos": "n.", "col": "bedroom slippers", "note": "常复数", "cat": "clothing", "core": false, "p80": false}, {"id": 293, "en": "high heels", "alts": ["high heels"], "say": "high heels", "zh": "高跟鞋", "pos": "n.", "col": "wear high heels", "note": "heels 常复数", "cat": "clothing", "core": false, "p80": false}, {"id": 294, "en": "wellingtons / rain boots", "alts": ["wellingtons", "rain boots"], "say": "wellingtons", "zh": "雨靴", "pos": "n.", "col": "wear wellingtons", "note": "wellingtons 英式", "cat": "clothing", "core": false, "p80": false}, {"id": 295, "en": "collar", "alts": ["collar"], "say": "collar", "zh": "衣领", "pos": "n./vt.", "col": "shirt collar", "note": "与 colour 发音不同", "cat": "clothing", "core": false, "p80": false}, {"id": 296, "en": "sleeve", "alts": ["sleeve"], "say": "sleeve", "zh": "袖子", "pos": "n./vt.", "col": "long sleeves; sleeve length", "note": "复数 sleeves", "cat": "clothing", "core": false, "p80": true}, {"id": 297, "en": "cuff", "alts": ["cuff"], "say": "cuff", "zh": "袖口", "pos": "n./vt./vi.", "col": "shirt cuffs", "note": "cufflinks 袖扣", "cat": "clothing", "core": false, "p80": false}, {"id": 298, "en": "button", "alts": ["button"], "say": "button", "zh": "纽扣", "pos": "n./vi./vt.", "col": "missing button; button up", "note": "double t", "cat": "clothing", "core": false, "p80": true}, {"id": 299, "en": "zip / zipper", "alts": ["zip", "zipper"], "say": "zip", "zh": "拉链", "pos": "n./vt./vi.", "col": "broken zip/zipper", "note": "zip 英式常见", "cat": "clothing", "core": false, "p80": true}, {"id": 300, "en": "pocket", "alts": ["pocket"], "say": "pocket", "zh": "口袋", "pos": "n./vt./adj.", "col": "inside pocket; pocket money", "note": "pocket 可名词/形容词", "cat": "clothing", "core": false, "p80": false}, {"id": 301, "en": "hood", "alts": ["hood"], "say": "hood", "zh": "帽兜", "pos": "n./vt.", "col": "hooded jacket", "note": "hoodie 连帽衫", "cat": "clothing", "core": false, "p80": false}, {"id": 302, "en": "lining", "alts": ["lining"], "say": "lining", "zh": "内衬", "pos": "n.", "col": "silk lining; jacket lining", "note": "line/lining", "cat": "clothing", "core": false, "p80": false}, {"id": 303, "en": "hem", "alts": ["hem"], "say": "hem", "zh": "下摆/裤脚边", "pos": "n./vt./vi.", "col": "shorten the hem", "note": "tailor 场景", "cat": "clothing", "core": false, "p80": false}, {"id": 304, "en": "waist / waistband", "alts": ["waist", "waistband"], "say": "waist", "zh": "腰/腰带部位", "pos": "n.", "col": "waist measurement; waistband", "note": "waist 不是 waste", "cat": "clothing", "core": false, "p80": false}, {"id": 305, "en": "lace", "alts": ["lace"], "say": "lace", "zh": "蕾丝/鞋带", "pos": "n./vt./vi.", "col": "lace dress; shoelace", "note": "语境判断", "cat": "clothing", "core": false, "p80": false}, {"id": 306, "en": "buckle", "alts": ["buckle"], "say": "buckle", "zh": "带扣", "pos": "n./vt./vi.", "col": "belt buckle", "note": "buckle 拼写", "cat": "clothing", "core": false, "p80": false}, {"id": 307, "en": "size", "alts": ["size"], "say": "size", "zh": "尺码", "pos": "n./vt./vi.", "col": "What size are you? medium size", "note": "size 可数/不可数", "cat": "clothing", "core": false, "p80": true}, {"id": 308, "en": "small / medium / large", "alts": ["small", "medium", "large"], "say": "small", "zh": "小/中/大码", "pos": "adj./adv./n.", "col": "size small; medium; large", "note": "medium 拼写", "cat": "clothing", "core": false, "p80": false}, {"id": 309, "en": "extra large", "alts": ["extra large"], "say": "extra large", "zh": "加大码", "pos": "n.", "col": "extra-large jacket", "note": "XL", "cat": "clothing", "core": false, "p80": false}, {"id": 310, "en": "fitting room / changing room", "alts": ["fitting room", "changing room"], "say": "fitting room", "zh": "试衣间", "pos": "n.", "col": "use the fitting/changing room", "note": "fitting 英式商店常见", "cat": "clothing", "core": false, "p80": false}, {"id": 311, "en": "loose", "alts": ["loose"], "say": "loose", "zh": "宽松的", "pos": "n./adj./vt.", "col": "too loose around the waist", "note": "loose 形容词；lose 动词", "cat": "clothing", "core": false, "p80": false}, {"id": 312, "en": "tight", "alts": ["tight"], "say": "tight", "zh": "紧的", "pos": "adj./adv.", "col": "too tight; tight sleeves", "note": "gh 不发音", "cat": "clothing", "core": false, "p80": false}, {"id": 313, "en": "comfortable", "alts": ["comfortable"], "say": "comfortable", "zh": "舒服的", "pos": "adj./n.", "col": "comfortable shoes", "note": "拼写 comfort + able", "cat": "clothing", "core": false, "p80": false}, {"id": 314, "en": "waterproof", "alts": ["waterproof"], "say": "waterproof", "zh": "防水的", "pos": "n./adj./vt.", "col": "waterproof jacket", "note": "water + proof", "cat": "clothing", "core": false, "p80": false}, {"id": 315, "en": "breathable", "alts": ["breathable"], "say": "breathable", "zh": "透气的", "pos": "adj.", "col": "breathable fabric", "note": "breath/breathe 区分", "cat": "clothing", "core": false, "p80": false}, {"id": 316, "en": "durable", "alts": ["durable"], "say": "durable", "zh": "耐用的", "pos": "adj.", "col": "durable material", "note": "duration 不是 durable", "cat": "clothing", "core": false, "p80": false}, {"id": 317, "en": "plain", "alts": ["plain"], "say": "plain", "zh": "纯色/无图案的", "pos": "n./adj./adv.", "col": "plain shirt; plain fabric", "note": "也可表示“普通的”", "cat": "clothing", "core": false, "p80": false}, {"id": 318, "en": "striped", "alts": ["striped"], "say": "striped", "zh": "条纹的", "pos": "adj.", "col": "striped shirt", "note": "stripe 条纹", "cat": "clothing", "core": false, "p80": false}, {"id": 319, "en": "checked", "alts": ["checked"], "say": "checked", "zh": "格子的", "pos": "adj.", "col": "checked pattern", "note": "也可 checked luggage", "cat": "clothing", "core": false, "p80": false}, {"id": 320, "en": "spotted / polka-dot", "alts": ["spotted", "polka-dot"], "say": "spotted", "zh": "有圆点的", "pos": "adj.", "col": "spotted dress; polka-dot scarf", "note": "spot 点/污渍", "cat": "clothing", "core": false, "p80": false}, {"id": 321, "en": "patterned", "alts": ["patterned"], "say": "patterned", "zh": "有图案的", "pos": "adj.", "col": "patterned fabric", "note": "pattern 拼写", "cat": "clothing", "core": false, "p80": false}, {"id": 322, "en": "floral", "alts": ["floral"], "say": "floral", "zh": "花卉图案的", "pos": "adj.", "col": "floral dress", "note": "flora/floral", "cat": "clothing", "core": false, "p80": false}, {"id": 323, "en": "cotton", "alts": ["cotton"], "say": "cotton", "zh": "棉", "pos": "n./vi.", "col": "cotton shirt; organic cotton", "note": "不可数材料名词", "cat": "clothing", "core": false, "p80": true}, {"id": 324, "en": "wool / woollen", "alts": ["wool", "woollen"], "say": "wool", "zh": "羊毛/羊毛的", "pos": "n.", "col": "woollen jumper; wool coat", "note": "woollen 英式", "cat": "clothing", "core": false, "p80": true}, {"id": 325, "en": "silk", "alts": ["silk"], "say": "silk", "zh": "丝绸", "pos": "n./adj.", "col": "silk blouse; silk tie", "note": "不可数材料名词", "cat": "clothing", "core": false, "p80": false}, {"id": 326, "en": "leather", "alts": ["leather"], "say": "leather", "zh": "皮革", "pos": "n./vt./adj.", "col": "leather jacket; leather shoes", "note": "leather 拼写/发音", "cat": "clothing", "core": false, "p80": true}, {"id": 327, "en": "denim", "alts": ["denim"], "say": "denim", "zh": "牛仔布", "pos": "n.", "col": "denim jacket; denim jeans", "note": "denim 不等于 jeans", "cat": "clothing", "core": false, "p80": false}, {"id": 328, "en": "nylon", "alts": ["nylon"], "say": "nylon", "zh": "尼龙", "pos": "n.", "col": "nylon socks; nylon jacket", "note": "材料名词", "cat": "clothing", "core": false, "p80": false}, {"id": 329, "en": "polyester", "alts": ["polyester"], "say": "polyester", "zh": "涤纶", "pos": "n.", "col": "polyester fabric", "note": "poly- 开头", "cat": "clothing", "core": false, "p80": false}, {"id": 330, "en": "linen", "alts": ["linen"], "say": "linen", "zh": "亚麻", "pos": "n./adj.", "col": "linen shirt; bed linen", "note": "也指床上用品", "cat": "clothing", "core": false, "p80": false}, {"id": 331, "en": "fleece", "alts": ["fleece"], "say": "fleece", "zh": "抓绒", "pos": "n./vt.", "col": "fleece jacket", "note": "ee 双写", "cat": "clothing", "core": false, "p80": false}, {"id": 332, "en": "rubber", "alts": ["rubber"], "say": "rubber", "zh": "橡胶", "pos": "n./vt.", "col": "rubber boots; rubber sole", "note": "also eraser in British English", "cat": "clothing", "core": false, "p80": false}, {"id": 333, "en": "canvas", "alts": ["canvas"], "say": "canvas", "zh": "帆布", "pos": "n.", "col": "canvas shoes; canvas bag", "note": "艺术/衣物都常见", "cat": "clothing", "core": false, "p80": false}, {"id": 334, "en": "synthetic", "alts": ["synthetic"], "say": "synthetic", "zh": "合成的", "pos": "n./adj.", "col": "synthetic material", "note": "syn- 拼写", "cat": "clothing", "core": false, "p80": false}, {"id": 335, "en": "laundry", "alts": ["laundry"], "say": "laundry", "zh": "待洗衣物/洗衣", "pos": "n.", "col": "do the laundry; laundry service", "note": "不可数为主", "cat": "clothing", "core": true, "p80": false}, {"id": 336, "en": "detergent / washing powder", "alts": ["detergent", "washing powder"], "say": "detergent", "zh": "洗涤剂/洗衣粉", "pos": "n.", "col": "laundry detergent", "note": "detergent 拼写", "cat": "clothing", "core": false, "p80": false}, {"id": 337, "en": "fabric softener", "alts": ["fabric softener"], "say": "fabric softener", "zh": "衣物柔顺剂", "pos": "n.", "col": "use fabric softener", "note": "fabric = 织物", "cat": "clothing", "core": false, "p80": false}, {"id": 338, "en": "stain", "alts": ["stain"], "say": "stain", "zh": "污渍", "pos": "n./vt./vi.", "col": "remove a stain; stain on a shirt", "note": "可数", "cat": "clothing", "core": false, "p80": true}, {"id": 339, "en": "crease", "alts": ["crease"], "say": "crease", "zh": "褶皱", "pos": "n./v.", "col": "remove creases by ironing", "note": "crease 发音", "cat": "clothing", "core": false, "p80": true}, {"id": 340, "en": "shrink", "alts": ["shrink"], "say": "shrink", "zh": "缩水", "pos": "n./vi./vt.", "col": "the jumper shrank", "note": "shrink/shrank/shrunk", "cat": "clothing", "core": false, "p80": false}, {"id": 341, "en": "fade", "alts": ["fade"], "say": "fade", "zh": "褪色", "pos": "vi./vt./n.", "col": "colours fade after washing", "note": "fade 可动词", "cat": "clothing", "core": false, "p80": false}, {"id": 342, "en": "tear / rip", "alts": ["tear", "rip"], "say": "tear", "zh": "撕裂", "pos": "n./vi./vt.", "col": "a tear in the sleeve; ripped jeans", "note": "tear 名词发音不同", "cat": "clothing", "core": false, "p80": false}, {"id": 343, "en": "worn-out", "alts": ["worn-out"], "say": "worn-out", "zh": "破旧的", "pos": "adj.", "col": "worn-out shoes", "note": "wear-wore-worn", "cat": "clothing", "core": false, "p80": false}, {"id": 344, "en": "second-hand", "alts": ["second-hand"], "say": "second-hand", "zh": "二手的", "pos": "adj.", "col": "second-hand clothes", "note": "连字符常见", "cat": "clothing", "core": false, "p80": false}, {"id": 345, "en": "brand-new", "alts": ["brand-new"], "say": "brand-new", "zh": "全新的", "pos": "adj.", "col": "brand-new jacket", "note": "连字符常见", "cat": "clothing", "core": false, "p80": false}, {"id": 346, "en": "refund / exchange", "alts": ["refund", "exchange"], "say": "refund", "zh": "退款/换货", "pos": "n./vt./vi.", "col": "ask for a refund or exchange", "note": "exchange 拼写", "cat": "clothing", "core": false, "p80": true}, {"id": 347, "en": "tailor / alterations", "alts": ["tailor", "alterations"], "say": "tailor", "zh": "裁缝/修改衣服", "pos": "n./vt./vi.", "col": "take trousers to a tailor for alterations", "note": "alterations 常复数", "cat": "clothing", "core": false, "p80": true}, {"id": 348, "en": "sew / mend", "alts": ["sew", "mend"], "say": "sew", "zh": "缝/修补", "pos": "vt./vi.", "col": "sew a button; mend a tear", "note": "sew 发 /s/", "cat": "clothing", "core": false, "p80": false}, {"id": 349, "en": "measurement", "alts": ["measurement"], "say": "measurement", "zh": "尺寸", "pos": "n.", "col": "waist/chest measurement", "note": "measure -> measurement", "cat": "clothing", "core": false, "p80": false}, {"id": 350, "en": "pair", "alts": ["pair"], "say": "pair", "zh": "一双/一条", "pos": "n./v.", "col": "a pair of shoes/trousers/gloves", "note": "pair 后 of + 复数名词", "cat": "clothing", "core": false, "p80": true}, {"id": 351, "en": "garment", "alts": ["garment"], "say": "garment", "zh": "衣物/服装", "pos": "n.", "col": "a waterproof garment", "note": "正式词，听力偶见", "cat": "clothing", "core": false, "p80": false}, {"id": 352, "en": "training", "alts": ["training"], "say": "training", "zh": "培训", "pos": "n.", "col": "given training for two weeks", "note": "不是 test / trainning", "cat": "core", "core": true, "p80": false}, {"id": 353, "en": "allergic", "alts": ["allergic"], "say": "allergic", "zh": "过敏的", "pos": "adj.", "col": "allergic to dust / wool / pollen", "note": "allergic to + 名词", "cat": "core", "core": true, "p80": false}, {"id": 354, "en": "dust", "alts": ["dust"], "say": "dust", "zh": "灰尘", "pos": "n./vt./vi.", "col": "allergic to dust; dusty room", "note": "不可数，通常不加 s", "cat": "core", "core": true, "p80": false}, {"id": 355, "en": "clothes", "alts": ["clothes"], "say": "clothes", "zh": "衣服", "pos": "n.", "col": "ironing clothes; casual clothes", "note": "总是复数形式，注意发音", "cat": "core", "core": true, "p80": false}, {"id": 356, "en": "jewellery / jewelry", "alts": ["jewellery", "jewelry"], "say": "jewellery", "zh": "珠宝", "pos": "n.", "col": "lost jewellery; jewellery shop", "note": "英式 jewellery", "cat": "core", "core": true, "p80": false}];
+
+/* $ DOM helper — declared early (function = hoisted) so top-level TTS init can use it */
+function $(id){return document.getElementById(id);}
+
+/* ---------- categories ---------- */
+const CATS = {
+  all:{label:'全部', test:()=>true},
+  jobs:{label:'职业', test:v=>v.cat==='jobs'},
+  housing:{label:'房屋', test:v=>v.cat==='housing'},
+  services:{label:'服务', test:v=>v.cat==='services'},
+  clothing:{label:'衣物', test:v=>v.cat==='clothing'},
+  core:{label:'⭐高频高危', test:v=>v.core},
+  p80:{label:'🎯必背85', test:v=>v.p80},
+  due:{label:'📅到期复习', test:v=>RV.isDue(v.en)},
+  wrong:{label:'❌错题本', test:v=>{const p=prog[v.en]; return p&&p.bad>0&&!isMastered(v);}},
+  star:{label:'🔖收藏', test:v=>{const p=prog[v.en]; return p&&p.star;}},
+};
+
+/* ---------- persistence ---------- */
+const LS=(k,d)=>{try{const x=localStorage.getItem(k);return x?JSON.parse(x):d;}catch(e){return d;}};
+const DECK='p1';
+const BOOT=(window.__INITIAL_STATE__&&window.__INITIAL_STATE__.decks&&window.__INITIAL_STATE__.decks[DECK])||null;
+if(BOOT){ try{ var _MG=function(key,bp){ var cur={}; try{cur=JSON.parse(localStorage.getItem(key))||{};}catch(e){} var nw=function(a,b){ var at=(a&&a.t)||0, bt=(b&&b.t)||0; if(at||bt) return at>bt; return ((a&&a.box)||0)>((b&&b.box)||0); }; if(bp){for(var k in bp){ if(!Object.prototype.hasOwnProperty.call(cur,k)||!cur[k]||nw(bp[k],cur[k])) cur[k]=bp[k]; }} localStorage.setItem(key,JSON.stringify(cur)); }; if(BOOT.prog)_MG('ielts_p1_prog',BOOT.prog); if(BOOT.settings&&!localStorage.getItem('ielts_p1_settings'))localStorage.setItem('ielts_p1_settings',JSON.stringify(BOOT.settings)); if(BOOT.daily&&!localStorage.getItem('ielts_p1_daily'))localStorage.setItem('ielts_p1_daily',JSON.stringify(BOOT.daily)); }catch(e){} }
+function mirror(){ try{ if(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.persist){ webkit.messageHandlers.persist.postMessage(JSON.stringify({deck:DECK,payload:{prog:prog,daily:daily,settings:settings}})); } }catch(e){} }
+// 听写拼错时把词收进共享「错词本」(wrong.html 读取 deck:'wrong')。
+function recordWrong(it){ try{
+  var en=((it&&(it.en||it.w))||'').trim(); if(!en) return;
+  var L=[]; try{L=JSON.parse(localStorage.getItem('ielts_wrong'))||[];}catch(e){}
+  var k=en.toLowerCase(), h=null;
+  for(var i=0;i<L.length;i++){ if(((L[i].en||'')+'').toLowerCase()===k){ h=L[i]; break; } }
+  if(h){ h.n=(h.n||1)+1; h.ts=Date.now(); if(it.zh&&!h.zh) h.zh=it.zh; if(it.pos&&!h.pos) h.pos=it.pos; }
+  else { L.push({en:en, zh:(it.zh||''), pos:(it.pos||''), alts:(it.alts&&it.alts.length?it.alts:[en]), col:(it.col||''), src:DECK, n:1, ts:Date.now()}); }
+  try{ localStorage.setItem('ielts_wrong', JSON.stringify(L)); }catch(e){}
+  try{ if(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.persist){ webkit.messageHandlers.persist.postMessage(JSON.stringify({deck:'wrong',payload:{list:L}})); } }catch(e){}
+}catch(e){} }
+const SS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} mirror();};
+const DEFAULTS={accent:'en-GB',voiceURI:'',rate:0.95,auto:true,dictRead:'word',front:'en',quizDir:'zh2en',order:'smart',dark:false};
+let settings=Object.assign({},DEFAULTS,LS('ielts_p1_settings',{}));
+let prog=LS('ielts_p1_prog',{});            // {en:{seen,ok,bad,streak,box,star,last,t}} — t: ms of the last change, newer wins on merge
+let daily=LS('ielts_p1_daily',{date:'',done:0,ok:0});
+
+function saveSettings(){SS('ielts_p1_settings',settings);}
+function saveProg(){SS('ielts_p1_prog',prog);}
+function P(en){ if(!prog[en]) prog[en]={seen:0,ok:0,bad:0,streak:0,box:0,star:false,last:null}; return prog[en]; }
+// Review ledger (srs.js), shared with the other decks, 生词本 and 错词本. The stub only
+// keeps practice usable if that script failed to load; it schedules nothing.
+const RV=window.IELTSReview||{live:false,
+  grade:(typed,alts)=>{const f=s=>String(s||'').toLowerCase().trim().replace(/\s+/g,' '), t=f(typed); if(!t)return {ok:false,kind:'empty',empty:true}; const a=alts.find(x=>f(x)===t); return a?{ok:true,kind:'exact',exact:true,clean:true,want:a}:{ok:false,kind:'bad',want:alts[0]};},
+  answer:()=>null, flag:()=>null, reset:()=>{}, seedLegacy:()=>0, isDue:()=>false, stable:()=>false, badge:()=>'', info:()=>({stage:'new',label:''})};
+// 较稳定 = answered unaided on a later day after a gap of a week or more
+function isMastered(v){ if(RV.live) return RV.stable(v.en); const p=prog[v.en]; return !!p&&(p.box>=3); }
+function stageOf(v){ const s=RV.info(v.en).stage; if(s!=='new') return s; const p=prog[v.en]; return p&&p.seen?'learning':'new'; }
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
+function bumpDaily(ok){const t=todayStr(); if(daily.date!==t){daily={date:t,done:0,ok:0};} daily.done++; if(ok)daily.ok++; SS('ielts_p1_daily',daily); updateHStats();}
+
+/* ---------- state ---------- */
+const state={deck:'all',mode:'dict',list:[],idx:0,answered:false,session:{done:0,ok:0,bad:0,wrong:[]}};
+
+/* ---------- TTS ---------- */
+let voices=[];
+function loadVoices(){
+  const all=window.speechSynthesis?speechSynthesis.getVoices():[];
+  voices=all.filter(v=>/^en[-_]/i.test(v.lang)||/\benglish\b/i.test(v.name));
+  if(!voices.length) voices=all;
+  fillVoiceSelect();
+}
+if(window.speechSynthesis){ speechSynthesis.onvoiceschanged=loadVoices; loadVoices(); setTimeout(loadVoices,400); }
+// Score voices so we prefer the high-quality ones (enhanced / Siri / premium / known-good
+// named voices, downloaded local voices) an iOS/macOS user may have installed — instead of
+// grabbing the first compact voice that merely matches the accent. On iOS the enhanced vs
+// compact difference lives in voiceURI, not the display name, so we check both.
+function voiceScore(v,want){
+  const n=(v.name||'').toLowerCase(), l=(v.lang||'').toLowerCase().replace('_','-'), u=(v.voiceURI||'').toLowerCase();
+  let s=0;
+  if(l===want) s+=6; else if(l.slice(0,2)===want.slice(0,2)) s+=2;
+  if(/premium/.test(n)||/premium/.test(u)) s+=4;
+  if(/enhanced/.test(n)||/enhanced/.test(u)) s+=3;
+  if(/siri/.test(n)||/siri/.test(u)) s+=3;
+  if(/compact/.test(u)) s-=3;
+  if(/\b(daniel|kate|serena|arthur|martha|stephanie|oliver|samantha|ava|allison|evan|susan|karen|moira|tessa)\b/.test(n)) s+=2;
+  if(v.localService) s+=1;
+  if(/novelty|eloquence|trinoids|whisper|zarvox|bells|bubbles|organ|cellos|boing|albert|jester|bahh|wobble/.test(n)) s-=6;
+  return s;
+}
+function pickVoice(){
+  if(settings.voiceURI){const v=voices.find(v=>v.voiceURI===settings.voiceURI); if(v)return v;}
+  const want=settings.accent.toLowerCase().replace('_','-');
+  let best=voices[0]||null, bs=-1e9;
+  voices.forEach(function(v){ const sc=voiceScore(v,want); if(sc>bs){bs=sc; best=v;} });
+  return best;
+}
+function speak(text,rate){
+  if(!window.speechSynthesis) return;
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    const v=pickVoice();
+    if(v){u.voice=v; u.lang=v.lang;} else u.lang=settings.accent;
+    u.rate=rate||settings.rate; u.pitch=1;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+/* ---------- list building ---------- */
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function deckBase(deck){return VOCAB.filter(CATS[deck||state.deck].test);}
+function scoreItem(v){ if(RV.isDue(v.en))return -1; const p=prog[v.en]; if(!p||!p.seen)return 0; if(p.bad>p.ok)return 1; return 2+(p.box||0);}
+function ordered(arr){
+  let a=arr.slice();
+  if(settings.order==='shuffle') shuffle(a);
+  else if(settings.order==='smart') a.sort((x,y)=>scoreItem(x)-scoreItem(y)||x.id-y.id);
+  return a;
+}
+function buildList(){
+  state.list=ordered(deckBase());
+  state.idx=0; state.answered=false;
+  state.session={done:0,ok:0,bad:0,wrong:[]};
+}
+
+/* ---------- answer checking ---------- */
+function norm(s){return (s||'').toLowerCase().trim().replace(/\s+/g,' ');}
+// British and American spellings both pass (verified list in srs.js); letters right but
+// spacing/apostrophe wrong is accepted once as a format slip and never counts as remembered.
+function check(typed,item){ return RV.grade(typed,item.alts); }
+function okTitle(res,hinted){
+  if(!res.clean) return '⚠️ 字母都对，但标准写法是「'+esc(res.want)+'」（空格或撇号有误，本次不计入掌握）';
+  if(hinted) return '✅ 正确（用了首字母提示，本次不计入掌握）';
+  if(res.kind==='variant') return '✅ 正确！（英式 / 美式拼写均可）';
+  return '✅ 正确！';
+}
+// track: 'd' 听写拼写 / 'm' 词义选择; soft: right only with a hint or a format slip
+function recordResult(item,ok,track,soft){
+  const p=P(item.en); p.seen++;
+  if(ok){p.ok++; if(!soft){p.streak++;p.box=Math.min(5,p.box+1);} p.last=true;}
+  else{p.bad++;p.streak=0;p.box=0;p.last=false;}
+  p.t=Date.now();
+  saveProg();
+  const r=RV.answer(Object.assign({},item,{src:DECK}),track||'d',ok?(soft?'soft':'ok'):'bad');
+  bumpDaily(ok);
+  return r;
+}
+// 错词隔几题再测: bring a missed word back four questions later in the same round
+function requeue(it){
+  if(state.list.slice(state.idx+1).some(v=>v.id===it.id)) return;
+  state.list.splice(Math.min(state.list.length,state.idx+4),0,it);
+}
+function diffHTML(typed,correct){
+  const t=norm(typed), c=correct;
+  let h='';
+  for(let i=0;i<c.length;i++){
+    const ok=t[i]&&t[i]===c[i].toLowerCase();
+    h+=`<span class="${ok?'c':'x'}">${c[i]}</span>`;
+  }
+  return h;
+}
+
+/* ============ DICTATION ============ */
+function curItem(){return state.list[state.idx];}
+function dictSpeak(rate){
+  const it=curItem(); if(!it)return;
+  const txt=settings.dictRead==='sentence'? firstClause(it.col)||it.say : it.say;
+  speak(txt,rate);
+}
+function firstClause(col){return (col||'').split(';')[0].trim();}
+function renderDict(){
+  if(!document.getElementById('dSpk')) restoreDictCard();  // card was replaced by summary → restore it
+  const list=state.list;
+  $('dDeck').textContent=CATS[state.deck].label;
+  if(state.idx>=list.length){ return dictSummary(); }
+  const it=curItem();
+  $('dTags').className='pill '+(it.core?'core':it.p80?'p80':'');
+  $('dTags').textContent=it.core?'高危':it.p80?'必背':catName(it.cat);
+  $('dTags').style.display = (it.core||it.p80||true)?'inline-block':'none';
+  $('dProg').textContent=`${state.idx+1} / ${list.length}　·　本轮 ✓${state.session.ok} ✗${state.session.bad}`;
+  paintProgress('d',state.idx,list.length);
+  state.answered=false; state.hinted=false;
+  $('dHint').innerHTML='';
+  const inp=$('dictInput'); inp.value=''; inp.className=''; inp.readOnly=false; inp.focus();
+  $('dFb').className='fb'; $('dFb').innerHTML='';
+  $('dSubmit').textContent='提交 ⏎';
+  saveSess();
+  if(settings.auto) setTimeout(()=>dictSpeak(),120);
+}
+function catName(c){return ({jobs:'职业',housing:'房屋',services:'服务',clothing:'衣物',core:'核心'})[c]||c;}
+function submitDict(){
+  const it=curItem(); if(!it)return;
+  if(state.answered){ nextDict(); return; }
+  const inp=$('dictInput'); const typed=inp.value;
+  const res=check(typed,it);
+  if(res.empty){ inp.focus(); inp.style.animation='none'; void inp.offsetWidth; inp.style.animation='pop .2s'; return; }
+  const answerRound=state.session;
+  state.answered=true; inp.readOnly=true;  // readOnly, NOT disabled — disabling blurs the input and iOS drops the keyboard between words
+  const hinted=!!state.hinted, soft=res.ok&&(hinted||!res.clean);
+  const sr=recordResult(it,res.ok,'d',soft);
+  state.session.done++; res.ok?state.session.ok++:state.session.bad++;
+  if(!res.ok){ state.session.wrong.push(it); recordWrong(it); requeue(it); }
+  const dgHTML=(!res.ok&&RV.diagnose)?`<div class="muted" style="font-size:13.5px;margin-top:8px;line-height:1.6">${RV.explain(RV.diagnose(typed,it.alts))}</div>`:'';
+  const srHTML=sr&&sr.text?`<div class="muted" style="font-size:12.5px;margin-top:8px">📅 ${esc(sr.text)}</div>`:'';
+  const fb=$('dFb');
+  const noteHTML=it.note?`<div class="note">⚠️ ${esc(it.note)}</div>`:'';
+  const colHTML=it.col?`<div class="colloc">🗣️ <b>${esc(it.col)}</b></div>`:'';
+  if(res.ok){
+    inp.className='good';
+    fb.className='fb good show';
+    fb.innerHTML=`<h3 style="color:${soft?'var(--star)':'var(--ok)'}">${okTitle(res,hinted)}</h3>
+      <div class="ans"><span class="c">${esc(it.en)}</span></div>
+      <div class="muted">${esc(it.zh)}</div>${colHTML}${noteHTML}${srHTML}`;
+    if(soft) $('dSubmit').textContent='下一个 ⏎';   // stay on the correction until the learner moves on
+    else setTimeout(()=>{ if(state.mode==='dict'&&state.session===answerRound&&state.answered&&curItem()===it) nextDict(); },1050);
+  }else{
+    inp.className='wrong';
+    fb.className='fb bad show';
+    fb.innerHTML=`<h3 style="color:var(--bad)">❌ 再看一眼拼写</h3>
+      <div class="ans">${diffHTML(typed,it.alts[0])}${it.alts.length>1?` <span class="muted" style="font-size:16px">/ ${esc(it.alts.slice(1).join(' / '))}</span>`:''}</div>
+      <div class="yourans">你写的：<del>${esc(typed||'（空）')}</del></div>${dgHTML}
+      <div class="muted" style="margin-top:6px">${esc(it.zh)}</div>${colHTML}${noteHTML}${srHTML}`;
+    $('dSubmit').textContent='下一个 ⏎';
+  }
+  if(!res.ok) IELTSMistakes.record(it,DECK,'dict',typed);
+  paintProgress('d',state.idx+1,state.list.length);
+  saveSess();
+}
+function nextDict(){ state.idx++; renderDict(); }
+function skipDict(){ if(state.idx<state.list.length){ state.idx++; renderDict(); } }
+function dictSummary(){
+  state.answered=false; saveSess();
+  const s=state.session;
+  const acc=s.done?Math.round(s.ok/s.done*100):0;
+  const wrongList=[...new Map(s.wrong.map(v=>[v.id,v])).values()].map(w=>`<span class="pill" style="margin:3px">${esc(w.en)}</span>`).join('');
+  $('dFb').className='fb'; $('dFb').innerHTML='';
+  const card=document.querySelector('#m-dict .card');
+  card.innerHTML=`<div class="center">
+    <div style="font-size:54px">${acc>=80?'🎉':acc>=60?'👍':'💪'}</div>
+    <h2 style="margin:6px 0">本轮完成！</h2>
+    <div class="grid" style="margin:16px 0">
+      <div class="stat"><div class="v">${s.done}</div><div class="l">练习</div></div>
+      <div class="stat"><div class="v" style="color:var(--ok)">${s.ok}</div><div class="l">正确</div></div>
+      <div class="stat"><div class="v" style="color:var(--bad)">${s.bad}</div><div class="l">错误</div></div>
+      <div class="stat"><div class="v">${acc}%</div><div class="l">正确率</div></div>
+    </div>
+    ${s.wrong.length?`<div style="text-align:left"><b>错词回顾：</b><div style="margin:8px 0">${wrongList}</div></div>`:'<p class="muted">全部答对，太强了！</p>'}
+    <p class="muted" style="font-size:12.5px">当天答对只算当次纠正；隔天无提示答对才会延长复习间隔。到期的词会出现在首页「📅 今日复习」。</p>
+    <div class="row" style="gap:10px;margin-top:20px">
+      ${s.wrong.length?`<button class="btn lg" id="dRetryWrong" style="flex:1">🔁 只练错词</button>`:''}
+      <button class="btn primary lg" id="dAgain" style="flex:1">🔄 再来一轮</button>
+    </div>
+  </div>`;
+  if(s.wrong.length) $('dRetryWrong').onclick=()=>{ const w=[...new Map(s.wrong.map(v=>[v.id,v])).values()]; restoreDictCard(); state.list=w; state.idx=0; state.answered=false; state.session={done:0,ok:0,bad:0,wrong:[]}; renderDict(); };
+  $('dAgain').onclick=()=>{ restoreDictCard(); buildList(); renderDict(); };
+}
+let dictCardHTML=null;
+function restoreDictCard(){ if(dictCardHTML){ document.querySelector('#m-dict .card').innerHTML=dictCardHTML; wireDict(); } }
+
+/* ============ FLASHCARD ============ */
+function visMedia(en){ var w=(en||'').toLowerCase().trim(); function look(m){ if(!m)return ''; if(m[w])return m[w]; var a=w.split(' / ')[0].trim(); if(a!==w&&m[a])return m[a]; return m[w.replace(/ies$/,'y')]||m[w.replace(/es$/,'')]||m[w.replace(/s$/,'')]||''; } var im=look(window.IMG); if(im) return '<img src="'+im+'" alt="" style="width:130px;height:130px;object-fit:cover;border-radius:14px;display:block;margin:0 auto 12px">'; var em=look(window.EMOJI); if(em) return '<div style="font-size:58px;line-height:1;margin-bottom:8px">'+em+'</div>'; return ''; }
+function renderFlash(){
+  $('fDeck').textContent=CATS[state.deck].label;
+  const list=state.list;
+  if(!list.length){ flashEmpty(); return; }
+  if(state.idx>=list.length) state.idx=0;
+  const it=list[state.idx];
+  $('fProg').textContent=`${state.idx+1} / ${list.length}`;
+  paintProgress('f',state.idx+1,list.length);
+  saveSess();
+  $('flash').classList.remove('flip');
+  const media=visMedia(it.en);
+  const enFace=`${media}<div class="bigword">${esc(it.en)}</div>${it.col?`<div class="sub">🗣️ ${esc(it.col)}</div>`:''}<div class="sub muted">点此查看中文</div>`;
+  const zhFace=`${media}<div class="bigzh">${esc(it.zh)}</div>${it.note?`<div class="sub">⚠️ ${esc(it.note)}</div>`:''}`;
+  if(settings.front==='en'){ $('fFront').innerHTML=enFace; $('fBack').innerHTML=zhFace; }
+  else{ $('fFront').innerHTML=`${media}<div class="bigzh">${esc(it.zh)}</div><div class="sub muted">点此查看英文</div>`; $('fBack').innerHTML=`${media}<div class="bigword">${esc(it.en)}</div>${it.col?`<div class="sub">🗣️ ${esc(it.col)}</div>`:''}${it.note?`<div class="sub">⚠️ ${esc(it.note)}</div>`:''}`; }
+  $('fStar').textContent=(P(it.en).star?'🔖 已收藏':'🔖 收藏');
+  if(settings.auto&&settings.front==='en') setTimeout(()=>speak(it.say),140);
+}
+/* ---------- 连播 hands-free autoplay: speak → reveal → next; wake lock keeps the screen on ---------- */
+let autoT=null, autoOn=false;
+function stopAuto(){ autoOn=false; if(autoT){clearTimeout(autoT);autoT=null;} const b=$('fAuto'); if(b){b.textContent='▶ 连播'; b.classList.remove('primary');} }
+function autoSpeakCur(){ const it=state.list[state.idx]; if(it) speak(it.say); }
+function autoStep(){
+  if(!autoOn) return;
+  autoT=setTimeout(()=>{                 // reveal the meaning
+    if(!autoOn) return;
+    if(!$('flash').classList.contains('flip')) flipFlash();
+    autoT=setTimeout(()=>{               // advance
+      if(!autoOn) return;
+      if(state.idx>=state.list.length-1){ stopAuto(); toast('连播完成 🎉'); return; }
+      flashNext(1); autoSpeakCur(); autoStep();
+    },2200);
+  },2600);
+}
+function startAuto(){
+  if(!state.list.length) return;
+  autoOn=true;
+  const b=$('fAuto'); if(b){b.textContent='⏸ 停止'; b.classList.add('primary');}
+  renderFlash(); autoSpeakCur(); autoStep();
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState!=='visible') stopAuto(); });
+function flashEmpty(){ $('fFront').innerHTML='<div class="empty"><div class="big">📭</div>该词库暂无单词</div>'; $('fBack').innerHTML=''; $('fProg').textContent=''; }
+function flipFlash(){ if(state.list.length){ $('flash').classList.toggle('flip'); if($('flash').classList.contains('flip')&&settings.front==='zh'){const it=state.list[state.idx]; speak(it.say);} } }
+function flashNext(d){ if(!state.list.length)return; state.idx=(state.idx+d+state.list.length)%state.list.length; renderFlash(); }
+// Self-report proves nothing either way: 记住了 leaves the review level alone, 不熟 only
+// brings the word into today's review.
+function flashMark(easy){ const it=state.list[state.idx]; if(!it)return; const p=P(it.en); p.seen++; if(easy){p.box=Math.min(5,p.box+1);p.streak++;p.last=true;} else {p.box=0;p.streak=0; RV.flag(Object.assign({},it,{src:DECK}),'m');} p.t=Date.now(); saveProg(); updateHStats(); flashNext(1); }
+
+/* ============ QUIZ ============ */
+let quizAnswered=false;
+function posStr(it){ return it&&it.pos?String(it.pos).trim():''; }
+function posBadge(it){ const p=posStr(it); return p?' <span class="pos">'+esc(p)+'</span>':''; }
+function renderQuiz(){
+  $('qDeck').textContent=CATS[state.deck].label;
+  const list=state.list;
+  if(!list.length){ $('qPrompt').textContent='当前词库没有可练习的词'; $('qOpts').innerHTML=''; $('qDir').textContent=''; return; }
+  if(state.idx>=list.length){ return quizSummary(); }
+  const it=list[state.idx]; quizAnswered=false;
+  $('qProg').textContent=`${state.idx+1} / ${list.length}　·　✓${state.session.ok}`;
+  paintProgress('q',state.idx,list.length);
+  saveSess();
+  $('qNext').classList.add('hide');
+  const z2e=settings.quizDir==='zh2en';
+  $('qDir').textContent=z2e?'选择对应的英文':'选择对应的中文';
+  if(z2e) $('qPrompt').innerHTML=esc(it.zh)+posBadge(it); else $('qPrompt').textContent=it.en;
+  if(!z2e){} else if(settings.auto){/* don't reveal audio in zh2en to avoid giving answer*/}
+  // distractors
+  const scopedPool=deckBase().filter(v=>v.id!==it.id);
+  const pool=scopedPool.length>=3?scopedPool:VOCAB.filter(v=>v.id!==it.id);
+  const sameCat=pool.filter(v=>v.cat===it.cat);
+  const picks=shuffle((sameCat.length>=3?sameCat:pool).slice()).slice(0,3);
+  const opts=shuffle([it,...picks]);
+  $('qOpts').innerHTML='';
+  opts.forEach(o=>{
+    const b=document.createElement('button'); b.className='opt';
+    b.textContent=z2e?o.alts[0]:o.zh;
+    if(!z2e) b.dataset.pos=posStr(o);
+    b.onclick=()=>answerQuiz(b,o,it);
+    $('qOpts').appendChild(b);
+  });
+}
+function answerQuiz(btn,chosen,correct){
+  if(quizAnswered)return; quizAnswered=true;
+  const ok=chosen.id===correct.id;
+  recordResult(correct,ok,'m',false);
+  state.session.done++; ok?state.session.ok++:state.session.bad++; if(!ok){state.session.wrong.push(correct);recordWrong(correct);requeue(correct);}
+  if(!ok) IELTSMistakes.record(correct,DECK,'quiz',settings.quizDir==='zh2en'?chosen.alts[0]:chosen.zh,{alt:{w:chosen.alts[0],zh:chosen.zh}});
+  const _z2e=settings.quizDir==='zh2en';
+  [...$('qOpts').children].forEach(b=>{
+    b.disabled=true;
+    const txt=b.textContent;
+    if(txt===(_z2e?correct.alts[0]:correct.zh)) b.classList.add('correct');
+    if(!_z2e&&b.dataset.pos) b.innerHTML=esc(txt)+' <span class="pos">'+esc(b.dataset.pos)+'</span>';
+  });
+  if(!ok) btn.classList.add('wrong');
+  if(settings.quizDir==='zh2en') speak(correct.say);
+  $('qNext').classList.remove('hide'); $('qNext').focus();
+  saveSess();
+}
+function quizNext(){ state.idx++; renderQuiz(); }
+function quizSummary(){
+  quizAnswered=false; saveSess();
+  const s=state.session, acc=s.done?Math.round(s.ok/s.done*100):0;
+  $('qPrompt').textContent=''; $('qDir').textContent=''; paintProgress('q',1,1);
+  $('qOpts').innerHTML=`<div style="grid-column:1/-1" class="center">
+    <div style="font-size:50px">${acc>=80?'🎉':'💪'}</div>
+    <h2>得分 ${s.ok}/${s.done}（${acc}%）</h2>
+    ${s.wrong.length?`<p class="muted">错词：${s.wrong.map(w=>esc(w.en)).join('、')}</p>`:'<p class="muted">全对！</p>'}
+    ${s.wrong.length?`<button class="btn primary lg" id="qRetryWrong" style="margin-top:10px">重练本轮错题（${s.wrong.length}）</button>`:''}
+    <button class="btn ${s.wrong.length?'':'primary'} lg" id="qAgain" style="margin-top:10px">🔄 再来一轮</button></div>`;
+  $('qNext').classList.add('hide');
+  if(s.wrong.length) $('qRetryWrong').onclick=()=>{
+    state.list=[...new Map(s.wrong.map(v=>[v.id,v])).values()];
+    state.idx=0; state.answered=false; quizAnswered=false;
+    state.session={done:0,ok:0,bad:0,wrong:[]}; renderQuiz();
+  };
+  $('qAgain').onclick=()=>{ buildList(); renderQuiz(); };
+}
+
+/* ============ BROWSE ============ */
+function renderBrowse(){
+  const q=norm($('search').value);
+  let arr=deckBase();
+  if(q) arr=arr.filter(v=>norm(v.en).includes(q)||norm(v.zh).includes(q)||norm(v.col).includes(q)||norm(v.note).includes(q));
+  const body=$('browseBody'); body.innerHTML='';
+  $('browseEmpty').classList.toggle('hide',arr.length>0);
+  arr.forEach(it=>{
+    const tr=document.createElement('tr');
+    const starred=P(it.en).star;
+    tr.innerHTML=`<td><button class="starbtn ${starred?'on':''}" data-en="${escA(it.en)}">${starred?'★':'☆'}</button></td>
+      <td class="en">${esc(it.en)}${it.core?' <span class="pill core">高危</span>':it.p80?' <span class="pill p80">必背</span>':''}${RV.badge(it.en)?`<div class="tnote">📅 ${esc(RV.badge(it.en))}</div>`:''}</td>
+      <td class="zh">${esc(it.zh)}</td>
+      <td>${esc(it.col)}${it.note?`<div class="tnote">⚠️ ${esc(it.note)}</div>`:''}</td>
+      <td><button class="rowspk" data-say="${escA(it.say)}">🔊</button></td>`;
+    body.appendChild(tr);
+  });
+}
+
+/* ============ STATS ============ */
+function renderStats(){
+  const total=VOCAB.length;
+  let wrongbook=0,starred=0,due=0;
+  const n={new:0,learning:0,relearn:0,fresh:0,firming:0,stable:0,recheck:0};
+  VOCAB.forEach(v=>{const p=prog[v.en]; n[stageOf(v)]++; if(RV.isDue(v.en))due++; if(p&&p.bad>0&&!isMastered(v))wrongbook++; if(p&&p.star)starred++;});
+  $('statGrid').innerHTML=`
+    <div class="stat"><div class="v">${total}</div><div class="l">总词数</div></div>
+    <div class="stat"><div class="v" style="color:var(--ok)">${n.stable}</div><div class="l">较稳定</div></div>
+    <div class="stat"><div class="v" style="color:var(--brand)">${n.firming}</div><div class="l">待巩固</div></div>
+    <div class="stat"><div class="v" style="color:var(--brand)">${n.fresh}</div><div class="l">刚学会</div></div>
+    <div class="stat"><div class="v">${n.learning+n.relearn}</div><div class="l">学习中 / 遗忘重学</div></div>
+    <div class="stat"><div class="v">${n.recheck}</div><div class="l">待复核</div></div>
+    <div class="stat"><div class="v">${n.new}</div><div class="l">未学习</div></div>
+    <div class="stat"><div class="v" style="color:var(--bad)">${due}</div><div class="l">今日到期</div></div>
+    <div class="stat"><div class="v" style="color:var(--bad)">${wrongbook}</div><div class="l">错题本</div></div>
+    <div class="stat"><div class="v" style="color:var(--star)">${starred}</div><div class="l">收藏</div></div>
+    <p class="muted" style="grid-column:1/-1;font-size:12.5px;margin:4px 0 0;text-align:left">刚学会：当天无提示答对　·　待巩固：隔天复测通过　·　较稳定：间隔一周以上仍答对　·　待复核：旧版「已掌握」，需无提示再测一次。听写与选择题分开记录。</p>`;
+  const cats=['jobs','housing','services','clothing'];
+  $('statBars').innerHTML=cats.map(c=>{
+    const arr=VOCAB.filter(v=>v.cat===c); const m=arr.filter(isMastered).length;
+    const pct=arr.length?Math.round(m/arr.length*100):0;
+    return `<div class="barrow"><div class="lab">${catName(c)}</div><div class="track"><div class="fill" style="width:${pct}%"></div></div><div class="pct">${m}/${arr.length}</div></div>`;
+  }).join('');
+}
+
+/* ---------- helpers ---------- */
+function esc(s){return (s==null?'':String(s)).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
+function escA(s){return esc(s).replace(/"/g,'&quot;');}
+
+/* ---------- deck chips & tabs ---------- */
+/* ---------- progress helpers & session resume ---------- */
+function deckStat(){
+  const base=deckBase(); let s=0;
+  base.forEach(v=>{const p=prog[v.en]; if(p&&p.seen>0)s++;});
+  return {seen:s,total:base.length};
+}
+function paintProgress(pre,pos,len){
+  const bar=$(pre+'Bar'); if(bar) bar.style.width=(len?Math.min(100,pos/len*100):0)+'%';
+  const st=deckStat();
+  const se=$(pre+'Seen'); if(se) se.style.width=(st.total?st.seen/st.total*100:0)+'%';
+  const cv=$(pre+'Cov');
+  if(cv) cv.textContent=st.total?(st.seen>=st.total?`本词库 ${st.total} 词已全部学过 ✓`:`本词库已学 ${st.seen} / ${st.total}（${Math.round(st.seen/st.total*100)}%）`):'';
+}
+function saveSess(){
+  if(window.__RESTORING__) return;
+  if(!['dict','flash','quiz'].includes(state.mode)||!state.list.length) return;
+  // Store the actual shuffled/smart queue. Submitted answers resume at the next
+  // word so reopening cannot count the same answer twice.
+  const answered=(state.mode==='dict'&&state.answered)||(state.mode==='quiz'&&quizAnswered);
+  settings.sess={version:2,deck:state.deck,mode:state.mode,
+    ids:state.list.map(v=>v.id),idx:Math.min(state.list.length,state.idx+(answered?1:0)),
+    session:{...state.session,wrong:state.session.wrong.map(v=>v.id)},
+    draft:state.mode==='dict'&&!answered&&$('dictInput')?$('dictInput').value:'',ts:Date.now()};
+  saveSettings();
+}
+window.addEventListener('pagehide',saveSess);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveSess();});
+document.addEventListener('input',e=>{if(e.target.id==='dictInput')saveSess();});
+let _toastT=null;
+function toast(msg){
+  let t=document.getElementById('__toast');
+  if(!t){ t=document.createElement('div'); t.id='__toast'; t.className='toastmsg'; document.body.appendChild(t); }
+  t.textContent=msg;
+  requestAnimationFrame(()=>t.classList.add('show'));
+  if(_toastT)clearTimeout(_toastT);
+  _toastT=setTimeout(()=>t.classList.remove('show'),2600);
+}
+function restoreSession(){
+  let s=(settings&&settings.sess)||null;
+  try{ const bs=BOOT&&BOOT.settings&&BOOT.settings.sess; if(bs&&(!s||(bs.ts||0)>(s.ts||0))) s=bs; }catch(e){}
+  const deck=(s&&s.deck&&CATS[s.deck])?s.deck:state.deck;
+  const mode=(s&&['dict','flash','quiz','browse'].includes(s.mode))?s.mode:'dict';
+  state.deck=deck; state.mode=mode; renderDecks();
+  let restored=false;
+  if(s&&s.version===2&&Array.isArray(s.ids)&&Number.isInteger(s.idx)&&s.idx>=0&&s.idx<=s.ids.length){
+    const byID=new Map(VOCAB.map(v=>[v.id,v]));
+    state.list=s.ids.map(id=>byID.get(id)).filter(Boolean);
+    state.idx=s.ids.slice(0,s.idx).filter(id=>byID.has(id)).length;
+    const t=s.session||{};
+    state.session={done:t.done||0,ok:t.ok||0,bad:t.bad||0,wrong:(t.wrong||[]).map(id=>byID.get(id)).filter(Boolean)};
+    restored=state.list.length>0;
+  }else if(s&&settings.order==='seq'&&Number.isInteger(s.idx)){
+    buildList(); state.idx=Math.max(0,Math.min(s.idx,state.list.length)); restored=state.list.length>0;
+  }
+  enterMode(mode,!restored);
+  if(restored){
+    if(mode==='dict'&&state.idx<state.list.length&&s.draft){$('dictInput').value=s.draft;saveSess();}
+    toast(state.idx>=state.list.length?'上次练习已完成':`已接着上次：${CATS[deck].label} · 第 ${state.idx+1} 词`);
+  }
+}
+function renderDecks(){
+  const d=$('decks'); d.innerHTML='';
+  Object.keys(CATS).forEach(k=>{
+    const base=deckBase(k); const n=base.length;
+    let cnt=`<span class="n">${n}</span>`;
+    if(k!=='wrong'&&k!=='star'&&k!=='due'&&n){
+      let sn=0; base.forEach(v=>{const p=prog[v.en]; if(p&&p.seen>0)sn++;});
+      cnt=(sn>=n)?`<span class="n done">${n} ✓</span>`:`<span class="n">${sn}/${n}</span>`;
+    }
+    const b=document.createElement('button');
+    b.className='chip'+(state.deck===k?' on':'');
+    b.innerHTML=`${CATS[k].label} ${cnt}`;
+    b.onclick=()=>{ state.deck=k; renderDecks(); enterMode(state.mode,true); };
+    d.appendChild(b);
+  });
+}
+/* ---------- screen wake lock: keep the phone awake while practicing ---------- */
+let _wake=null, _wantWake=false;
+async function _acqWake(){ try{ if(_wantWake && !_wake && navigator.wakeLock){ const w=await navigator.wakeLock.request('screen'); if(_wantWake){ _wake=w; w.addEventListener('release',function(){_wake=null;}); } else { w.release(); } } }catch(e){} }
+function keepAwake(on){ _wantWake=on; if(on){ _acqWake(); } else { try{ if(_wake){_wake.release();_wake=null;} }catch(e){} } }
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _acqWake(); });  // iOS drops the lock when hidden → re-grab on return
+function restartPractice(){
+  if(!['dict','flash','quiz'].includes(state.mode)||!state.list.length)return;
+  stopAuto(); try{speechSynthesis.cancel();}catch(e){}
+  state.list=[...new Map(state.list.map(v=>[v.id,v])).values()];   // drop the re-test copies of missed words
+  state.idx=0; state.answered=false; quizAnswered=false;
+  state.session={done:0,ok:0,bad:0,wrong:[]};
+  enterMode(state.mode,false); toast('已从第一题重做，历史记录保留');
+}
+$('restartPractice').onclick=restartPractice;
+function enterMode(m,rebuild){
+  state.mode=m;
+  $('restartPractice').hidden=!['dict','flash','quiz'].includes(m);
+  keepAwake(['dict','flash','quiz'].includes(m));
+  if(m!=='flash') stopAuto();
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.mode===m));
+  ['dict','flash','quiz','browse','stats','plan'].forEach(x=>$('m-'+x).classList.toggle('hide',x!==m));
+  if(['dict','flash','quiz'].includes(m)){ if(rebuild||!state.list.length) buildList(); }
+  if(m==='dict'){ if(state.idx>=state.list.length||rebuild) {if(rebuild)buildList();} renderDict(); }
+  if(m==='flash') renderFlash();
+  if(m==='quiz'){ if(rebuild) buildList(); renderQuiz(); }
+  if(m==='browse') renderBrowse();
+  if(m==='stats') renderStats();
+  if(m==='plan') $('planTotal').textContent=VOCAB.length;
+  saveSess();
+}
+
+/* ---------- header stats ---------- */
+function updateHStats(){
+  if(daily.date!==todayStr()) daily={date:todayStr(),done:0,ok:0};
+  // every device's answers today (srs.js answer log); the per-deck counter only covers
+  // answers from before that log existed, so the larger of the two is shown
+  var t=window.IELTSStats?IELTSStats.today(DECK):{done:0,ok:0}; if(daily.done>t.done) t=daily;
+  $('hsDone').textContent=t.done;
+  $('hsAcc').textContent=t.done?Math.round(t.ok/t.done*100)+'%':'—';
+  $('hsMaster').textContent=VOCAB.filter(isMastered).length;
+}
+
+/* ---------- settings UI ---------- */
+function fillVoiceSelect(){
+  const sel=$('setVoice'); if(!sel)return; sel.innerHTML='';
+  const auto=document.createElement('option'); auto.value=''; auto.textContent='自动（跟随口音）'; sel.appendChild(auto);
+  voices.forEach(v=>{const o=document.createElement('option'); o.value=v.voiceURI; o.textContent=`${v.name} (${v.lang})`; sel.appendChild(o);});
+  sel.value=settings.voiceURI||'';
+}
+function syncSettingsUI(){
+  document.querySelectorAll('#setAccent button').forEach(b=>b.classList.toggle('on',b.dataset.v===settings.accent));
+  document.querySelectorAll('#setDictRead button').forEach(b=>b.classList.toggle('on',b.dataset.v===settings.dictRead));
+  document.querySelectorAll('#setFront button').forEach(b=>b.classList.toggle('on',b.dataset.v===settings.front));
+  document.querySelectorAll('#setQuizDir button').forEach(b=>b.classList.toggle('on',b.dataset.v===settings.quizDir));
+  document.querySelectorAll('#setOrder button').forEach(b=>b.classList.toggle('on',b.dataset.v===settings.order));
+  $('setRate').value=settings.rate; $('rateVal').textContent=(+settings.rate).toFixed(2);
+  $('setAuto').checked=settings.auto; $('setDark').checked=settings.dark; $('setVoice').value=settings.voiceURI||'';
+}
+function seg(id,key,after){ document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{ settings[key]=b.dataset.v; saveSettings(); syncSettingsUI(); after&&after(); }); }
+
+/* ---------- wiring ---------- */
+function wireDict(){
+  $('dSpk').onclick=()=>dictSpeak();
+  $('dReplay').onclick=()=>dictSpeak();
+  $('dSlow').onclick=()=>dictSpeak(0.6);
+  $('dExample').onclick=()=>{const it=curItem(); if(it&&it.col) speak(firstClause(it.col)); };
+  $('dZh').onclick=()=>{const it=curItem(); if(it) $('dHint').innerHTML=`💡 <b>${esc(it.zh)}</b>`; };
+  $('dLetter').onclick=()=>{const it=curItem(); if(!it)return; if(!state.answered) state.hinted=true; const w=it.alts[0]; $('dHint').innerHTML=`<span class="mask">${w[0].toUpperCase()}${' _ '.repeat(Math.max(0,w.replace(/\s/g,'').length-1))}</span> <span class="muted">(${w.replace(/\s/g,'').length}字母)</span>`; };
+  $('dSubmit').onclick=submitDict;
+  $('dSkip').onclick=skipDict;
+  const inp=$('dictInput');
+  inp.onkeydown=e=>{ if(window.__CUSTOM_SHORTCUTS__)return; if(e.key==='Enter' && !e.isComposing && e.keyCode!==229 && !e.repeat){e.preventDefault();submitDict();} };
+}
+function wire(){
+  wireDict(); dictCardHTML=document.querySelector('#m-dict .card').innerHTML;
+  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>enterMode(t.dataset.mode,t.dataset.mode!=='flash'?false:false));
+  // tabs: rebuild for dict/quiz when switching deck handled elsewhere; here just switch view
+  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>enterMode(t.dataset.mode,false));
+
+  // flashcard
+  $('flashInner').onclick=flipFlash;
+  $('fPrev').onclick=()=>{stopAuto();flashNext(-1);};
+  $('fNext').onclick=()=>{stopAuto();flashNext(1);};
+  $('fAuto').onclick=()=>{ autoOn?stopAuto():startAuto(); };
+  $('fSpeak').onclick=()=>{const it=state.list[state.idx]; if(it)speak(it.say);};
+  $('fStar').onclick=()=>{const it=state.list[state.idx]; if(!it)return; const p=P(it.en); p.star=!p.star; p.t=Date.now(); saveProg(); $('fStar').textContent=p.star?'🔖 已收藏':'🔖 收藏'; renderDecks();};
+  $('fEasy').onclick=()=>{stopAuto();flashMark(true);};
+  $('fHard').onclick=()=>{stopAuto();flashMark(false);};
+
+  // quiz
+  $('qNext').onclick=quizNext;
+
+  // browse
+  $('search').oninput=renderBrowse;
+  $('browseBody').onclick=e=>{
+    const sb=e.target.closest('.starbtn'); if(sb){const en=sb.dataset.en; const p=P(en); p.star=!p.star; p.t=Date.now(); saveProg(); renderBrowse(); renderDecks(); updateHStats(); return;}
+    const rs=e.target.closest('.rowspk'); if(rs){ speak(rs.dataset.say); }
+  };
+
+  // stats
+  $('btnReset').onclick=()=>{ if(confirm('确定清空所有学习进度？此操作不可恢复。')){ const now=Date.now(); VOCAB.forEach(v=>{ if(prog[v.en]) prog[v.en]={seen:0,ok:0,bad:0,streak:0,box:0,star:false,last:null,t:now}; }); RV.reset(VOCAB.map(v=>v.en)); saveProg(); daily={date:todayStr(),done:0,ok:0}; SS('ielts_p1_daily',daily); updateHStats(); renderStats(); renderDecks(); } };
+  $('btnExport').onclick=()=>{ const blob=new Blob([JSON.stringify({prog,daily,settings},null,1)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ielts_p1_progress.json'; a.click(); };
+  $('btnImport').onclick=()=>$('importFile').click();
+  $('importFile').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{const d=JSON.parse(r.result); if(d.prog){prog=d.prog;saveProg();} if(d.daily){daily=d.daily;SS('ielts_p1_daily',daily);} if(d.settings){settings=Object.assign(settings,d.settings);saveSettings();applyDark();syncSettingsUI();} updateHStats(); renderStats(); renderDecks(); alert('导入成功！'); }catch(err){alert('文件格式有误');} }; r.readAsText(f); };
+
+  // settings modal
+  $('gearBtn').onclick=()=>{ syncSettingsUI(); $('modal').classList.add('show'); };
+  $('closeModal').onclick=()=>$('modal').classList.remove('show');
+  $('modal').onclick=e=>{ if(e.target===$('modal')) $('modal').classList.remove('show'); };
+  seg('setAccent','accent',()=>{settings.voiceURI='';fillVoiceSelect();});
+  seg('setDictRead','dictRead'); seg('setFront','front',()=>state.mode==='flash'&&renderFlash());
+  seg('setQuizDir','quizDir',()=>state.mode==='quiz'&&(buildList(),renderQuiz()));
+  seg('setOrder','order',()=>{ if(['dict','flash','quiz'].includes(state.mode)){buildList(); enterMode(state.mode,false);} });
+  $('setRate').oninput=e=>{ settings.rate=+e.target.value; $('rateVal').textContent=settings.rate.toFixed(2); saveSettings(); };
+  $('setAuto').onchange=e=>{ settings.auto=e.target.checked; saveSettings(); };
+  $('setDark').onchange=e=>{ settings.dark=e.target.checked; saveSettings(); applyDark(); };
+  $('setVoice').onchange=e=>{ settings.voiceURI=e.target.value; saveSettings(); };
+
+  // global keys
+  document.addEventListener('keydown',e=>{
+    if(window.__CUSTOM_SHORTCUTS__)return;
+    if(e.isComposing || e.keyCode===229 || e.repeat || e.ctrlKey || e.metaKey || e.altKey)return;
+    if(document.activeElement && document.activeElement.matches('input, textarea, select, [contenteditable="true"]'))return;
+    if($('modal').classList.contains('show'))return;
+    const typing=document.activeElement&&document.activeElement.id==='dictInput';
+    const inSearch=document.activeElement&&document.activeElement.id==='search';
+    if(inSearch)return;
+    if(state.mode==='dict'){
+      if(e.key===' '&&!typing){e.preventDefault();dictSpeak();}
+      // Tab keeps its standard focus-navigation behavior.
+    }else if(state.mode==='flash'){
+      if(e.key===' '){e.preventDefault();flipFlash();}
+      if(e.key==='ArrowRight'){flashNext(1);}
+      if(e.key==='ArrowLeft'){flashNext(-1);}
+    }
+  });
+}
+function applyDark(){ document.body.classList.toggle('dark',settings.dark); }
+
+/* ---------- init ---------- */
+applyDark();
+try{ RV.seedLegacy(DECK,VOCAB,prog); }catch(e){}
+renderDecks();
+updateHStats();
+wire();
+/* ---------- live refresh after a sync pull ----------
+   The sync layer merges fresh server data straight into localStorage, but this page
+   keeps prog/daily in memory. Without re-reading them the screen shows stale numbers
+   AND the next saveProg() writes the stale copy back, erasing what just synced down. */
+function rehydrateFromStorage(){
+  prog=LS('ielts_'+DECK+'_prog',{});
+  daily=LS('ielts_'+DECK+'_daily',daily);
+  updateHStats(); renderDecks();
+  if(state.mode==='browse') renderBrowse();
+  else if(state.mode==='stats') renderStats();
+  else if(state.mode==='plan'){ if(typeof renderPlan==='function') renderPlan(); }
+  else if(state.mode==='dict') paintProgress('d',state.idx,state.list.length);
+  else if(state.mode==='flash') paintProgress('f',state.idx+1,state.list.length);
+  else if(state.mode==='quiz') paintProgress('q',state.idx,state.list.length);
+  // state.list is deliberately NOT rebuilt — that would swap the word being answered
+}
+window.addEventListener('ielts:pulled',rehydrateFromStorage);
+restoreSession();
+syncSettingsUI();
+</script>
+</body>
+</html>

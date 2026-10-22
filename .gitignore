@@ -1,0 +1,18 @@
+*.pem
+*.crt
+data.json
+backups/
+.DS_Store
+.claude/
+.codex/
+.env*
+node_modules/
+GitHub-Release/
+*.log
+.Rhistory
+*.app/
+# 本机 iPhone 同步工具与个人说明（含局域网/证书配置），不随公开源码发布
+server.py
+migrate.py
+*.command
+使用说明.md

@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<script src="mistakes.js"></script>
+<script src="srs.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>生词本</title>
+<style>
+  :root{ --bg:#f5f6f8; --card:#fff; --ink:#1d2330; --soft:#6b7280; --line:#e5e7eb; --accent:#2563eb; --accent2:#0ea5a4; --good:#16a34a; --bad:#dc2626; --chip:#eef2ff; --track:#eef0f3; --shadow:0 1px 3px rgba(0,0,0,.06),0 6px 18px rgba(0,0,0,.05); }
+  @media (prefers-color-scheme:dark){ :root{ --bg:#0f1320; --card:#171c2b; --ink:#e8ecf3; --soft:#9aa3b2; --line:#262d40; --accent:#5b8cff; --accent2:#2dd4bf; --good:#34d399; --bad:#f87171; --chip:#1e2740; --track:#222a3d; --shadow:0 1px 3px rgba(0,0,0,.4); } }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:680px;margin:0 auto;padding:30px 18px 60px}
+  h1{margin:0 0 3px;font-size:23px}
+  .sub{color:var(--soft);font-size:12.5px;margin:0 0 18px}
+  .addbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow);position:sticky;top:10px;z-index:5}
+  .row{display:flex;gap:8px;align-items:center}
+  input,textarea{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 11px;width:100%}
+  input:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  textarea{resize:vertical;min-height:38px}
+  .btn{border:none;border-radius:9px;padding:9px 14px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;white-space:nowrap}
+  .btn.alt{background:transparent;border:1px solid var(--line);color:var(--ink)}
+  .btn.sm{padding:4px 9px;font-size:12px}
+  .ghosti{background:transparent;border:none;cursor:pointer;color:var(--soft);font-size:17px;padding:2px 5px}
+  .hint{font-size:11.5px;color:var(--soft);margin-top:7px}
+  .prev{margin-top:11px;border-top:1px dashed var(--line);padding-top:11px;display:none}
+  .prev.show{display:block}
+  .ph{color:var(--accent2);font-size:13px}
+  .tools{display:flex;gap:8px;align-items:center;margin:18px 2px 10px;flex-wrap:wrap}
+  .tools .count{color:var(--soft);font-size:12.5px;margin-right:auto}
+  .search{flex:1;min-width:140px}
+  .catpractice{width:100%;display:grid;gap:7px;margin-top:2px;padding-top:10px;border-top:1px solid var(--line)}
+  .cprow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .cptitle{width:94px;flex:0 0 94px;font-size:12px;font-weight:650;color:var(--soft)}
+  .cprow .btn{flex:1}
+  @media(max-width:480px){.cptitle{width:100%;flex-basis:100%}.cprow .btn{padding:6px 6px;min-width:calc(33% - 6px)}}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px 14px;box-shadow:var(--shadow);margin-bottom:10px}
+  .item .top{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+  .item .w{font-size:17px;font-weight:650}
+  .item .meta{margin-left:auto;display:flex;gap:4px;align-items:center}
+  .tr{margin:7px 0 0;font-size:13.5px;line-height:1.55;white-space:pre-wrap}
+  .tr[contenteditable]:focus{outline:1px solid var(--accent);border-radius:6px;padding:2px 4px}
+  .exrow{margin-top:7px}
+  .ex{font-size:12.5px;color:var(--soft)}
+  .tag{display:inline-block;background:var(--chip);color:var(--accent);font-size:11px;padding:1px 8px;border-radius:999px}
+  .pos{display:inline-block;background:var(--chip);color:var(--accent);font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;letter-spacing:.3px;white-space:nowrap;vertical-align:middle}
+  .lwtag{display:inline-block;background:rgba(14,165,164,.14);color:var(--accent2);font-size:11px;padding:1px 8px;border-radius:999px;font-weight:600}
+  .ghosti.lw.on{color:var(--accent2)}
+  .btn.sm.on{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+  .lwtoggle{display:flex;align-items:center;gap:7px;margin-top:9px;font-size:12.5px;color:var(--ink);cursor:pointer;user-select:none}
+  .lwtoggle input{width:auto;accent-color:var(--accent2)}
+  .rwtag{display:inline-block;background:rgba(139,92,246,.16);color:#8b5cf6;font-size:11px;padding:1px 8px;border-radius:999px;font-weight:600}
+  .ghosti.rw.on{color:#8b5cf6}
+  .rwtoggle input{accent-color:#8b5cf6}
+  .wwtag{display:inline-block;background:rgba(245,158,11,.16);color:#d97706;font-size:11px;padding:1px 8px;border-radius:999px;font-weight:600}
+  .ghosti.ww.on{color:#d97706}
+  .wwtoggle input{accent-color:#d97706}
+  .swtag{display:inline-block;background:rgba(236,72,153,.14);color:#db2777;font-size:11px;padding:1px 8px;border-radius:999px;font-weight:600}
+  .ghosti.sw.on{color:#db2777}
+  .swtoggle input{accent-color:#db2777}
+  .need{color:var(--bad);font-size:11.5px}
+  .old{margin:0 0 9px;padding:9px 11px;border-radius:10px;background:color-mix(in srgb,var(--good) 9%,var(--card));border:1px solid color-mix(in srgb,var(--good) 35%,var(--line));font-size:13px;line-height:1.55}
+  .old .oh{font-weight:650;color:var(--good)}
+  .old .otr{white-space:pre-wrap;margin-top:3px}
+  .old .oex{color:var(--soft);font-size:12.5px;margin-top:2px}
+  .en{margin-top:6px;font-size:12.5px;line-height:1.5;color:var(--soft)}
+  .en .enl{display:block}
+  .en .enp{font-style:italic;color:var(--accent2);margin-right:4px}
+  .en summary{cursor:pointer;list-style:none;color:var(--accent);font-size:12px}
+  .en summary::-webkit-details-marker{display:none}
+  .sug{margin-top:7px;font-size:12px;color:var(--soft);display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+  .sugw{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:2px 9px;font:inherit;font-size:12px;cursor:pointer}
+  .sugw:hover{border-color:var(--accent)}
+  .item.flash{outline:2px solid var(--good);outline-offset:1px}
+  [hidden]{display:none!important}
+  @media (max-height:700px){ .addbox{position:static} }
+  .empty{text-align:center;color:var(--soft);padding:40px 10px;font-size:13px}
+  /* review overlay */
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50}
+  .ov.show{display:flex}
+  .rc{background:var(--card);border-radius:18px;padding:26px 22px;width:min(440px,90vw);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .rc .rw{font-size:30px;font-weight:700;margin:6px 0}
+  .rc .rph{color:var(--accent2);font-size:15px;min-height:18px}
+  .rc .rtr{margin:16px 0;font-size:15px;line-height:1.6;white-space:pre-wrap;min-height:40px;color:var(--ink)}
+  .rc .rtr.hidden{filter:blur(7px)}
+  .rc .nav{display:flex;gap:8px;justify-content:center;margin-top:18px}
+  .rc .prog{color:var(--soft);font-size:12px;margin-top:12px}
+  .mcchoices{display:grid;gap:9px;margin-top:18px;text-align:left}
+  .mcopt{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:var(--bg);color:var(--ink);font:inherit;text-align:left;line-height:1.45;cursor:pointer}
+  .mcopt:hover{border-color:var(--accent)}
+  .mcopt.correct{border-color:var(--good);background:color-mix(in srgb,var(--good) 12%,var(--card));color:var(--good)}
+  .mcopt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,var(--card));color:var(--bad)}
+  .mcopt:disabled{cursor:default}
+  /* 写作 / 口语 production drills */
+  .xcloze{font-size:19px;line-height:1.7;margin:14px 0 6px}
+  .xcloze .gap{display:inline-block;min-width:72px;border-bottom:2px solid var(--accent);margin:0 4px}
+  .xmean{color:var(--soft);font-size:14px;margin-top:8px;line-height:1.55;white-space:pre-wrap}
+  .xmean.big{color:var(--ink);font-size:17px;margin:14px 0 4px}
+  .xq{margin:14px 0 4px;font-size:15px;line-height:1.6;text-align:left;background:var(--bg);border-radius:10px;padding:10px 12px}
+  .xtip{font-size:12.5px;color:var(--soft);margin-top:8px;line-height:1.5}
+  .xsent{font-size:17px;line-height:1.6;margin:12px 0;transition:filter .2s}
+  .xsent.hidden{filter:blur(6px)}
+  .xref{font-size:13px;color:var(--soft);margin-top:8px;line-height:1.55;text-align:left}
+body{overscroll-behavior-y:contain}
+button{-webkit-tap-highlight-color:transparent}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📒 生词本</h1>
+  <p class="sub">练习里遇到不会的词，敲进来回车即可 —— 自动配上音标、中文释义和发音（离线词典 5.8 万词）。数据存本地。</p>
+
+  <div class="addbox">
+    <div class="row">
+      <input id="w" placeholder="输入生词，回车添加（如 mitigate）" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus>
+      <button class="btn" id="add">添加</button>
+    </div>
+    <div class="sug" id="psug" hidden></div>
+    <div class="prev" id="prev">
+      <div class="row" style="gap:10px"><b id="pw"></b><span class="ph" id="pph"></span><span id="pemo" style="font-size:22px"></span><button class="ghosti" id="psay" title="朗读">🔊</button></div>
+      <div class="old" id="pold" hidden></div>
+      <textarea id="ptr" placeholder="中文释义（自动填入，可改）"></textarea>
+      <div class="en" id="pen" hidden></div>
+      <div class="row" style="margin-top:7px"><input id="pex" placeholder="例句 / 语境（可选）" title="搭配填空会挖掉句中的这个词（含 stopped、went 等变形）；想指定挖哪里，用方括号括起来，如 He [went] abroad."></div>
+      <div class="row" style="margin-top:7px"><input id="ptag" placeholder="来源 / 标签，如 C18T2 听力（可选）"></div>
+    </div>
+    <div class="hint" id="hint">提示：直接回车＝查词典并加入；词典没有的词也会加入，自己补释义即可。</div>
+    <label class="lwtoggle"><input type="checkbox" id="plw"> 🎧 标记为「听力错词」——雅思听力里听错 / 拼错的词，可单独听写</label>
+    <label class="lwtoggle rwtoggle"><input type="checkbox" id="prw"> 📖 标记为「阅读错词」——雅思阅读里不认识 / 弄错的词，可单独听写</label>
+    <label class="lwtoggle wwtoggle"><input type="checkbox" id="pww"> 📝 标记为「写作生词」——雅思写作需要积累 / 运用的词</label>
+    <label class="lwtoggle swtoggle"><input type="checkbox" id="psw"> 🗣️ 标记为「口语生词」——雅思口语需要积累 / 运用的词</label>
+  </div>
+
+  <p class="sub">练习进度自动保存；中途退出后，再点原来的练习入口即可接着上次继续。每个词会记录下次复习日：听写、选择题会先出到期的词，答错的词隔几题重测。</p>
+  <div class="tools">
+    <span class="count" id="count"></span>
+    <input class="search" id="search" placeholder="🔎 搜索生词 / 释义">
+    <button class="btn alt sm" id="onlyLW" title="只看听力错词">🎧 听力错词</button>
+    <button class="btn alt sm" id="onlyRW" title="只看阅读错词">📖 阅读错词</button>
+    <button class="btn alt sm" id="onlyWW" title="只看写作生词">📝 写作生词</button>
+    <button class="btn alt sm" id="onlySW" title="只看口语生词">🗣️ 口语生词</button>
+    <button class="btn alt sm" id="dictate">✍️ 听写</button>
+    <button class="btn alt sm" id="review">🎴 复习</button>
+    <button class="btn alt sm" id="edefGo" title="看英文释义，选出或写出单词" onclick="location.href='edef.html'">🧩 英义猜词</button>
+    <button class="btn alt sm" id="export">⬇️ 导出</button>
+    <button class="btn sm" id="upgradeTr" hidden title="只更新还是词典原文的释义；你自己改过的不动">📚 补全释义</button>
+    <div class="catpractice" aria-label="分类专项练习">
+      <div class="cprow"><span class="cptitle">🎧 听力错词</span><button class="btn alt sm" id="dictateLW" title="只听写标记为听力错词的词">听写</button></div>
+      <div class="cprow"><span class="cptitle">📖 阅读错词</span><button class="btn alt sm" id="dictateRW">听写</button><button class="btn alt sm" id="reviewRW">意思抽查</button><button class="btn alt sm" id="quizRW">选择题</button></div>
+      <div class="cprow"><span class="cptitle">📝 写作生词</span><button class="btn alt sm" id="dictateWW">听写</button><button class="btn alt sm" id="reviewWW">意思抽查</button><button class="btn alt sm" id="quizWW">选择题</button><button class="btn alt sm" id="xwcloze" title="在你记下的例句 / 搭配里挖空，写出这个词">搭配填空</button><button class="btn alt sm" id="xwprompt" title="看中文意思，写出英文表达">看中文写</button></div>
+      <div class="cprow"><span class="cptitle">🗣️ 口语生词</span><button class="btn alt sm" id="dictateSW">听写</button><button class="btn alt sm" id="reviewSW">意思抽查</button><button class="btn alt sm" id="quizSW">选择题</button><button class="btn alt sm" id="xsprompt" title="按口语题情境，开口说一句用上这个词的话">情境说句</button><button class="btn alt sm" id="xsrepeat" title="听一句话，跟着复述，录音回放对比">短句复述</button></div>
+    </div>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<div class="ov" id="ov">
+  <div class="rc">
+    <div id="remo" style="font-size:46px;min-height:52px;line-height:1"></div>
+    <div class="rph" id="rph"></div>
+    <div class="rw" id="rw"></div>
+    <button class="btn alt sm" id="rsay">🔊 朗读</button>
+    <div class="rtr hidden" id="rtr"></div>
+    <button class="btn" id="rflip" style="margin-top:6px">显示释义</button>
+    <div class="nav">
+      <button class="btn alt" id="rprev">‹ 上一个</button>
+      <button class="btn alt" id="rshuffle">🔀 打乱</button>
+      <button class="btn alt" id="rnext">下一个 ›</button>
+    </div>
+    <div class="prog" id="rprog"></div>
+    <button class="btn alt sm" id="rrestart" title="保留历史记录">↺ 从头重做</button>
+    <button class="ghosti" id="rclose" style="margin-top:8px">关闭</button>
+  </div>
+</div>
+
+<div class="ov" id="mov">
+  <div class="rc">
+    <div class="prog" id="mprog"></div>
+    <div class="rph" id="mph"></div>
+    <div class="rw" id="mword"></div>
+    <button class="btn alt sm" id="msay">🔊 朗读</button>
+    <div class="mcchoices" id="mchoices"></div>
+    <div id="mfb" style="min-height:24px;margin-top:12px;font-size:14px;line-height:1.5"></div>
+    <button class="btn" id="mnext" style="display:none;margin-top:10px">下一题 ›</button>
+    <div class="prog" id="mscore"></div>
+    <button class="btn alt sm" id="mrestart" title="保留历史记录">↺ 从头重做</button>
+    <button class="ghosti" id="mclose" style="margin-top:8px">结束</button>
+  </div>
+</div>
+
+<div class="ov" id="dov">
+  <div class="rc">
+    <div class="prog" id="dprog"></div>
+    <div class="rtr" id="dtr" style="filter:none">提交答案后显示中文意思</div>
+    <button class="btn alt sm" id="dsay">🔊 再听一次</button>
+    <div class="row" style="margin-top:14px"><input id="dans" placeholder="听写：输入英文拼写" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go"></div>
+    <div id="dfb" style="min-height:24px;margin-top:10px;font-size:15px"></div>
+    <div class="nav"><button class="btn" id="dsubmit" data-base="提交">提交 (Enter)</button><button class="btn alt" id="dskip">跳过 ›</button></div>
+    <div class="prog" id="dscore"></div>
+    <button class="btn alt sm" id="drestart" title="保留历史记录">↺ 从头重做</button>
+    <button class="ghosti" id="dclose" style="margin-top:8px">结束</button>
+  </div>
+</div>
+
+<div class="ov" id="xov">
+  <div class="rc">
+    <div class="prog" id="xprog"></div>
+    <div id="xbody"></div>
+    <div class="row" id="xinrow" style="margin-top:14px"><input id="xans" placeholder="写出英文" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go"></div>
+    <div class="nav" id="xrec" style="flex-wrap:wrap">
+      <button class="btn alt sm" id="xrecbtn">🎙️ 录音</button>
+      <button class="btn alt sm" id="xplay" disabled>▶ 听我的录音</button>
+      <button class="btn alt sm" id="xsay">🔊 原音</button>
+    </div>
+    <div class="xtip" id="xrecnote"></div>
+    <div id="xfb" style="min-height:24px;margin-top:10px;font-size:14.5px;line-height:1.55"></div>
+    <div class="nav">
+      <button class="btn" id="xsubmit" data-base="提交">提交 (Enter)</button>
+      <button class="btn" id="xok" hidden>✓ 说出来了</button>
+      <button class="btn alt" id="xbad" hidden>✗ 卡住了</button>
+      <button class="btn alt" id="xnext">跳过 ›</button>
+    </div>
+    <div class="prog" id="xscore"></div>
+    <button class="ghosti" id="xclose" style="margin-top:8px">结束</button>
+  </div>
+</div>
+
+<script src="dict.js"></script>
+<script src="defs.js"></script>
+<script src="emoji.js"></script>
+<script src="images.js"></script>
+<script>
+  var $=function(id){return document.getElementById(id);};
+  // Submit-button hint follows the user's shortcut settings (shortcuts.js); without
+  // it (phone/PWA) the page's own Enter handler applies. A cleared binding shows no key.
+  function submitHint(){ var S=window.IELTSShortcuts; if(!S) return ' (Enter)'; var k=S.label('submit'); return k?' ('+k+')':''; }
+  function setSubmit(text){ var b=$('dsubmit'); if(!b) return; b.dataset.base=text; b.textContent=text+submitHint(); }
+  window.addEventListener('ielts:shortcuts',function(){ ['dsubmit','xsubmit'].forEach(function(id){ var b=$(id); if(b) b.textContent=(b.dataset.base||'提交')+submitHint(); }); });
+  setSubmit('提交');
+  var DICT=window.DICT||{};
+  // Review ledger (srs.js), shared with the decks. The stub only keeps practice usable
+  // if that script failed to load; it schedules nothing.
+  var RV=window.IELTSReview||{live:false,
+    grade:function(typed,alts){ var f=function(s){return String(s||'').toLowerCase().trim().replace(/\s+/g,' ');}, t=f(typed); if(!t)return {ok:false,kind:'empty',empty:true}; for(var i=0;i<alts.length;i++){ if(f(alts[i])===t) return {ok:true,kind:'exact',exact:true,clean:true,want:alts[i]}; } return {ok:false,kind:'bad',want:alts[0]}; },
+    answer:function(){return null;}, confirm:function(){return null;}, isDue:function(){return false;}, stable:function(){return false;}, badge:function(){return '';}, info:function(){return {stage:'new',label:'',lv:0};}};
+  function okText(res){ return !res.clean?'⚠ 字母都对，但标准写法是 <b>'+esc(res.want)+'</b>（空格或撇号有误，本次不计入掌握）':(res.kind==='variant'?'✓ 正确（英式 / 美式拼写均可）':'✓ 正确'); }
+  function planText(r){ return r&&r.text?'<div style="font-size:12.5px;color:var(--soft);margin-top:6px">📅 '+esc(r.text)+'</div>':''; }
+  function nbItem(e){ return {w:e.w, tr:e.tr, ph:e.ph, ex:e.ex, alts:e.w.split(/\s*\/\s*/).filter(Boolean), src:'notebook'}; }
+  // for the error diagnosis: is the typed text a word, one of my own words, or a homophone?
+  var DX={
+    isWord:function(w){ return !!look(w); },
+    isKnown:function(w){ for(var i=0;i<NB.length;i++){ if((NB[i].w||'').toLowerCase()===w) return true; } return false; },
+    sameSound:function(a,b){ var x=get(a), y=get(b); return !!(a!==b&&x&&y&&x.ph&&x.ph===y.ph); }
+  };
+  var homShown=false;
+  // due words first, then never-tested ones, then the rest — each group shuffled
+  function reviewOrder(order,track){
+    var rank=function(i){ var w=NB[i].w; return RV.isDue(w,track)?0:(RV.info(w,track).stage==='new'?1:2); };
+    var groups=[[],[],[]]; order.forEach(function(i){ groups[rank(i)].push(i); });
+    groups.forEach(function(g){ for(var i=g.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=g[i];g[i]=g[j];g[j]=t; } });
+    return groups[0].concat(groups[1],groups[2]);
+  }
+  // 错词隔几题再测
+  function requeue(order,at){ var i=order[at]; if(order.indexOf(i,at+1)<0) order.splice(Math.min(order.length,at+4),0,i); }
+  var CATS={
+    lw:{emoji:'🎧',label:'听力错词'}, rw:{emoji:'📖',label:'阅读错词'},
+    ww:{emoji:'📝',label:'写作生词'}, sw:{emoji:'🗣️',label:'口语生词'}
+  };
+  function catText(cat){ var c=CATS[cat]; return c?(c.emoji+' '+c.label):''; }
+  /* ---------- storage ---------- */
+  var NB=[], DEL={}, sessions={};
+  try{ sessions=JSON.parse(localStorage.getItem('ielts_nb_sessions'))||{}; }catch(e){}
+  function mergeSessions(incoming){
+    Object.keys(incoming||{}).forEach(function(k){ if(!sessions[k]||(incoming[k].ts||0)>(sessions[k].ts||0)) sessions[k]=incoming[k]; });
+  }
+  try{ var ls=localStorage.getItem('ielts_nb'); if(ls) NB=JSON.parse(ls)||[]; }catch(e){}
+  try{ DEL=JSON.parse(localStorage.getItem('ielts_nb_del'))||{}; }catch(e){}
+  // deletion tombstones: {wLower: deletedAtTs}. A record older than its tombstone stays
+  // dead everywhere; re-adding the word (fresh ts) legitimately resurrects it.
+  (function(){ var cut=Date.now()-180*864e5; for(var k in DEL){ if(DEL[k]<cut) delete DEL[k]; } })();
+  function tombed(e){ var k=(e&&e.w||'').toLowerCase(); return !!(DEL[k]&&((e.ts||0)<=DEL[k])); }
+  try{ var b=window.__INITIAL_STATE__&&window.__INITIAL_STATE__.decks&&window.__INITIAL_STATE__.decks.notebook;
+    if(b){ mergeSessions(b.sessions); var changed=false;
+      var bdel=b.del||{}; for(var dk in bdel){ if((bdel[dk]||0)>(DEL[dk]||0)){ DEL[dk]=bdel[dk]; changed=true; } }
+      var kept=NB.filter(function(e){return !tombed(e);}); if(kept.length!==NB.length){ NB=kept; changed=true; }
+      if(b.list&&b.list.length){ var have={}; NB.forEach(function(e){ if(e&&e.w) have[e.w.toLowerCase()]=e; });
+        b.list.forEach(function(e){
+          if(!e||!e.w||tombed(e)) return; var k=e.w.toLowerCase(), o=have[k];
+          if(!o){ NB.push(e); have[k]=e; changed=true; return; }
+          var eu=e.ut||0, ou=o.ut||0;   // ut = last edit time: the newer edit wins
+          if(eu>ou){ ['ph','tr','ex','tag','lw','rw','ww','sw','ut'].forEach(function(f){ if(f in e) o[f]=e[f]; }); changed=true; return; }
+          ['ph','tr','ex','tag'].forEach(function(f){ if(!o[f]&&e[f]){o[f]=e[f];changed=true;} });
+          if(eu===ou) ['lw','rw','ww','sw'].forEach(function(f){ if(e[f]&&!o[f]){o[f]=true;changed=true;} });
+        });
+      }
+      if(changed) save();
+    } }catch(e){}
+  function save(sessionsOnly){
+    if(window.__RESTORING__) return;
+    try{ localStorage.setItem('ielts_nb_sessions', JSON.stringify(sessions)); }catch(e){}
+    if(!sessionsOnly){
+      try{ localStorage.setItem('ielts_nb', JSON.stringify(NB)); }catch(e){}
+      try{ localStorage.setItem('ielts_nb_del', JSON.stringify(DEL)); }catch(e){}
+    }
+    try{ if(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.persist){ webkit.messageHandlers.persist.postMessage(JSON.stringify({deck:"notebook",payload:sessionsOnly?{sessions:sessions}:{list:NB,del:DEL,sessions:sessions}})); } }catch(e){}
+  }
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+  /* ---------- dictionary lookup (+ simple lemmatization) ---------- */
+  function get(k){ var v=DICT[k]; if(!v) return null; var i=v.indexOf("\t"); return {ph:i<0?"":v.slice(0,i), tr:i<0?v:v.slice(i+1)}; }
+  function look(word){
+    var w=(word||"").trim().toLowerCase().replace(/[^a-z' -]/g,"");
+    if(!w) return null;
+    var h=get(w); if(h) return h;
+    var c=[];
+    if(w.length>3){
+      if(/ies$/.test(w)) c.push(w.replace(/ies$/,"y"));
+      if(/(ches|shes|sses|xes|zes)$/.test(w)) c.push(w.replace(/es$/,""));
+      if(/s$/.test(w)) c.push(w.replace(/s$/,""));
+      if(/ied$/.test(w)) c.push(w.replace(/ied$/,"y"));
+      if(/ed$/.test(w)){ c.push(w.replace(/ed$/,"")); c.push(w.replace(/ed$/,"e")); c.push(w.replace(/(\w)\1ed$/,"$1")); }
+      if(/ing$/.test(w)){ c.push(w.replace(/ing$/,"")); c.push(w.replace(/ing$/,"e")); c.push(w.replace(/(\w)\1ing$/,"$1")); }
+      if(/ly$/.test(w)) c.push(w.replace(/ly$/,""));
+      if(/ier$/.test(w)) c.push(w.replace(/ier$/,"y"));
+      if(/iest$/.test(w)) c.push(w.replace(/iest$/,"y"));
+      if(/(er|est)$/.test(w)){ c.push(w.replace(/(er|est)$/,"")); c.push(w.replace(/(er|est)$/,"e")); }
+    }
+    for(var i=0;i<c.length;i++){ var x=get(c[i]); if(x){ x.lemma=c[i]; return x; } }
+    return null;
+  }
+  /* ---------- English definitions (ECDICT / WordNet, src/defs.js) ---------- */
+  var DEFS=window.DEFS||{};
+  var ENPOS={n:'n.',v:'v.',a:'adj.',s:'adj.',r:'adv.'};
+  function defsOf(w){
+    var k=wkey(w); if(!k) return [];
+    var v=DEFS[k]; if(!v){ var r=look(k); if(r&&r.lemma) v=DEFS[r.lemma]; }
+    if(!v) return [];
+    return String(v).split('\n').map(function(l){ var m=/^([nvasr])\.?\s+(.*)$/.exec(l.trim()); return m?{p:ENPOS[m[1]],t:m[2]}:{p:'',t:l.trim()}; }).filter(function(x){ return x.t; });
+  }
+  function defsHtml(w,show){
+    var L=defsOf(w); if(!L.length) return '';
+    var line=function(x){ return '<span class="enl">'+(x.p?'<span class="enp">'+x.p+'</span>':'')+esc(x.t)+'</span>'; };
+    show=show||2;
+    return '<span class="enl" style="font-size:11.5px">🇬🇧 英文释义</span>'+L.slice(0,show).map(line).join('')+
+      (L.length>show?'<details><summary>还有 '+(L.length-show)+' 条 ›</summary>'+L.slice(show).map(line).join('')+'</details>':'');
+  }
+  /* ---------- 补全释义：保存时用的是词典原文、之后词典补了义项的词 ---------- */
+  var SUPMARK=' / 〔补充〕';
+  function upgradable(e){
+    var r=look(e&&e.w); if(!r||!r.tr||r.lemma||r.tr.indexOf(SUPMARK)<0) return null;
+    return (e.tr||'').trim()===r.tr.split(SUPMARK)[0].trim() ? r.tr : null;
+  }
+  /* ---------- part of speech (词性, incl. vt/vi) from the translation, with dict fallback ---------- */
+  function posClean(s){ if(!s) return ''; var re=/(vt|vi|adj|adv|prep|pron|interj|conj|abbr|aux|art|num|int|ad|n|v|a)\./g,m,seen={},out=[]; while((m=re.exec(s))){ var t=m[1]; if(t==='a')t='adj'; else if(t==='ad')t='adv'; if(!seen[t]){ seen[t]=1; out.push(t+'.'); } } return out.join('/'); }
+  function posOf(e){ var p=posClean(e&&e.tr); if(p) return p; var r=look(e&&e.w); if(r&&r.tr){ p=posClean(r.tr); if(p) return p; } return ''; }
+  function posBadge(e){ var p=posOf(e); return p?'<span class="pos">'+esc(p)+'</span> ':''; }
+  function emo(w){ var E=window.EMOJI||{}; w=(w||"").toLowerCase().trim(); if(E[w])return E[w]; if(w.indexOf(" / ")>0&&E[w.split(" / ")[0].trim()])return E[w.split(" / ")[0].trim()]; return E[w.replace(/ies$/,"y")]||E[w.replace(/es$/,"")]||E[w.replace(/s$/,"")]||""; }
+  function pic(w){ var I=window.IMG||{}; w=(w||"").toLowerCase().trim(); if(I[w])return I[w]; if(w.indexOf(" / ")>0&&I[w.split(" / ")[0].trim()])return I[w.split(" / ")[0].trim()]; return I[w.replace(/ies$/,"y")]||I[w.replace(/es$/,"")]||I[w.replace(/s$/,"")]||""; }
+  function mediaInline(w,size){ size=size||24; var im=pic(w); if(im) return '<img loading="lazy" decoding="async" src="'+im+'" style="width:'+size+'px;height:'+size+'px;border-radius:5px;object-fit:cover;vertical-align:middle">'; var e=emo(w); return e?'<span style="font-size:'+(size-3)+'px;vertical-align:middle">'+e+'</span>':''; }
+  /* ---------- TTS ---------- */
+  var VOICES=[];
+  function loadVoices(){ try{ var all=(window.speechSynthesis&&speechSynthesis.getVoices())||[]; VOICES=all.filter(function(v){return /^en[-_]/i.test(v.lang)||/english/i.test(v.name);}); if(!VOICES.length) VOICES=all; }catch(e){} }
+  if(window.speechSynthesis){ try{ speechSynthesis.onvoiceschanged=loadVoices; }catch(e){} loadVoices(); setTimeout(loadVoices,300); }
+  // Prefer enhanced / Siri / premium / known-good en-GB voices (checks voiceURI too, where iOS
+  // hides the enhanced-vs-compact difference) instead of grabbing the first accent match.
+  function voiceScore(v){
+    var n=(v.name||'').toLowerCase(), l=(v.lang||'').toLowerCase().replace('_','-'), u=(v.voiceURI||'').toLowerCase(), s=0;
+    if(l==='en-gb') s+=6; else if(l.slice(0,2)==='en') s+=2;
+    if(/premium/.test(n)||/premium/.test(u)) s+=4;
+    if(/enhanced/.test(n)||/enhanced/.test(u)) s+=3;
+    if(/siri/.test(n)||/siri/.test(u)) s+=3;
+    if(/compact/.test(u)) s-=3;
+    if(/\b(daniel|kate|serena|arthur|martha|stephanie|oliver|samantha|karen|moira|tessa)\b/.test(n)) s+=2;
+    if(v.localService) s+=1;
+    if(/novelty|eloquence|trinoids|whisper|zarvox|bells|bubbles|organ|cellos|boing|albert|jester|bahh|wobble/.test(n)) s-=6;
+    return s;
+  }
+  function bestVoice(){ var best=VOICES[0]||null, bs=-1e9; VOICES.forEach(function(v){ var sc=voiceScore(v); if(sc>bs){bs=sc; best=v;} }); return best; }
+  // screen wake lock — keep the phone awake through a dictation / review session
+  var _wake=null, _wantWake=false;
+  function _acqWake(){ try{ if(_wantWake&&!_wake&&navigator.wakeLock){ navigator.wakeLock.request('screen').then(function(w){ if(_wantWake){ _wake=w; w.addEventListener('release',function(){_wake=null;}); } else { w.release(); } }).catch(function(){}); } }catch(e){} }
+  function keepAwake(on){ _wantWake=on; if(on){_acqWake();} else { try{ if(_wake){_wake.release();_wake=null;} }catch(e){} } }
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _acqWake(); });
+  function speak(t){ try{ if(!window.speechSynthesis||!t) return; if(!VOICES.length) loadVoices(); var u=new SpeechSynthesisUtterance(t); u.lang='en-GB'; u.rate=0.9; var v=bestVoice(); if(v) u.voice=v; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){} }
+  /* ---------- add flow ---------- */
+  var cur=null, matchId=null;
+  var TAGIDS={lw:'plw',rw:'prw',ww:'pww',sw:'psw'};
+  // 已记录的词：比较时忽略大小写和结尾标点（旧数据里有 "altogether." 这种）
+  function wkey(s){ return (s||'').trim().toLowerCase().replace(/[.,;:!?]+$/,''); }
+  function wkeys(e){ var k=wkey(e&&e.w); return k?[k].concat(k.split(/\s*\/\s*/).filter(Boolean)):[]; }
+  function findRec(w){
+    var k=wkey(w); if(!k) return null;
+    for(var i=0;i<NB.length;i++){ if(wkeys(NB[i]).indexOf(k)>=0) return {e:NB[i],how:'same'}; }
+    var r=look(w), lem=r&&r.lemma;
+    if(lem&&lem!==k){ for(var j=0;j<NB.length;j++){ if(wkeys(NB[j]).indexOf(lem)>=0) return {e:NB[j],how:'lemma'}; } }
+    return null;
+  }
+  function tagChips(e){ var h=''; for(var c in CATS){ if(e[c]) h+='<span class="'+c+'tag">'+catText(c)+'</span> '; } if(e.tag) h+='<span class="tag">'+esc(e.tag)+'</span> '; if(RV.badge(e.w)) h+='<span class="tag">📅 '+esc(RV.badge(e.w))+'</span> '; return h; }
+  function showOld(m){
+    var box=$('pold'); if(!m){ box.hidden=true; box.innerHTML=''; return; }
+    var e=m.e;
+    box.innerHTML='<div class="oh">✓ 已记录'+(m.how==='lemma'?'原形「'+esc(e.w)+'」':'')+'　<span style="font-weight:400;color:var(--soft)">'+(e.ts?fmtd(e.ts)+' 添加':'')+'</span>'+
+      ' <button class="btn alt sm" id="pgo" data-id="'+e.id+'">在列表中查看</button></div>'+
+      '<div class="otr">'+(esc(e.tr)||'<span class="need">还没有释义</span>')+'</div>'+
+      (e.ex?'<div class="oex">例句：'+esc(plainEx(e.ex))+'</div>':'')+
+      (tagChips(e)?'<div style="margin-top:5px">'+tagChips(e)+'</div>':'');
+    box.hidden=false;
+  }
+  function showSug(w){
+    var k=wkey(w), box=$('psug'), out=[];
+    if(k.length>=2){ for(var i=NB.length-1;i>=0&&out.length<6;i--){ var ek=wkey(NB[i].w); if(ek!==k&&ek.indexOf(k)===0) out.push(NB[i].w); } }
+    box.innerHTML=out.length?'已记录的相近词：'+out.map(function(x){ return '<button class="sugw" data-w="'+esc(x)+'">'+esc(x)+'</button>'; }).join(''):'';
+    box.hidden=!out.length;
+  }
+  // 输入的正好是已记录的词：用它保存的内容和标签填好表单，按钮变「更新」，不再重复添加
+  function setMatch(e){
+    var id=e?e.id:null; if(id===matchId) return;
+    var was=matchId; matchId=id;
+    for(var c in TAGIDS){ var el=$(TAGIDS[c]); if(el&&(e||was)) el.checked=!!(e&&e[c]); }
+    $('pex').placeholder=e&&e.ex?'已保存的例句见上方；这里填写会替换它':'例句 / 语境（可选）';
+    $('ptag').placeholder=e&&e.tag?'已保存：'+e.tag+'（这里填写会替换它）':'来源 / 标签，如 C18T2 听力（可选）';
+    $('add').textContent=e?'更新':'添加';
+  }
+  function preview(){
+    var w=$('w').value.trim(); showSug(w);
+    if(!w){ $('prev').classList.remove('show'); cur=null; showOld(null); setMatch(null); return; }
+    var r=look(w), m=findRec(w), same=m&&m.how==='same'?m.e:null;
+    cur={w:w, ph:(same&&same.ph)||(r&&r.ph)||"", tr:(r&&r.tr)||""};
+    $('pw').textContent=w; $('pph').textContent=cur.ph?("["+cur.ph+"]"):""; $('pemo').innerHTML=mediaInline(w,36);
+    $('ptr').value=(same&&same.tr)||cur.tr;
+    showOld(m); setMatch(same);
+    var dh=defsHtml(w,3); $('pen').innerHTML=dh; $('pen').hidden=!dh;
+    $('hint').textContent = same ? "这个词已经记过了：回车或点「更新」只会更新原记录（释义、例句、标签），不会重复添加"
+      : m ? "你记过它的原形「"+m.e.w+"」；回车仍会把「"+w+"」作为新词加入"
+      : r ? (r.lemma?("词典命中原形："+r.lemma):"已查到，回车或点添加即可保存") : "词典没有这个词，先加入、自己补释义也行";
+    $('prev').classList.add('show');
+  }
+  function flashItem(id,scroll){
+    var el=document.querySelector('.item[data-id="'+id+'"]'); if(!el) return;
+    if(scroll){ var ab=document.querySelector('.addbox'), top=ab&&getComputedStyle(ab).position==='sticky'?ab.offsetHeight+24:16;
+      window.scrollTo({top:Math.max(0,el.getBoundingClientRect().top+window.scrollY-top),behavior:'smooth'}); }
+    el.classList.add('flash'); setTimeout(function(){ el.classList.remove('flash'); },2200);
+  }
+  function reveal(id){
+    if($('search').value||filterMode){ $('search').value=''; if(filterMode) setFilter(filterMode); }
+    var e=findE(id); resetForm(); if(e) $('hint').textContent='已在下方列表中定位到「'+e.w+'」';
+    render(); flashItem(id,true);
+  }
+  function resetForm(){
+    $('w').value=''; $('pex').value=''; $('ptag').value=''; $('ptr').value=''; ['plw','prw','pww','psw'].forEach(function(id){if($(id))$(id).checked=false;}); $('prev').classList.remove('show'); cur=null;
+    showOld(null); setMatch(null); showSug(''); $('pen').hidden=true;
+  }
+  function add(){
+    var w=$('w').value.trim(); if(!w) return;
+    if(!cur||cur.w!==w) preview();
+    var old=matchId&&findE(matchId);
+    if(old){
+      var tr=$('ptr').value.trim(), ex=$('pex').value.trim(), tg=$('ptag').value.trim();
+      if(tr) old.tr=tr; if(ex) old.ex=ex; if(tg) old.tag=tg; if(!old.ph&&cur&&cur.ph) old.ph=cur.ph;
+      for(var c in TAGIDS){ var el=$(TAGIDS[c]); if(el) old[c]=el.checked; }
+      old.ut=Date.now(); save(); resetForm();
+      $('hint').textContent='已更新：'+old.w+'（没有重复添加，共 '+NB.length+' 词）';
+      $('w').focus(); render(); flashItem(old.id,false); return;
+    }
+    var e={id:uid(), w:w, ph:(cur&&cur.ph)||"", tr:$('ptr').value.trim(), ex:$('pex').value.trim(), tag:$('ptag').value.trim(), lw:!!($('plw')&&$('plw').checked), rw:!!($('prw')&&$('prw').checked), ww:!!($('pww')&&$('pww').checked), sw:!!($('psw')&&$('psw').checked), ts:Date.now()};
+    NB.push(e); save();
+    resetForm();
+    $('hint').textContent='已添加：'+w+'　（共 '+NB.length+' 词）';
+    $('w').focus(); render();
+  }
+  $('w').addEventListener('input', preview);
+  $('w').addEventListener('keydown', function(ev){ if(window.__CUSTOM_SHORTCUTS__)return; if(ev.key==='Enter' && !ev.isComposing && ev.keyCode!==229 && !ev.repeat){ ev.preventDefault(); add(); } });
+  $('add').onclick=add;
+  $('psay').onclick=function(){ speak($('w').value.trim()); };
+  $('pold').addEventListener('click',function(ev){ var b=ev.target.closest('#pgo'); if(b) reveal(b.getAttribute('data-id')); });
+  $('psug').addEventListener('click',function(ev){ var b=ev.target.closest('.sugw'); if(!b) return; $('w').value=b.getAttribute('data-w'); preview(); $('w').focus(); });
+  /* ---------- list ---------- */
+  function esc(s){ return (s||"").replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function fmtd(ts){ var d=new Date(ts); return (d.getMonth()+1)+"/"+d.getDate(); }
+  var filterMode='';   // '' | 'lw' | 'rw' | 'ww' | 'sw'
+  function render(){
+    var q=$('search').value.trim().toLowerCase();
+    var counts={lw:0,rw:0,ww:0,sw:0}; for(var i=0;i<NB.length;i++){ for(var ck in counts) if(NB[i][ck]) counts[ck]++; }
+    var rows=NB.slice().reverse().filter(function(e){
+      if(filterMode && !e[filterMode]) return false;
+      return !q || e.w.toLowerCase().indexOf(q)>=0 || (e.tr||"").toLowerCase().indexOf(q)>=0;
+    });
+    $('count').textContent='共 '+NB.length+' 词'+(counts.lw?('　·　🎧 '+counts.lw):'')+(counts.rw?('　·　📖 '+counts.rw):'')+(counts.ww?('　·　📝 '+counts.ww):'')+(counts.sw?('　·　🗣️ '+counts.sw):'')+((q||filterMode)?('（筛出 '+rows.length+'）'):'');
+    var up=NB.filter(upgradable).length; $('upgradeTr').hidden=!up; $('upgradeTr').textContent='📚 补全释义（'+up+' 词）';
+    if(!NB.length){ $('list').innerHTML='<div class="empty">还没有生词。上面输入一个词、回车试试 👆</div>'; return; }
+    if(!rows.length){ var cc=CATS[filterMode]; $('list').innerHTML='<div class="empty">'+(cc?('还没有标记「'+catText(filterMode)+'」的词。<br>在任意单词右上角点 '+cc.emoji+' 即可标记。'):'没有匹配的词。')+'</div>'; return; }
+    $('list').innerHTML=rows.map(function(e){
+      var media=mediaInline(e.w,30);
+      return '<div class="item" data-id="'+e.id+'">'+
+        '<div class="top">'+(media?media+' ':'')+'<span class="w">'+esc(e.w)+'</span>'+(e.ph?'<span class="ph">['+esc(e.ph)+']</span>':'')+' '+posBadge(e)+
+        '<span class="meta"><button class="ghosti say" title="朗读">🔊</button><button class="ghosti lw'+(e.lw?' on':'')+'" title="标记/取消「听力错词」">🎧</button><button class="ghosti rw'+(e.rw?' on':'')+'" title="标记/取消「阅读错词」">📖</button><button class="ghosti ww'+(e.ww?' on':'')+'" title="标记/取消「写作生词」">📝</button><button class="ghosti sw'+(e.sw?' on':'')+'" title="标记/取消「口语生词」">🗣️</button><button class="ghosti del" title="删除">🗑️</button></span></div>'+
+        '<div class="tr" contenteditable="true" data-f="tr">'+(esc(e.tr)|| '<span class="need">点此补释义</span>')+'</div>'+
+        (defsOf(e.w).length?'<div class="en">'+defsHtml(e.w,2)+'</div>':'')+
+        '<div class="exrow"><input class="ex" data-f="ex" placeholder="＋ 例句/语境" value="'+esc(e.ex||'')+'"></div>'+
+        '<div style="margin-top:6px">'+(e.lw?'<span class="lwtag">🎧 听力错词</span> ':'')+(e.rw?'<span class="rwtag">📖 阅读错词</span> ':'')+(e.ww?'<span class="wwtag">📝 写作生词</span> ':'')+(e.sw?'<span class="swtag">🗣️ 口语生词</span> ':'')+(e.tag?'<span class="tag">'+esc(e.tag)+'</span> ':'')+(RV.badge(e.w)?'<span class="tag" title="听写与词义分开记录，显示最先到期的一项">📅 '+esc(RV.badge(e.w))+'</span> ':'')+'<span class="ex" style="float:right">'+fmtd(e.ts)+'</span></div>'+
+      '</div>';
+    }).join('');
+  }
+  function findE(id){ for(var i=0;i<NB.length;i++) if(NB[i].id===id) return NB[i]; return null; }
+  $('list').addEventListener('click', function(ev){
+    var it=ev.target.closest('.item'); if(!it) return; var e=findE(it.getAttribute('data-id')); if(!e) return;
+    if(ev.target.classList.contains('say')) speak(e.w);
+    else if(ev.target.classList.contains('lw')){ e.lw=!e.lw; e.ut=Date.now(); save(); render(); }
+    else if(ev.target.classList.contains('rw')){ e.rw=!e.rw; e.ut=Date.now(); save(); render(); }
+    else if(ev.target.classList.contains('ww')){ e.ww=!e.ww; e.ut=Date.now(); save(); render(); }
+    else if(ev.target.classList.contains('sw')){ e.sw=!e.sw; e.ut=Date.now(); save(); render(); }
+    else if(ev.target.classList.contains('del')){ if(confirm('删除「'+e.w+'」？')){ DEL[(e.w||'').toLowerCase()]=Date.now(); NB=NB.filter(function(x){return x.id!==e.id;}); save(); render(); } }
+  });
+  $('list').addEventListener('blur', function(ev){
+    var f=ev.target.getAttribute&&ev.target.getAttribute('data-f'); if(!f) return;
+    var it=ev.target.closest('.item'); var e=findE(it.getAttribute('data-id')); if(!e) return;
+    var val = f==='tr' ? ev.target.textContent.trim() : ev.target.value.trim();
+    if(e[f]!==val){ e[f]=val; e.ut=Date.now(); save(); }
+  }, true);
+  var searchFrame=0;
+  $('search').addEventListener('input', function(){
+    if(searchFrame) cancelAnimationFrame(searchFrame);
+    searchFrame=requestAnimationFrame(function(){ searchFrame=0; render(); });
+  });
+  $('upgradeTr').onclick=function(){
+    var n=0; NB.forEach(function(e){ var t=upgradable(e); if(t){ e.tr=t; e.ut=Date.now(); n++; } });
+    if(n){ save(); render(); }
+    $('hint').textContent='已为 '+n+' 个词补上词典新增的义项（标有〔补充〕）；你改过的释义没有动。';
+  };
+  function setFilter(m){ filterMode=(filterMode===m)?'':m; ['LW','RW','WW','SW'].forEach(function(k){ $('only'+k).classList.toggle('on',filterMode===k.toLowerCase()); }); render(); }
+  $('onlyLW').onclick=function(){ setFilter('lw'); };
+  $('onlyRW').onclick=function(){ setFilter('rw'); };
+  $('onlyWW').onclick=function(){ setFilter('ww'); };
+  $('onlySW').onclick=function(){ setFilter('sw'); };
+  /* ---------- export ---------- */
+  $('export').onclick=function(){
+    var blob=new Blob([JSON.stringify({notebook:NB},null,1)],{type:'application/json'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ielts_生词本.json'; a.click();
+  };
+  // Each activity/category keeps its own queue, keyed by word rather than NB
+  // array offsets: a sync, deletion or sort must not move the saved bookmark.
+  function checkpoint(kind,cat,order,index,extra){
+    sessions[kind+':'+cat]=Object.assign({words:order.map(function(i){return NB[i].w.toLowerCase();}),idx:index,ts:Date.now()},extra||{});
+    save(true);
+  }
+  function resumePractice(kind,cat){
+    try{ mergeSessions(JSON.parse(localStorage.getItem('ielts_nb_sessions'))); }catch(e){}
+    var s=sessions[kind+':'+cat];
+    if(!s||!Array.isArray(s.words)||!Number.isInteger(s.idx)||s.idx<0||s.idx>s.words.length||(s.idx===s.words.length&&kind!=='quiz')) return null;
+    var byWord=new Map(NB.map(function(e,i){return [e.w.toLowerCase(),i];}));
+    var valid=function(w){var i=byWord.get(w);return i!==undefined&&(!cat||NB[i][cat])&&(kind!=='quiz'||(NB[i].tr||'').trim())&&(kind.charAt(0)!=='x'||prodOk(kind.slice(1),NB[i]));};
+    var words=s.words.filter(valid), idx=s.words.slice(0,s.idx).filter(valid).length;
+    if(!words.length||(idx>=words.length&&kind!=='quiz')) return null;
+    return Object.assign({},s,{order:words.map(function(w){return byWord.get(w);}),idx:idx});
+  }
+  function savePractice(){
+    if(window.__RESTORING__) return;
+    if($('ov').classList.contains('show')) checkpoint('review',rCat,rorder,ri);
+    if($('mov').classList.contains('show')) checkpoint('quiz',mCat,morder,Math.min(morder.length,mi+(manswered?1:0)),{right:mright,wrong:mwrong});
+    if($('xov').classList.contains('show')) xSave();
+    if($('dov').classList.contains('show')) checkpoint('dict',dCat,dorder,Math.min(dorder.length,di+($('dans').readOnly?1:0)),{right:dright,wrong:dwrong,draft:$('dans').readOnly?'':$('dans').value});
+  }
+  window.addEventListener('pagehide',savePractice);
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')savePractice();});
+  $('dans').addEventListener('input',savePractice);
+  /* ---------- review (flashcards) ---------- */
+  var rorder=[], ri=0, rCat='';
+  function shuffleReview(){
+    for(var i=rorder.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=rorder[i];rorder[i]=rorder[j];rorder[j]=t; }
+  }
+  function openReview(cat){
+    rCat=cat||''; rorder=[];
+    for(var i=0;i<NB.length;i++){ if(!rCat || NB[i][rCat]) rorder.push(i); }
+    if(!rorder.length){ alert(rCat?('还没有标记「'+catText(rCat)+'」的词。\n先标记后，再来抽查意思。'):'生词本还是空的'); return; }
+    if(rCat) shuffleReview();
+    var saved=resumePractice('review',rCat); ri=0; if(saved){rorder=saved.order;ri=saved.idx;}
+    $('ov').classList.add('show'); keepAwake(true); showCard();
+  }
+  function showCard(){
+    var e=NB[rorder[ri]]; if(!e) return;
+    $('rw').textContent=e.w; $('rph').textContent=e.ph?('['+e.ph+']'):''; var rim=pic(e.w); $('remo').innerHTML = rim?('<img src="'+rim+'" style="width:130px;height:130px;border-radius:12px;object-fit:cover">'):(emo(e.w)||'');
+    $('rtr').innerHTML=posBadge(e)+esc(e.tr||'（无释义）'); $('rtr').classList.add('hidden'); $('rflip').textContent='显示释义';
+    $('rprog').textContent=(rCat?(catText(rCat)+'　'):'')+(ri+1)+' / '+rorder.length;
+    checkpoint('review',rCat,rorder,ri); speak(e.w);
+  }
+  $('rrestart').onclick=function(){ri=0;showCard();};
+  function uniq(order){ return order.filter(function(x,i){ return order.indexOf(x)===i; }); }   // drop re-test copies
+  $('mrestart').onclick=function(){morder=uniq(morder);mi=0;mright=0;mwrong=[];mShow();};
+  $('drestart').onclick=function(){dorder=uniq(dorder);di=0;dright=0;dwrong=[];dToggle(true);dShow();};
+  $('review').onclick=function(){ openReview(''); };
+  $('reviewRW').onclick=function(){ openReview('rw'); };
+  $('reviewWW').onclick=function(){ openReview('ww'); };
+  $('reviewSW').onclick=function(){ openReview('sw'); };
+  $('rclose').onclick=function(){ savePractice(); $('ov').classList.remove('show'); keepAwake(false); speechSynthesis&&speechSynthesis.cancel(); drainPull(); };
+  $('rflip').onclick=function(){ var t=$('rtr'); if(t.classList.contains('hidden')){ t.classList.remove('hidden'); this.textContent='隐藏'; } else { t.classList.add('hidden'); this.textContent='显示释义'; } };
+  $('rsay').onclick=function(){ speak(NB[rorder[ri]].w); };
+  $('rnext').onclick=function(){ ri=(ri+1)%rorder.length; showCard(); };
+  $('rprev').onclick=function(){ ri=(ri-1+rorder.length)%rorder.length; showCard(); };
+  $('rshuffle').onclick=function(){ shuffleReview(); ri=0; showCard(); };
+  $('ov').addEventListener('click', function(ev){ if(ev.target===$('ov')) $('rclose').click(); });
+
+  /* ---------- category meaning multiple choice ---------- */
+  var morder=[], mi=0, mright=0, mwrong=[], manswered=false, moptions=[], mCat='rw';
+  function shuffleArray(a){
+    for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; }
+    return a;
+  }
+  function openQuiz(cat,fresh){
+    mCat=cat||'rw';
+    morder=[];
+    var meanings={}, distinct=0;
+    for(var i=0;i<NB.length;i++){
+      var tr=(NB[i].tr||'').trim();
+      if(tr&&!meanings[tr]){ meanings[tr]=1; distinct++; }
+      if(NB[i][mCat]&&tr) morder.push(i);
+    }
+    if(!morder.length){ alert('还没有带释义的「'+catText(mCat)+'」。\n先标记并补上释义，再来做选择题。'); return; }
+    if(distinct<2){ alert('至少需要 2 个不同释义的生词，才能生成选择题选项。'); return; }
+    morder=reviewOrder(morder,'m'); mi=0; mright=0; mwrong=[]; var saved=fresh?null:resumePractice('quiz',mCat); if(saved){morder=saved.order;mi=saved.idx;mright=saved.right||0;mwrong=saved.wrong||[];} $('mov').classList.add('show'); keepAwake(true); mShow();
+  }
+  function mShow(){
+    var e=NB[morder[mi]]; if(!e){ mEnd(); return; }
+    manswered=false; $('mword').textContent=e.w; $('mph').textContent=e.ph?('['+e.ph+']'):'';
+    $('mprog').textContent=catText(mCat)+'　第 '+(mi+1)+' / '+morder.length;
+    var correct=(e.tr||'').trim(), seen={}; seen[correct]=1; var distractors=[];
+    // plausible options first (same part of speech, related meaning, similar spelling; never a second right answer)
+    if(RV.distractors) distractors=RV.distractors({w:e.w,zh:correct},NB.map(function(x){return {w:x.w,zh:x.tr};}),3);
+    distractors.forEach(function(tr){ seen[tr]=1; });
+    var rest=[]; for(var i=0;i<NB.length;i++){ var tr=(NB[i].tr||'').trim(); if(tr&&!seen[tr]){ seen[tr]=1; rest.push(tr); } }
+    distractors=distractors.concat(shuffleArray(rest)).slice(0,3); moptions=[correct].concat(distractors); shuffleArray(moptions);
+    $('mchoices').innerHTML=moptions.map(function(tr,i){ return '<button class="mcopt" data-i="'+i+'">'+esc(tr)+'</button>'; }).join('');
+    $('mfb').textContent=''; $('mnext').style.display='none'; $('mnext').textContent=(mi+1===morder.length)?'查看结果':'下一题 ›';
+    checkpoint('quiz',mCat,morder,mi,{right:mright,wrong:mwrong});
+    $('msay').style.display=''; $('mscore').textContent='✓ '+mright+'　已答 '+mi+' / '+morder.length; speak(e.w);
+  }
+  function mCheck(index){
+    if(manswered) return; var e=NB[morder[mi]], correct=(e.tr||'').trim(); manswered=true;
+    var buttons=$('mchoices').querySelectorAll('.mcopt'), ok=moptions[index]===correct;
+    for(var i=0;i<buttons.length;i++){ buttons[i].disabled=true; if(moptions[i]===correct) buttons[i].classList.add('correct'); }
+    if(!ok){
+      var mixed=null; for(var j=0;j<NB.length;j++){ if((NB[j].tr||'').trim()===moptions[index]){ mixed={w:NB[j].w,zh:moptions[index]}; break; } }
+      mwrong.push(e.w.toLowerCase());IELTSMistakes.record(e,'notebook','quiz',moptions[index],mixed?{alt:mixed}:null);requeue(morder,mi);
+    }
+    var plan=planText(RV.answer(nbItem(e),'m',ok?'ok':'bad'));
+    if(ok){ mright++; $('mfb').innerHTML='<span style="color:var(--good)">✓ 回答正确</span>'+plan; }
+    else { if(buttons[index]) buttons[index].classList.add('wrong'); $('mfb').innerHTML='<span style="color:var(--bad)">✗ 正确答案：</span>'+esc(correct)+plan; }
+    $('mscore').textContent='✓ '+mright+'　已答 '+(mi+1)+' / '+morder.length; $('mnext').style.display=''; savePractice();
+  }
+  function mEnd(){
+    manswered=false;
+    checkpoint('quiz',mCat,morder,morder.length,{right:mright,wrong:mwrong});
+    var total=morder.length, pct=total?Math.round(mright/total*100):0;
+    $('mprog').textContent=''; $('mph').textContent=''; $('mword').textContent='选择题完成 🎉'; $('msay').style.display='none'; $('mchoices').innerHTML='';
+    $('mfb').innerHTML='得分 <b>'+mright+' / '+total+'</b>（'+pct+'%）'+
+      (mwrong.length?' <button class="btn sm" id="mretryWrong">重练本轮错题（'+mwrong.length+'）</button>':'')+
+      ' <button class="btn alt sm" id="mredo">再做一次</button>';
+    $('mnext').style.display='none'; $('mscore').textContent='';
+    try{speechSynthesis.cancel();}catch(e){}
+    if($('mretryWrong')) $('mretryWrong').onclick=function(){
+      var words=new Set(mwrong), retry=[];
+      NB.forEach(function(e,i){if(words.has(e.w.toLowerCase())&&e[mCat]&&(e.tr||'').trim())retry.push(i);});
+      if(!retry.length){alert('本轮错词已被移除或不再属于当前分类。');return;}
+      morder=retry;mi=0;mright=0;mwrong=[];mShow();
+    };
+    $('mredo').onclick=function(){ openQuiz(mCat,true); };
+  }
+  $('quizRW').onclick=function(){ openQuiz('rw'); };
+  $('quizWW').onclick=function(){ openQuiz('ww'); };
+  $('quizSW').onclick=function(){ openQuiz('sw'); };
+  $('msay').onclick=function(){ var e=NB[morder[mi]]; if(e) speak(e.w); };
+  $('mchoices').addEventListener('click',function(ev){ var b=ev.target.closest('.mcopt'); if(b) mCheck(parseInt(b.getAttribute('data-i'),10)); });
+  $('mnext').onclick=function(){ mi++; if(mi>=morder.length) mEnd(); else mShow(); };
+  $('mclose').onclick=function(){ savePractice(); $('mov').classList.remove('show'); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} drainPull(); };
+  $('mov').addEventListener('click',function(ev){ if(ev.target===$('mov')) $('mclose').click(); });
+
+  /* ---------- dictation (听写) ---------- */
+  var dorder=[], di=0, dright=0, dwrong=[], dCat='';
+  function dToggle(show){ ['dans','dsay','dsubmit','dskip'].forEach(function(id){ $(id).style.display=show?'':'none'; }); }
+  function openDictate(cat){
+    dCat=cat||'';
+    dorder=[]; for(var i=0;i<NB.length;i++){ if(!dCat || NB[i][dCat]) dorder.push(i); }
+    if(!dorder.length){ alert(dCat?('还没有标记「'+catText(dCat)+'」的词。\n先标记后，再来专门听写。'):'生词本还是空的'); return; }
+    dorder=reviewOrder(dorder,'d');
+    di=0; dright=0; dwrong=[]; var saved=resumePractice('dict',dCat); if(saved){dorder=saved.order;di=saved.idx;dright=saved.right||0;dwrong=saved.wrong||[];} dToggle(true); $('dov').classList.add('show'); keepAwake(true); dShow(); if(saved&&saved.draft){$('dans').value=saved.draft;savePractice();}
+  }
+  function dShow(){
+    var e=NB[dorder[di]]; if(!e){ dEnd(); return; }
+    $('dprog').textContent=(dCat?(catText(dCat)+'　'):'')+'第 '+(di+1)+' / '+dorder.length;
+    var known=RV.info(e.w).rec;
+    homShown=!!(known&&known.hom);           // homophones cannot be told apart by ear: show the meaning first
+    if(homShown) $('dtr').innerHTML='同音词，按这个意思拼写：'+posBadge(e)+esc(e.tr||'（暂无中文释义）'); else $('dtr').textContent='提交答案后显示中文意思';
+    $('dans').value=''; $('dans').readOnly=false; $('dfb').textContent=''; setSubmit('提交');
+    $('dscore').textContent='✓ '+dright+'　✗ '+dwrong.length;
+    checkpoint('dict',dCat,dorder,di,{right:dright,wrong:dwrong,draft:''});
+    setTimeout(function(){ try{$('dans').focus();}catch(e){} },60); speak(e.w);
+  }
+  function dCheck(){
+    var e=NB[dorder[di]]; if(!e) return;
+    if($('dans').readOnly){ dNext(); return; }
+    // British and American spellings both pass; a spacing/apostrophe slip is accepted
+    // once but never counts as remembered.
+    var res=RV.grade($('dans').value, nbItem(e).alts);
+    if(res.empty){ try{$('dans').focus();}catch(x){} return; }
+    var ok=res.ok, dg=(!ok&&RV.diagnose)?RV.diagnose($('dans').value,nbItem(e).alts,DX):null;
+    if(dg&&dg.cause==='homophone'&&!homShown){   // ambiguous test, not a mistake: show the meaning and ask again
+      homShown=true; RV.noteHomophone(nbItem(e));
+      $('dtr').innerHTML='同音词，按这个意思拼写：'+posBadge(e)+esc(e.tr||'（暂无中文释义）');
+      $('dfb').innerHTML='<span style="color:var(--soft)">「'+esc($('dans').value)+'」和这个词读音相同，只靠听分不出，这次不计错。请按上面的释义再写一次。</span>';
+      $('dans').value=''; try{$('dans').focus();}catch(x){} return;
+    }
+    if(!ok){ IELTSMistakes.record(e,'notebook','dict',$('dans').value); requeue(dorder,di); }
+    var plan=(dg?'<div style="font-size:13px;margin-top:6px;line-height:1.6">'+RV.explain(dg)+'</div>':'')+planText(RV.answer(nbItem(e),'d',ok?(res.clean?'ok':'soft'):'bad'));
+    if(ok){ dright++; $('dfb').innerHTML='<span style="color:var('+(res.clean?'--good':'--bad')+')">'+okText(res)+'</span> '+mediaInline(e.w,30)+plan; }
+    else { dwrong.push(e.id); $('dfb').innerHTML='<span style="color:var(--bad)">✗ 应为 <b>'+esc(e.w)+'</b></span> '+mediaInline(e.w,30)+plan; }
+    $('dtr').innerHTML=posBadge(e)+esc(e.tr||'（暂无中文释义）');
+    $('dans').readOnly=true; setSubmit('下一个');
+    $('dscore').textContent='✓ '+dright+'　✗ '+dwrong.length; savePractice(); speak(e.w);
+  }
+  function dNext(){ di++; if(di>=dorder.length) dEnd(); else dShow(); }
+  function dEnd(){
+    checkpoint('dict',dCat,dorder,dorder.length,{right:dright,wrong:dwrong});
+    var total=dorder.length, pct=total?Math.round(dright/total*100):0;
+    $('dprog').textContent=''; $('dtr').textContent='听写完成 🎉'; dToggle(false);
+    $('dfb').innerHTML='得分 <b>'+dright+' / '+total+'</b>（'+pct+'%）'+(dwrong.length?' <button class="btn sm" id="dredo">重练错词 '+dwrong.length+'</button>':' 全对，漂亮！')+
+      '<div style="font-size:12.5px;color:var(--soft);margin-top:8px">当天答对只算当次纠正；隔天答对才会延长复习间隔。到期的词会出现在首页「📅 今日复习」。</div>';
+    var rb=$('dredo'); if(rb) rb.onclick=function(){ var ids=dwrong.slice(); dorder=[]; for(var i=0;i<NB.length;i++) if(ids.indexOf(NB[i].id)>=0) dorder.push(i); di=0;dright=0;dwrong=[]; dToggle(true); dShow(); };
+  }
+  $('dictate').onclick=function(){ openDictate(''); };
+  $('dictateLW').onclick=function(){ openDictate('lw'); };
+  $('dictateRW').onclick=function(){ openDictate('rw'); };
+  $('dictateWW').onclick=function(){ openDictate('ww'); };
+  $('dictateSW').onclick=function(){ openDictate('sw'); };
+  $('dsay').onclick=function(){ speak(NB[dorder[di]].w); };
+  $('dsubmit').onclick=dCheck;
+  $('dskip').onclick=function(){ if(!$('dans').readOnly){ dwrong.push(NB[dorder[di]].id); $('dscore').textContent='✓ '+dright+'　✗ '+dwrong.length; } dNext(); };
+  $('dans').addEventListener('keydown', function(ev){ if(window.__CUSTOM_SHORTCUTS__)return; if(ev.key==='Enter' && !ev.isComposing && ev.keyCode!==229 && !ev.repeat){ ev.preventDefault(); dCheck(); } });
+  $('dclose').onclick=function(){ savePractice(); $('dov').classList.remove('show'); dToggle(true); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} drainPull(); };
+  $('dov').addEventListener('click', function(ev){ if(ev.target===$('dov')) $('dclose').click(); });
+
+  /* ---------- 写作 / 口语: small production drills ----------
+     写作 — 搭配填空 (the word blanked out of your own example / collocation) and 看中文写
+     (Chinese meaning → the English expression): graded and scheduled like dictation.
+     口语 — 情境说句 (one spoken sentence using the word for an exam-style prompt) and 短句复述
+     (hear a sentence, say it back, compare with your own recording): self-checked, so they
+     count in the daily answer log and only schedule speaking practice (srs.js track o).
+     Writing answers go to their own review track p (看到中文能写), not to dictation (d).
+     Every round is checkpointed like the other drills (sessions['x<kind>:ww|sw']). */
+  var XN=10, X=null, REC=null, recToken=0, xAudio=null;
+  var XTITLE={wcloze:'📝 搭配填空',wprompt:'📝 看中文写',sprompt:'🗣️ 情境说句',srepeat:'🗣️ 短句复述'};
+  // Exam questions grouped by topic; a word gets a question from the topic its meaning,
+  // tag or example points to, otherwise one that fits its part of speech.
+  var SPEAK_T=[
+    {k:/工作|职业|职位|公司|员工|雇|薪|经理|办公|同事|求职|面试|\b(job|work|career|employ|salary|office|business|colleague|manager)/i,
+     q:['考官问：<i>Do you work or are you a student?</i> 回答里用上 {w}。','Part 3：<i>What makes a job satisfying?</i> 用 {w} 给出一个观点。']},
+    {k:/学|教育|考试|课程|学校|老师|大学|知识|研究|\b(study|school|universit|exam|course|teach|student|learn|research|educat)/i,
+     q:['考官问：<i>What do you like most about your studies?</i> 用上 {w}。','Part 3：<i>What are the pros and cons of using technology in education?</i> 用 {w} 给出一个观点。']},
+    {k:/科技|技术|电脑|网络|互联网|手机|数字|软件|设备|\b(technolog|computer|internet|online|digital|device|software|phone)/i,
+     q:['考官问：<i>How often do you use your phone or computer?</i> 回答里用上 {w}。','Part 3：<i>Has technology made people\'s lives better?</i> 用 {w} 说明理由。']},
+    {k:/环境|污染|气候|能源|自然|环保|资源|天气|动物|植物|\b(environment|pollut|climate|energy|nature|weather|recycl|animal|plant)/i,
+     q:['考官问：<i>What kind of weather do you like?</i> 用上 {w}。','Part 3：<i>What can individuals do to protect the environment?</i> 用 {w} 给出一个建议。']},
+    {k:/城市|住房|房|建筑|社区|街|乡村|家乡|公寓|\b(city|town|home|house|building|neighbou?rhood|village|flat|apartment|urban)/i,
+     q:['考官问：<i>How has your hometown changed in recent years?</i> 用上 {w}。','考官问：<i>Is there anything you would like to change about where you live?</i> 用上 {w}。']},
+    {k:/旅|度假|景点|出行|交通|车|飞机|\b(travel|trip|tour|holiday|journey|transport|traffic|flight)/i,
+     q:['Part 2：描述一次让你印象深刻的旅行。用 {w} 说一句细节。','Part 3：<i>Should governments spend more money on public transport?</i> 用 {w} 表明立场并说明理由。']},
+    {k:/健康|疾病|医|运动|锻炼|身体|压力|睡眠|\b(health|disease|exercise|medic|sport|fitness|stress|sleep|doctor)/i,
+     q:['考官问：<i>What do you usually do to stay healthy?</i> 回答里用上 {w}。','Part 3：<i>Why do some people find it hard to live a healthy life?</i> 用 {w} 说明原因。']},
+    {k:/食|菜|餐|饮|厨|吃|喝|\b(food|meal|cook|eat|drink|restaurant|diet|dish)/i,
+     q:['考官问：<i>What is your favourite food?</i> 回答里用上 {w}。','Part 3：<i>How have people\'s eating habits changed?</i> 用 {w} 比较过去和现在。']},
+    {k:/购物|消费|钱|价格|广告|商品|买|卖|经济|\b(shop|buy|price|money|advertis|spend|cost|consum|econom)/i,
+     q:['考官问：<i>Do you enjoy shopping?</i> 回答里用上 {w}。','Part 3：<i>Do advertisements make people buy things they don\'t need?</i> 用 {w} 表明观点。']},
+    {k:/家庭|父母|孩子|朋友|关系|邻居|婚|人际|\b(family|parent|child|friend|relationship|neighbou?r|marri)/i,
+     q:['Part 2：描述一个对你影响很大的人。用 {w} 说出开头的一两句。','考官问：<i>Do you prefer spending time with family or friends?</i> 用上 {w}。']},
+    {k:/媒体|新闻|电影|艺术|文化|传统|节日|音乐|书|历史|\b(news|media|film|movie|art|culture|tradition|festival|music|book|history)/i,
+     q:['考官问：<i>What kind of films or music do you enjoy?</i> 用上 {w}。','Part 3：<i>Why is it important to keep traditional culture?</i> 用 {w} 说明理由。']},
+    {k:/政府|社会|法律|政策|犯罪|公共|规则|\b(government|society|law|policy|crime|public|rule|social)/i,
+     q:['Part 3：<i>What should governments do to make cities safer?</i> 用 {w} 给出一个建议。','Part 3：<i>Should there be stricter rules for young people?</i> 用 {w} 表明立场。']}];
+  var SPEAK_POS={
+    'adj.':['用 {w} 描述一个你熟悉的人、地方或东西，再说为什么。','用 {w} 说说你最近的一次心情或感受。'],
+    'adv.':['用 {w} 描述你做某件日常小事的方式。'],
+    'v.':['用 {w} 说一件你最近做过、或打算去做的事。','用 {w} 比较过去和现在你做某件事的方式。'],
+    'n.':['用 {w} 说一说它在你生活里的一个例子。','用 {w} 比较过去和现在的一个变化。']};
+  var SPEAK_ANY=['用 {w} 说一句你最近真实经历过的事。','用 {w} 比较过去和现在的一个变化。'];
+  function pickOf(list,seed){ var h=0; for(var i=0;i<seed.length;i++) h=(h*31+seed.charCodeAt(i))|0; return list[Math.abs(h)%list.length]; }
+  // Same question for a word all day (so a resumed round shows it again), a new one tomorrow.
+  function speakPrompt(e){
+    var seed=e.w.toLowerCase()+'|'+(RV.dayNo?RV.dayNo():0), text=[e.tr,e.tag,plainEx(e.ex),defsOf(e.w).slice(0,2).map(function(d){return d.t;}).join(' ')].join(' ');
+    var hits=SPEAK_T.filter(function(t){ return t.k.test(text); });
+    if(hits.length) return pickOf(pickOf(hits,seed).q,seed+'q');
+    var own=plainEx(e.ex), latin=/[A-Za-z][A-Za-z ,'’\-]{12,}[A-Za-z.!?]/.exec(own);
+    if(latin) return '你记下的例句：<i>'+esc(latin[0])+'</i><br>换一个和你自己有关的情境，用 {w} 说一句新的。';
+    var p=(posOf(e).split('/')[0]||'').replace(/^v[ti]\.$/,'v.');
+    return pickOf(SPEAK_POS[p]||SPEAK_ANY,seed);
+  }
+  function short(tr){ tr=String(tr||'').split('\n')[0].trim(); return tr.length>60?tr.slice(0,59)+'…':tr; }
+  function reEsc(x){ return String(x).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+  // The word (or an inflection of it: stopped, ran, went, took part in) inside one clause of
+  // the learner's example. A part written in [square brackets] is the blank, whatever it is.
+  function clozeIn(text,word){
+    var clauses=String(text||'').split(/[;；\n]|\s\/\s/).map(function(x){return x.trim();}).filter(Boolean);
+    for(var i=0;i<clauses.length;i++){
+      var b=/\[([^\[\]]*[A-Za-z][^\[\]]*)\]/.exec(clauses[i]);
+      if(!b) continue;
+      var bp=plainEx(clauses[i].slice(0,b.index)), bq=plainEx(clauses[i].slice(b.index+b[0].length));
+      if(/[A-Za-z]{2,}/.test(bp+bq)) return {pre:bp,form:b[1].trim(),post:bq};
+    }
+    var alts=String(word||'').split(/\s*\/\s*/).filter(function(a){return a.trim().length>=2;});
+    for(i=0;i<clauses.length;i++) for(var j=0;j<alts.length;j++){
+      var forms=(RV.inflections?RV.inflections(alts[j]):[alts[j].trim()]).sort(function(x,y){return y.length-x.length;})
+        .map(function(f){ return f.split(/\s+/).map(reEsc).join('\\s+'); });
+      var line=plainEx(clauses[i]), m=new RegExp('(^|[^A-Za-z])('+forms.join('|')+')(?![A-Za-z])','i').exec(line);
+      if(!m) continue;
+      var at=m.index+m[1].length, pre=line.slice(0,at), post=line.slice(at+m[2].length);
+      if(/[A-Za-z]{2,}/.test(pre+post)) return {pre:pre,form:m[2],post:post};
+    }
+    return null;
+  }
+  // The example as text: the [blank] markers removed.
+  function plainEx(x){ return String(x||'').replace(/\[([^\[\]]*)\]/g,'$1'); }
+  function sentenceFor(e){
+    var ex=plainEx(e.ex), c=clozeIn(ex,e.w);
+    if(c){ var line=(c.pre+c.form+c.post).trim(); if(line.split(/\s+/).length>=3) return line; }
+    var latin=/[A-Za-z][A-Za-z ,'’\-]{10,}[A-Za-z.!?]/.exec(ex); if(latin) return latin[0];
+    var d=defsOf(e.w)[0]; return d?e.w+' means '+d.t+'.':e.w;
+  }
+  function prodOk(kind,e){
+    if(!e||!e[kind.charAt(0)==='w'?'ww':'sw']) return false;
+    if(kind==='wcloze') return !!clozeIn(e.ex,e.w);
+    if(kind==='wprompt'||kind==='sprompt') return !!(e.tr||'').trim();
+    return true;
+  }
+  // only: limit the round to these NB indices (再练卡住的词); fresh: skip the saved round
+  function openProd(kind,fresh,only){
+    var cat=kind.charAt(0)==='w'?'ww':'sw', list=[];
+    if(!fresh&&!only){
+      var saved=resumePractice('x'+kind,cat);
+      if(saved){
+        X={kind:kind,order:saved.order,i:saved.idx,right:saved.right||0,answered:false,stuck:saved.stuck||[]};
+        $('xov').classList.add('show'); keepAwake(true); xShow();
+        if(saved.draft&&xWriting()) $('xans').value=saved.draft;
+        if(saved.hint&&$('xhint')) $('xhint').click();
+        xSave();
+        $('xfb').innerHTML='<span style="color:var(--soft)">已接着上次继续（✓ '+X.right+'）。想换一组，结束后点「再来一组」。</span>';
+        return;
+      }
+    }
+    for(var i=0;i<NB.length;i++){ if(prodOk(kind,NB[i])&&(!only||only.indexOf(i)>=0)) list.push(i); }
+    if(!list.length){
+      alert({wcloze:'还没有可以挖空的写作生词。\n在写作生词的「例句 / 语境」里写一句含这个词的英文搭配或句子，就能做搭配填空。\n想指定挖空的部分，用方括号括起来，例如 He [went] abroad.',
+        wprompt:'还没有带中文释义的「写作生词」。',sprompt:'还没有带中文释义的「口语生词」。',srepeat:'还没有标记「口语生词」的词。'}[kind]); return;
+    }
+    if(cat==='ww') list=reviewOrder(list,'p');
+    else{                                       // stuck words first, then never practised, then by due day
+      var byW={}; list=shuffleArray(list); list.forEach(function(i){ byW[NB[i].w]=i; });
+      list=(RV.speakOrder?RV.speakOrder(list.map(function(i){return NB[i].w;})):list.map(function(i){return NB[i].w;})).map(function(w){return byW[w];});
+    }
+    X={kind:kind,order:list.slice(0,XN),i:0,right:0,answered:false,stuck:[]};
+    $('xov').classList.add('show'); keepAwake(true); xShow();
+  }
+  function xWriting(){ return X&&X.kind.charAt(0)==='w'; }
+  function xSave(){
+    if(!X||window.__RESTORING__) return;
+    var at=Math.min(X.order.length,X.i+(X.answered?1:0)), live=!X.answered&&at<X.order.length;
+    checkpoint('x'+X.kind,xWriting()?'ww':'sw',X.order,at,{right:X.right,stuck:X.stuck,draft:live&&xWriting()?$('xans').value:'',hint:live&&!!X.hint});
+  }
+  function xShow(){
+    stopRec(true);
+    var e=X&&NB[X.order[X.i]]; if(!e){ xEnd(); return; }
+    X.answered=false; X.hint=false; X.say=e.w; X.clip=null;
+    var w=xWriting(), body='';
+    $('xprog').textContent=XTITLE[X.kind]+'　第 '+(X.i+1)+' / '+X.order.length;
+    if(X.kind==='wcloze'){
+      var c=clozeIn(e.ex,e.w); X.want=[c.form]; X.reveal=esc(c.pre)+'<b>'+esc(c.form)+'</b>'+esc(c.post);
+      body='<div class="xcloze">'+esc(c.pre)+'<span class="gap">&nbsp;</span>'+esc(c.post)+'</div><div class="xmean">'+posBadge(e)+esc(short(e.tr))+'</div><div class="xtip">按句子需要写出正确形式（单复数、时态）</div>';
+    }else if(X.kind==='wprompt'){
+      X.want=nbItem(e).alts; X.reveal='<b>'+esc(e.w)+'</b>';
+      body='<div class="xmean big">'+posBadge(e)+esc(e.tr||'')+'</div><div class="xtip">写出对应的英文单词或表达　<button class="ghosti" id="xhint" style="font-size:13px">🔤 首字母</button><span id="xhinttext"></span></div>';
+    }else if(X.kind==='sprompt'){
+      var q=speakPrompt(e);
+      body='<div class="rw">'+esc(e.w)+'</div><div class="rph">'+(e.ph?'['+esc(e.ph)+']':'')+'</div><div class="xmean">'+posBadge(e)+esc(short(e.tr))+'</div>'+
+        '<div class="xq">'+q.replace('{w}','<b>'+esc(e.w)+'</b>')+'</div><div class="xtip">先想 5 秒，再完整说一句。可以录音，回放听听自己说得是否流畅。</div>';
+    }else{
+      X.say=sentenceFor(e);
+      body='<div class="xtip">听这句话，然后跟着完整复述一遍；说完录音回放，和原音对比。</div><div class="xsent hidden" id="xsent">'+esc(X.say)+'</div>'+
+        '<button class="ghosti" id="xshow" style="font-size:13px">👀 显示原句</button>';
+    }
+    $('xbody').innerHTML=body;
+    $('xinrow').hidden=!w; $('xrec').hidden=w; $('xsubmit').hidden=!w; $('xok').hidden=w; $('xbad').hidden=w;
+    $('xans').value=''; $('xans').readOnly=false; $('xfb').innerHTML=''; $('xnext').hidden=false; $('xnext').textContent='跳过 ›';
+    $('xsubmit').dataset.base='提交'; $('xsubmit').textContent='提交'+submitHint();
+    $('xrecnote').textContent=w?'':(recSupported()?'':'此环境不支持录音，可以直接开口说。');
+    $('xrecbtn').disabled=!recSupported(); $('xrecbtn').textContent='🎙️ 录音'; $('xplay').disabled=true;
+    $('xscore').textContent=(w?'✓ ':'说出 ')+X.right+'　/ 已做 '+X.i;
+    if($('xhint')) $('xhint').onclick=function(){ X.hint=true; xSave(); var t=X.want[0]||'', n=t.replace(/\s/g,'').length; $('xhinttext').textContent=t.charAt(0)+' _'.repeat(Math.max(0,n-1))+'（'+n+' 字母）'; try{$('xans').focus();}catch(x){} };
+    if($('xshow')) $('xshow').onclick=function(){ $('xsent').classList.remove('hidden'); this.remove(); };
+    if(w) setTimeout(function(){ try{$('xans').focus();}catch(x){} },60);
+    if(X.kind==='srepeat'||X.kind==='sprompt') speak(X.say);
+    xSave();
+  }
+  function xSubmit(){
+    if(!xWriting()) return;
+    if(X.answered){ xNext(); return; }
+    var e=NB[X.order[X.i]], typed=$('xans').value, g=RV.grade(typed,X.want);
+    if(g.empty){ try{$('xans').focus();}catch(x){} return; }
+    var res=!g.ok?'bad':(!g.clean||X.hint)?'soft':'ok';
+    X.answered=true; $('xans').readOnly=true;
+    if(res==='bad'){ IELTSMistakes.record(e,'notebook',X.kind,typed,{expected:X.want}); requeue(X.order,X.i); } else X.right++;
+    var plan=planText(RV.answer(nbItem(e),'p',res));     // 看到中文能写: its own track, not dictation
+    $('xfb').innerHTML=(res==='bad'?'<span style="color:var(--bad)">✗ 应为</span> ':res==='soft'?'<span style="color:var(--soft)">✓ 正确（'+(X.hint?'用了首字母提示':'写法有小误')+'，本次不计入掌握）</span> ':'<span style="color:var(--good)">✓ 正确</span> ')+
+      '<span style="font-size:16px">'+X.reveal+'</span>'+(res==='bad'?'<div class="xref">你写的：'+esc(typed)+'</div>':'')+
+      (e.ex&&X.kind==='wprompt'?'<div class="xref">你的例句：'+esc(plainEx(e.ex))+'</div>':'')+plan;
+    $('xsubmit').dataset.base='下一个'; $('xsubmit').textContent='下一个'+submitHint(); $('xnext').hidden=true;
+    $('xscore').textContent='✓ '+X.right+'　/ 已做 '+(X.i+1);
+    xSave();
+    speak(e.w);
+  }
+  function xSelf(ok){
+    if(xWriting()||X.answered) return;
+    var e=NB[X.order[X.i]]; X.answered=true; stopRec(false);
+    if(ok) X.right++; else if(X.stuck.indexOf(e.w)<0) X.stuck.push(e.w);
+    if(window.IELTSStats) IELTSStats.tally('notebook',e.w,ok?'ok':'bad');
+    var sp=RV.spoke?RV.spoke(nbItem(e),ok):null;
+    $('xok').hidden=true; $('xbad').hidden=true; $('xnext').hidden=false; $('xnext').textContent=X.i+1>=X.order.length?'查看结果 ›':'下一个 ›';
+    if($('xsent')) $('xsent').classList.remove('hidden');
+    $('xfb').innerHTML=(ok?'<span style="color:var(--good)">✓ 记为说出来了</span>':'<span style="color:var(--bad)">✗ 记为卡住了，下次再练</span>')+
+      (e.ex?'<div class="xref">你记下的例句：'+esc(e.ex)+'</div>':'')+(sp?'<div class="xref">📅 '+esc(sp.text)+'</div>':'')+'<div class="xref">口语练习靠自评，只安排口语复练，不改变听写、词义的复习安排。</div>';
+    $('xscore').textContent='说出 '+X.right+'　/ 已做 '+(X.i+1);
+    xSave();
+    setTimeout(function(){ try{$('xnext').focus();}catch(x){} },30);
+  }
+  function xNext(){ X.i++; $('xnext').hidden=false; xShow(); }
+  function xEnd(){
+    stopRec(true);
+    var total=X.order.length, w=xWriting();
+    $('xprog').textContent=XTITLE[X.kind]+'　完成';
+    $('xbody').innerHTML='<div style="font-size:40px;margin-top:10px">'+(X.right===total?'🎉':'💪')+'</div>';
+    $('xinrow').hidden=true; $('xrec').hidden=true; $('xsubmit').hidden=true; $('xok').hidden=true; $('xbad').hidden=true; $('xnext').hidden=true; $('xrecnote').textContent='';
+    var stuck=(X.stuck||[]).map(function(w){ for(var i=0;i<NB.length;i++) if(NB[i].w===w) return i; return -1; }).filter(function(i){return i>=0;});
+    $('xfb').innerHTML=(w?'答对 ':'说出 ')+'<b>'+X.right+' / '+total+'</b>'+(w?'（含重测）':'')+' <button class="btn sm" id="xagain">再来一组</button>'+
+      (stuck.length?'<div class="xref">卡住了：'+stuck.map(function(i){return esc(NB[i].w);}).join('、')+'。下一组口语会先练这些词。 <button class="btn alt sm" id="xstuck">现在再练一遍</button></div>':'');
+    $('xscore').textContent='';
+    checkpoint('x'+X.kind,w?'ww':'sw',X.order,X.order.length,{right:X.right});   // finished: the next open starts a new round
+    var kind=X.kind;
+    $('xagain').onclick=function(){ openProd(kind,true); };
+    if($('xstuck')) $('xstuck').onclick=function(){ openProd(kind,true,stuck); };
+  }
+  function recSupported(){ return !!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder); }
+  function stopRec(discard){
+    if(discard){
+      recToken++;                 // also invalidates permission / onstop callbacks still pending
+      if(xAudio){ xAudio.pause(); xAudio=null; }
+      if(X&&X.clip){ try{ URL.revokeObjectURL(X.clip); }catch(e){} X.clip=null; }
+    }
+    var me=REC;
+    REC=null;
+    if(!me) return;
+    me.discard=!!discard||!me.rec;
+    try{ if(me.rec&&me.rec.state==='recording') me.rec.stop(); }catch(e){}
+    if(me.stream) me.stream.getTracks().forEach(function(t){t.stop();});
+    $('xrecbtn').disabled=!recSupported();
+  }
+  function toggleRec(){
+    if(REC){ stopRec(false); return; }
+    if(!X||xWriting()||!recSupported()) return;
+    try{ speechSynthesis.cancel(); }catch(e){}
+    var me={round:X,index:X.i,token:++recToken,stream:null,rec:null,discard:false};
+    REC=me; $('xrecbtn').disabled=true; $('xrecnote').textContent='正在请求麦克风…';
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      me.stream=stream;
+      if(REC!==me||me.discard||me.token!==recToken){ stream.getTracks().forEach(function(t){t.stop();}); return; }
+      var r=new MediaRecorder(stream), chunks=[]; me.rec=r;
+      r.ondataavailable=function(ev){ if(ev.data&&ev.data.size) chunks.push(ev.data); };
+      r.onstop=function(){
+        stream.getTracks().forEach(function(t){t.stop();});
+        if(REC===me) REC=null;
+        if(me.discard||X!==me.round||X.i!==me.index||me.token!==recToken) return;
+        if(X.clip) try{ URL.revokeObjectURL(X.clip); }catch(e){}
+        X.clip=URL.createObjectURL(new Blob(chunks,{type:r.mimeType||'audio/mp4'}));
+        $('xplay').disabled=false; $('xrecbtn').disabled=false; $('xrecbtn').textContent='🎙️ 重录'; $('xrecnote').textContent='录音已就绪，可以回放或重录。';
+      };
+      r.onerror=function(){ if(REC===me){ stopRec(true); $('xrecnote').textContent='录音中断，请重试，也可以直接开口说。'; } };
+      r.start(); $('xrecbtn').disabled=false; $('xrecbtn').textContent='⏹ 停止'; $('xrecnote').textContent='录音中…说完点「停止」';
+    }).catch(function(){
+      if(REC!==me) return;
+      stopRec(false); $('xrecbtn').textContent='🎙️ 录音'; $('xrecnote').textContent='无法使用麦克风（未授权或设备不支持），可以直接开口说。';
+    });
+  }
+  $('xwcloze').onclick=function(){ openProd('wcloze'); };
+  $('xwprompt').onclick=function(){ openProd('wprompt'); };
+  $('xsprompt').onclick=function(){ openProd('sprompt'); };
+  $('xsrepeat').onclick=function(){ openProd('srepeat'); };
+  $('xsubmit').onclick=xSubmit;
+  $('xok').onclick=function(){ xSelf(true); };
+  $('xbad').onclick=function(){ xSelf(false); };
+  $('xnext').onclick=function(){ if(X&&xWriting()&&!X.answered) requeue(X.order,X.i); xNext(); };
+  $('xrecbtn').onclick=function(){ if(!REC) $('xrecnote').textContent=''; toggleRec(); };
+  $('xplay').onclick=function(){ if(X&&X.clip){ try{ if(xAudio) xAudio.pause(); xAudio=new Audio(X.clip); xAudio.play().catch(function(){}); }catch(e){} } };
+  $('xsay').onclick=function(){ if(X) speak(X.say); };
+  $('xans').addEventListener('keydown',function(ev){ if(window.__CUSTOM_SHORTCUTS__)return; if(ev.key==='Enter'&&!ev.isComposing&&ev.keyCode!==229&&!ev.repeat){ ev.preventDefault(); xSubmit(); } });
+  $('xans').addEventListener('input',xSave);
+  $('xclose').onclick=function(){ xSave(); stopRec(true); $('xov').classList.remove('show'); keepAwake(false); try{speechSynthesis.cancel();}catch(e){} X=null; drainPull(); };
+  $('xov').addEventListener('click',function(ev){ if(ev.target===$('xov')) $('xclose').click(); });
+  window.addEventListener('pagehide',function(){ stopRec(true); });
+
+  /* live refresh after a sync pull — see the deck pages for why this is required.
+     dorder indexes into NB, so defer while a review/dictation overlay is open. */
+  var _pullPending=false;
+  // #mov (选择题) holds INDICES into NB via morder — swapping NB mid-quiz would silently
+  // change the question under the user, so every overlay must gate the rehydrate.
+  function overlayOpen(){ return $('ov').classList.contains('show')||$('dov').classList.contains('show')||$('mov').classList.contains('show')||$('xov').classList.contains('show'); }
+  function rehydrateFromStorage(){
+    if(overlayOpen()){ _pullPending=true; return; }
+    try{ var n=JSON.parse(localStorage.getItem('ielts_nb')); if(n) NB=n; }catch(e){}
+    try{ var d=JSON.parse(localStorage.getItem('ielts_nb_del')); if(d) DEL=d; }catch(e){}
+    render();
+  }
+  function drainPull(){ if(_pullPending){ _pullPending=false; rehydrateFromStorage(); } }
+  window.addEventListener('ielts:pulled',rehydrateFromStorage);
+
+  render();
+  if(!window.DICT){ $('hint').textContent='⚠️ 词典未加载（dict.js 缺失），仍可手动记词与发音。'; }
+</script>
+</body>
+</html>
