@@ -93,21 +93,24 @@
     <h2>练习</h2>
     <p class="note" style="margin:0" id="pNote"></p>
     <div class="tools">
+      <label style="font-size:13.5px">每轮
+        <select id="pSize"></select>
+      </label>
       <button class="btn lg" id="pStart">开始练习</button>
       <button class="btn alt" id="resume" hidden></button>
     </div>
-    <p class="note">到期词、薄弱词优先，然后是还没测过的词。答后立即反馈；选错、没想起、拼错或写了近义词的词，隔几题换一种释义再测一次。</p>
+    <p class="note">到期词、薄弱词优先，然后是还没测过的词；选「全部」会把当前范围的词全部练一遍。中途退出会保存进度。答后立即反馈；选错、没想起、拼错或写了近义词的词，隔几题换一种释义再测一次。</p>
   </div>
 
   <div class="panel">
     <h2>测试</h2>
     <div class="tools" style="margin-top:0">
       <label style="font-size:13.5px">题数
-        <select id="tSize"><option>10</option><option selected>20</option></select>
+        <select id="tSize"></select>
       </label>
       <button class="btn lg" id="tStart">开始测试</button>
     </div>
-    <p class="note">从当前范围随机抽题，答题时不显示对错，结束后统一反馈。成绩只算每题的首次作答，与练习的正确率分开统计。</p>
+    <p class="note">从当前范围随机抽题（选「全部」就是整个范围打乱顺序考一遍），答题时不显示对错，结束后统一反馈。成绩只算每题的首次作答，与练习的正确率分开统计。</p>
   </div>
 
   <div class="panel">
@@ -230,6 +233,7 @@
       if((tr.lv||0)>=RV.STABLE) steady++; });
     $('pNote').textContent=P.items.length?('到期 '+due+' · 薄弱 '+wk+' · 未测过 '+fresh):'这个范围还没有可出题的词。';
     $('pStart').disabled=!P.items.length; $('tStart').disabled=!P.items.length;
+    paintSize('pSize',P.items.length); paintSize('tSize',P.items.length);
     // Accuracy from the per-answer log: first tries only, practice and test kept apart, last 30 days.
     var pr=[0,0], te=[0,0], pc=[0,0], tc=[0,0], gap=[0,0], kinds={2:0,3:0,4:0,0:0};
     P.items.forEach(function(it){ var tr=trOf(it.key); if(!tr) return;
@@ -268,6 +272,18 @@
   $('flags').onclick=function(ev){ var b=ev.target.closest('[data-clear]'); if(!b) return; RV.recallClear(b.getAttribute('data-clear')); paintFlags(); };
   $('fmts').onclick=function(ev){ var b=ev.target.closest('[data-fmt]'); if(!b) return; FMT=b.getAttribute('data-fmt'); try{ localStorage.setItem('ielts_edef_fmt',FMT); }catch(e){} paint(); };
   $('cats').onclick=function(ev){ var b=ev.target.closest('[data-cat]'); if(!b) return; CAT=b.getAttribute('data-cat'); try{ localStorage.setItem('ielts_edef_cat',CAT); }catch(e){} paint(); };
+
+  /* ---------- round size: 10 / 20 / 50 / 100 / 全部 (0), remembered per mode ---------- */
+  var SIZES=[10,20,50,100,0];
+  function sizeOf(id){ try{ var v=localStorage.getItem('ielts_edef_'+id); if(v!=null&&SIZES.indexOf(+v)>=0) return +v; }catch(e){} return 20; }
+  function paintSize(id,total){
+    var list=SIZES.filter(function(n){ return n===0||n<total; }), cur=sizeOf(id);   // 50 in a 13-word scope is just 全部
+    if(list.indexOf(cur)<0) cur=0;
+    $(id).innerHTML=list.map(function(n){
+      return '<option value="'+n+'"'+(n===cur?' selected':'')+'>'+(n?n+' 题':'全部（'+total+' 词）')+'</option>'; }).join('');
+  }
+  function roundSize(id,total){ var n=+$(id).value; return n>0?Math.min(n,total):total; }
+  ['pSize','tSize'].forEach(function(id){ $(id).onchange=function(){ try{ localStorage.setItem('ielts_edef_'+id,$(id).value); }catch(e){} }; });
 
   /* ---------- building a round ---------- */
   function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)), t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
@@ -530,8 +546,8 @@
   document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _acqWake(); });
 
   /* ---------- wiring ---------- */
-  $('pStart').onclick=function(){ begin('p',practiceList(pool(CAT).items,20)); };
-  $('tStart').onclick=function(){ begin('t',shuffle(pool(CAT).items.slice()).slice(0,+$('tSize').value||20)); };
+  $('pStart').onclick=function(){ var it=pool(CAT).items; begin('p',practiceList(it,roundSize('pSize',it.length))); };
+  $('tStart').onclick=function(){ var it=pool(CAT).items; begin('t',shuffle(it.slice()).slice(0,roundSize('tSize',it.length))); };
   $('resume').onclick=function(){ var s=loadSess(); if(!s){ paint(); return; } S=s; CAT=s.cat||CAT; open(); };
   $('dsubmit').onclick=function(){ submit(false); };
   $('dforgot').onclick=function(){ if(S&&S.fmt==='c'){ if(!answered) settleChoice('',false); } else submit(true); };

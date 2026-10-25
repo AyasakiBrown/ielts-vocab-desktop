@@ -127,3 +127,44 @@ assert.deepEqual([m.e.lv, m.d.lv], [2, 3]);
 assert.ok(sent.some(p => p.deck === 'srs' && p.payload.items.anxious && p.payload.items.anxious.e));
 
 console.log('PASS: 英义猜词 bank hides its answers; judging separates recalled / hinted / misspelled / synonym / not recalled; track e is kept apart from dictation and the mixed queue, needs another day and another wording to count as stable, and flagged items are not scored; 选择题 options never also fit and picking never raises the recall level.');
+
+
+// Exercise the shipped size controls and start handlers with isolated storage.
+{
+  const fs = require('node:fs'), vm = require('node:vm');
+  const html = fs.readFileSync(path.resolve(__dirname, '../src/edef.html'), 'utf8');
+  const elements = new Map(), prefs = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, {
+      value: '',
+      set innerHTML(text) {
+        this.options = [...text.matchAll(/<option value="(\d+)"( selected)?>([^<]+)<\/option>/g)]
+          .map(m => ({value: m[1], selected: !!m[2], label: m[3]}));
+        this.value = this.options.find(o => o.selected)?.value ?? this.options[0]?.value ?? '';
+      }
+    });
+    return elements.get(id);
+  };
+  const ctx = vm.createContext({$: element, localStorage: {
+    getItem: k => prefs.has(k) ? prefs.get(k) : null,
+    setItem: (k, v) => prefs.set(k, String(v))
+  }});
+  const start = html.indexOf('  var SIZES='), end = html.indexOf('  /* ---------- building a round', start);
+  assert.ok(start > 0 && end > start);
+  vm.runInContext(html.slice(start, end), ctx);
+  for (const total of [0, 1, 10, 13, 20, 50, 100, 137]) {
+    ctx.paintSize('pSize', total);
+    assert.deepEqual(element('pSize').options.map(o => +o.value), [10,20,50,100,0].filter(n => !n || n < total));
+    assert.equal(ctx.roundSize('pSize', total), total > 20 ? 20 : total);
+  }
+  ctx.paintSize('pSize', 137); element('pSize').value='50'; element('pSize').onchange();
+  ctx.paintSize('tSize', 137); element('tSize').value='10'; element('tSize').onchange();
+  ctx.paintSize('pSize', 13); assert.equal(ctx.roundSize('pSize',13),13);
+  ctx.paintSize('pSize',137); assert.equal(ctx.roundSize('pSize',137),50);
+  ctx.paintSize('tSize',137); assert.equal(ctx.roundSize('tSize',137),10);
+  element('tSize').value='0'; element('tSize').onchange();
+  ctx.paintSize('tSize',137); assert.equal(ctx.roundSize('tSize',137),137);
+  prefs.set('ielts_edef_pSize','invalid'); ctx.paintSize('pSize',137);
+  assert.equal(ctx.roundSize('pSize',137),20);
+  console.log('PASS: shipped round-size controls cover empty/small/exact-limit scopes, all words, separate preferences, invalid settings and restoring a larger scope.');
+}

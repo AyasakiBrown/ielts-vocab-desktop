@@ -2,6 +2,14 @@
 
 本地离线词汇练习工具，包含 Part 1 高频词、词汇真经、听力场景词汇、生词本及错词本；生词支持听力、阅读、写作、口语分类和专项练习。
 
+## v1.1.6 更新（2026-10-25）
+
+- 「英义猜词」的练习与测试可选择每轮 10／20／50／100 题或全部。
+- 练习与测试分别记住上次选择的题数；当前范围词数不足时，只显示适用题数和「全部」。
+- 「全部」覆盖当前范围的词；测试会打乱顺序，练习继续按到期词、薄弱词优先排列，并保留断点。
+
+升级保留现有学习记录。本版继续标记为测试版；Windows 真机、Intel Mac 实机及真实发音／麦克风流程仍待验收。
+
 ## v1.1.5 更新（2026-10-21）
 
 - 新增「英义猜词」：默认以英文释义选择单词，也可切换自行输入；使用独立的英义回忆记录，保留练习断点。
@@ -74,6 +82,8 @@ python3 release-tools/build_release.py
 发布构建要求 `src/`、`release-tools/` 已提交，并把提交号写入 `SOURCE_COMMIT.txt`；版本与源码提交的对应见 `release-tools/VERSIONS.md`。
 
 输出到 `GitHub-Release/`。脚本构建 Mac 通用二进制，并下载固定版本 Electron 44.3.0 的 Windows x64 官方运行时，使用官方 SHA-256 清单校验。保留 Electron 自带许可证文件。
+
+离线构建可设置 `IELTS_ELECTRON_CACHE` 为缓存目录，其中需有上述 Electron 官方 zip 及同版本 `SHASUMS256.txt`；缓存仍必须通过 SHA-256 校验。
 
 Windows 使用 Electron 官方的[手动分发方式](https://www.electronjs.org/docs/latest/tutorial/application-distribution)。当前不提供自动更新。
 

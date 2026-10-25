@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = '1.1.5'
+VERSION = '1.1.6'
 OUT = ROOT / 'GitHub-Release' / ('v' + VERSION)
 ELECTRON = '44.3.0'
 ASSETS = ['index.html', 'p1.html', 'vj.html', 'scene.html', 'notebook.html',
@@ -115,8 +115,13 @@ def main():
         base = f'https://github.com/electron/electron/releases/download/v{ELECTRON}/'
         download = stage / name
         sums = stage / 'SHASUMS256.txt'
-        run('curl', '-fL', '--retry', '3', '--max-time', '300', '-o', str(download), base + name)
-        run('curl', '-fL', '--retry', '3', '--max-time', '60', '-o', str(sums), base + 'SHASUMS256.txt')
+        cache = os.environ.get('IELTS_ELECTRON_CACHE')
+        if cache:
+            shutil.copyfile(Path(cache) / name, download)
+            shutil.copyfile(Path(cache) / 'SHASUMS256.txt', sums)
+        else:
+            run('curl', '-fL', '--retry', '3', '--max-time', '300', '-o', str(download), base + name)
+            run('curl', '-fL', '--retry', '3', '--max-time', '60', '-o', str(sums), base + 'SHASUMS256.txt')
         expected = next(line.split()[0] for line in sums.read_text().splitlines() if line.split()[-1].lstrip('*') == name)
         assert hashlib.sha256(download.read_bytes()).hexdigest() == expected, 'Electron checksum mismatch'
         with zipfile.ZipFile(download) as z: z.extractall(win)
